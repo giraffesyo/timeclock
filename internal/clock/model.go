@@ -83,10 +83,10 @@ type Project struct {
 	ID           uuid.UUID  `json:"id"`
 	CustomerID   *uuid.UUID `json:"customerId,omitempty" doc:"Absent for internal work."`
 	CustomerName string     `json:"customerName" doc:"Empty for internal work."`
-	Name         string    `json:"name"`
-	Code         string    `json:"code" doc:"A charge code or contract number."`
-	Billable     bool      `json:"billable"`
-	Archived     bool      `json:"archived" doc:"The project itself is archived."`
+	Name         string     `json:"name"`
+	Code         string     `json:"code" doc:"A charge code or contract number."`
+	Billable     bool       `json:"billable"`
+	Archived     bool       `json:"archived" doc:"The project itself is archived."`
 	// CustomerArchived means the project takes no new time either way.
 	CustomerArchived bool `json:"customerArchived"`
 }

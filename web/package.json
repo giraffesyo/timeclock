@@ -11,7 +11,8 @@
     "typecheck": "tsc6 -b",
     "lint": "biome check --error-on-warnings . && parallelworks-i18n check --dir src/i18n/locales && parallelworks-i18n unused --dir src/i18n/locales --src src --keep apiErrors",
     "format": "biome check --write .",
-    "gen:api": "go -C .. run ./cmd/timeclock-server openapi > src/api/openapi.json && openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
+    "gen:api": "go -C .. run ./cmd/timeclock-server openapi > src/api/openapi.json && openapi-typescript src/api/openapi.json -o src/api/schema.d.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@parallelworks/lint": "^0.4.0",
+    "@playwright/test": "^1.63.0",
     "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.42",
