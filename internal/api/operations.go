@@ -297,6 +297,24 @@ func registerEntries(a huma.API, d Deps) {
 			return &entryBody{out}, nil
 		})
 
+	huma.Register(a, op(http.MethodPost, "/clock/switch", "clock-switch", "Move the caller's running clock to other work", "Clock"),
+		func(ctx context.Context, in *struct {
+			Body struct {
+				ProjectID *uuid.UUID `json:"projectId,omitempty"`
+				Note      string     `json:"note,omitempty" maxLength:"2000"`
+			}
+		}) (*entryBody, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := d.Clock.Switch(ctx, actor, in.Body.ProjectID, in.Body.Note)
+			if err != nil {
+				return nil, err
+			}
+			return &entryBody{out}, nil
+		})
+
 	huma.Register(a, op(http.MethodPost, "/clock/out", "clock-out", "Stop the caller's clock", "Clock"),
 		func(ctx context.Context, _ *struct{}) (*entryBody, error) {
 			actor, err := d.actor(ctx)

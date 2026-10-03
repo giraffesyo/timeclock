@@ -24,6 +24,7 @@ export function ProjectSelect({
   className,
   id,
   disabled,
+  label,
 }: {
   value: string;
   onChange: (projectId: string) => void;
@@ -32,6 +33,8 @@ export function ProjectSelect({
   className?: string;
   id?: string;
   disabled?: boolean;
+  /** What the control is for, when it isn't simply "Project". */
+  label?: string;
 }) {
   const t = useTranslations('common.project');
   const active = useProjects();
@@ -41,7 +44,7 @@ export function ProjectSelect({
   return (
     <select
       id={id}
-      aria-label={t('label')}
+      aria-label={label ?? t('label')}
       className={cn(controlClass, className)}
       value={value}
       required={required}

@@ -7,7 +7,13 @@
     "notePlaceholder": "What are you working on? (optional)",
     "inFailed": "Couldn’t clock in.",
     "outFailed": "Couldn’t clock out.",
-    "locked": "This pay period’s timesheet is submitted, so the clock is off until it’s sent back or the next period starts."
+    "locked": "This pay period’s timesheet is submitted, so the clock is off until it’s sent back or the next period starts.",
+    "switchLabel": "Project the clock is running on",
+    "noteLabel": "What you are working on",
+    "switchHint": "Choose another project to move the clock to it. The time so far stays on the project it was on.",
+    "switched": "Now on {project}, from {time}.",
+    "switchFailed": "Couldn’t change the project.",
+    "noteFailed": "Couldn’t save the note."
   },
   "entries": {
     "title": "Today’s time",

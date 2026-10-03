@@ -1,6 +1,7 @@
 import { AddIcon, StartIcon, StopSolidIcon } from '@parallelworks/ui/icons';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { DayTimeline } from '@/components/day-timeline';
@@ -12,7 +13,7 @@ import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { ProjectSelect, useProjectName } from '@/components/project-select';
 import { SheetStatus } from '@/components/status';
-import { useClockIn, useClockOut, useEntries, useTimesheet } from '@/lib/queries';
+import { useClockIn, useClockOut, useEntries, useSaveEntry, useSwitchClock, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { dayToDate, elapsed, msToHours, stopwatch } from '@/lib/time';
 import { useNow } from '@/lib/use-now';
@@ -22,48 +23,13 @@ export const Route = createFileRoute('/')({ component: TodayPage });
 /** The clock: the one thing most people come here to do. */
 function Clock({ locked }: { locked: boolean }) {
   const t = useTranslations('today.clock');
-  const format = useFormatter();
   const { running, settings } = useSession();
-  const projectName = useProjectName();
   const clockIn = useClockIn();
-  const clockOut = useClockOut();
   const [projectId, setProjectId] = useState('');
   const [note, setNote] = useState('');
-  const now = useNow(1000, !!running);
 
   if (running) {
-    return (
-      <Panel>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div className="tabular text-4xl font-semibold tracking-tight" role="timer">
-            {stopwatch(Math.max(0, now - Date.parse(running.startedAt)))}
-          </div>
-          <div className="order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">
-            <div className="truncate text-sm font-medium">{projectName(running.projectId)}</div>
-            <div className="text-sm text-muted-foreground">
-              {t('since', {
-                time: format.dateTime(new Date(running.startedAt), {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  timeZone: settings.timezone,
-                }),
-              })}
-              {running.note && ` · ${running.note}`}
-            </div>
-          </div>
-          <Button
-            variant="primary"
-            className="ml-auto h-10 px-5 text-base"
-            loading={clockOut.isPending}
-            icon={<StopSolidIcon aria-hidden />}
-            onClick={() => clockOut.mutate()}
-          >
-            {t('out')}
-          </Button>
-        </div>
-        {clockOut.isError && <ErrorNote className="mt-3" context={t('outFailed')} error={clockOut.error} />}
-      </Panel>
-    );
+    return <Running locked={locked} />;
   }
 
   return (
@@ -101,6 +67,90 @@ function Clock({ locked }: { locked: boolean }) {
       </form>
       {locked && <p className="mt-3 text-sm text-muted-foreground">{t('locked')}</p>}
       {clockIn.isError && <ErrorNote className="mt-3" context={t('inFailed')} error={clockIn.error} />}
+    </Panel>
+  );
+}
+
+/**
+ * The running clock. Choosing another project moves the clock to it without
+ * stopping: the time so far stays on the project it was on. The note is the
+ * running stretch's own, and saves when it is left.
+ */
+function Running({ locked }: { locked: boolean }) {
+  const t = useTranslations('today.clock');
+  const format = useFormatter();
+  const { running, settings } = useSession();
+  const projectName = useProjectName();
+  const clockOut = useClockOut();
+  const switchTo = useSwitchClock();
+  const save = useSaveEntry();
+  const now = useNow(1000);
+  const [note, setNote] = useState(running?.note ?? '');
+  if (!running) return null;
+
+  const time = (iso: string) =>
+    format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: settings.timezone });
+  const change = (projectId: string) =>
+    switchTo.mutate(
+      { projectId: projectId || undefined },
+      {
+        onSuccess: (entry) => {
+          setNote(entry.note);
+          toast.success(t('switched', { project: projectName(entry.projectId), time: time(entry.startedAt) }));
+        },
+      },
+    );
+  const saveNote = () => {
+    if (note.trim() === running.note) return;
+    save.mutate({ id: running.id, projectId: running.projectId, startedAt: running.startedAt, note });
+  };
+
+  return (
+    <Panel>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div>
+          <div className="tabular text-4xl font-semibold tracking-tight" role="timer">
+            {stopwatch(Math.max(0, now - Date.parse(running.startedAt)))}
+          </div>
+          <div className="mt-0.5 text-sm text-muted-foreground">{t('since', { time: time(running.startedAt) })}</div>
+        </div>
+        <div className="order-last flex min-w-0 basis-full flex-wrap gap-2 sm:order-none sm:flex-1 sm:basis-auto">
+          <ProjectSelect
+            key={running.id}
+            value={running.projectId ?? ''}
+            onChange={change}
+            required={settings.requireProject}
+            disabled={locked || switchTo.isPending}
+            label={t('switchLabel')}
+            className="h-10 w-full sm:w-64"
+          />
+          <input
+            className={`${controlClass} h-10 min-w-40 flex-1`}
+            value={note}
+            placeholder={t('notePlaceholder')}
+            aria-label={t('noteLabel')}
+            disabled={locked}
+            onChange={(e) => setNote(e.target.value)}
+            onBlur={saveNote}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+          />
+        </div>
+        <Button
+          variant="primary"
+          className="ml-auto h-10 px-5 text-base"
+          loading={clockOut.isPending}
+          icon={<StopSolidIcon aria-hidden />}
+          onClick={() => clockOut.mutate()}
+        >
+          {t('out')}
+        </Button>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">{t('switchHint')}</p>
+      {switchTo.isError && <ErrorNote className="mt-3" context={t('switchFailed')} error={switchTo.error} />}
+      {save.isError && <ErrorNote className="mt-3" context={t('noteFailed')} error={save.error} />}
+      {clockOut.isError && <ErrorNote className="mt-3" context={t('outFailed')} error={clockOut.error} />}
     </Panel>
   );
 }

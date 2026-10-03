@@ -9,7 +9,7 @@ It is one Go module with its web app embedded. It runs two ways:
 
 ## What it does
 
-- **The clock.** One running clock per person, started and stopped from any page. Time can also be added and corrected by hand.
+- **The clock.** One running clock per person, started and stopped from any page. Choosing another project while it runs moves the clock to it without stopping: the time so far stays where it was. Time can also be added and corrected by hand.
 - **Projects.** Every entry can be tagged with a project, which belongs to a customer. An organization can require one.
 - **Pay periods.** Weekly, biweekly, twice a month or monthly, set by an admin. Days, workweeks and periods are cut in the organization's time zone.
 - **Overtime.** Time beyond a weekly threshold is overtime, counted per workweek on the day it was worked, so a week that straddles two pay periods puts its overtime in the right one. People can be marked exempt.

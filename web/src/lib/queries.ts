@@ -148,6 +148,13 @@ export function useClockIn() {
   );
 }
 
+/** Moves the running clock to other work: the time so far stays where it was, and the clock goes on. */
+export function useSwitchClock() {
+  return useWrite(async (body: { projectId?: string; note?: string }) =>
+    unwrap(await api.POST('/api/v1/clock/switch', { body })),
+  );
+}
+
 export function useClockOut() {
   return useWrite(async () => unwrap(await api.POST('/api/v1/clock/out')));
 }
