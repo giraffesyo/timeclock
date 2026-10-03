@@ -115,11 +115,13 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 
 ## Releasing
 
-`make release VERSION=v0.2.0` builds the web app, commits `web/dist` on top of the current commit, and tags that commit, so a tagged version carries the app while `canary` stays free of build output. Push the tag with `git push origin v0.2.0`. A host depends on a tag, never on `canary`, which embeds no app.
+Commits on `canary` follow Conventional Commits, and [release-please](https://github.com/googleapis/release-please) keeps a release PR open from them. Merging that PR:
 
-### The npm package
+- publishes a `timeclock-vX.Y.Z` GitHub release with the notes;
+- tags the Go module `vX.Y.Z` on a commit that adds the built `web/dist`, so a tagged version carries the app while `canary` stays free of build output. A host depends on that tag, never on `canary`, which embeds no app;
+- publishes `@giraffesyo/timeclock` at the same version to npm, signed in through npm's trusted publishing.
 
-Set the version in `web/packages/timeclock/package.json`, merge, then tag that commit `npm-vX.Y.Z` and push the tag: the `Publish` workflow builds and publishes it.
+`make release VERSION=vX.Y.Z` tags the module by hand, as a fallback.
 
 ## License
 

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "f4b23ca5c7a14777aebbf65e20c75868a8223011",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "component": "timeclock",
+      "include-component-in-tag": true,
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "web/packages/timeclock/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}
