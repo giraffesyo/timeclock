@@ -6,7 +6,7 @@ import { Button, buttonClass } from '@/components/button';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
 import { Hours } from '@/components/hours';
-import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
+import { Empty, ErrorNote, Loading } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { Segmented } from '@/components/segmented';
 import { SheetStatus } from '@/components/status';
@@ -110,87 +110,82 @@ function TimerPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
+    <main className="flex min-h-full flex-col">
       <h1 className="sr-only">{t('title')}</h1>
-      <div className="space-y-4">
-        <ZoneBanner />
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
-          <div className="flex items-baseline gap-2">
-            <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
-            <span className="tabular text-lg font-semibold">{tc('duration', hoursMinutes(worked))}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Segmented<View>
-              label={t('view.label')}
-              value={view}
-              onChange={(v) =>
-                navigate({ search: (s) => ({ ...s, view: v === 'list' ? v : undefined }), replace: true })
-              }
-              options={[
-                { value: 'calendar', label: t('view.calendar'), icon: <CalendarIcon aria-hidden /> },
-                { value: 'list', label: t('view.list'), icon: <SchedulerIcon aria-hidden /> },
-              ]}
-            />
-            <Button
-              size="sm"
-              className="h-8"
-              icon={<AddIcon aria-hidden />}
-              disabled={lockedDay(today)}
-              onClick={() => setAdding(true)}
-            >
-              {te('add')}
-            </Button>
-          </div>
+      <ZoneBanner />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
+        <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
+          <span className="tabular text-base font-semibold">{tc('duration', hoursMinutes(worked))}</span>
         </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Segmented<View>
+            label={t('view.label')}
+            value={view}
+            onChange={(v) => navigate({ search: (s) => ({ ...s, view: v === 'list' ? v : undefined }), replace: true })}
+            options={[
+              { value: 'calendar', label: t('view.calendar'), icon: <CalendarIcon aria-hidden /> },
+              { value: 'list', label: t('view.list'), icon: <SchedulerIcon aria-hidden /> },
+            ]}
+          />
+          <Button
+            size="sm"
+            className="h-8"
+            icon={<AddIcon aria-hidden />}
+            disabled={lockedDay(today)}
+            onClick={() => setAdding(true)}
+          >
+            {te('add')}
+          </Button>
+        </div>
+      </div>
 
-        <Panel flush>
-          {entries.isError ? (
-            <ErrorNote className="m-4" context={t('loadFailed')} error={entries.error} />
-          ) : entries.isPending ? (
-            <Loading />
-          ) : view === 'calendar' ? (
-            <WeekCalendar week={week} entries={entries.data} readOnly={lockedDay} />
-          ) : (
-            <WeekList week={week} entries={entries.data} locked={lockedDay(first) && lockedDay(last)} />
-          )}
-        </Panel>
-
-        {/* Where this stands for payroll. */}
-        {sheet.isError ? (
-          <ErrorNote context={t('period.loadFailed')} error={sheet.error} />
+      <div className="flex-1">
+        {entries.isError ? (
+          <ErrorNote className="m-4" context={t('loadFailed')} error={entries.error} />
+        ) : entries.isPending ? (
+          <Loading />
+        ) : view === 'calendar' ? (
+          <WeekCalendar week={week} entries={entries.data} readOnly={lockedDay} />
         ) : (
-          sheet.data && (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
-              <span className="font-medium">{t('period.title')}</span>
-              <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
-              <span className="flex items-baseline gap-1.5">
-                <Hours value={sheet.data.regular + sheet.data.overtime} strong />
-                <span className="text-xs text-muted-foreground">{t('period.worked')}</span>
-              </span>
-              {sheet.data.overtime > 0 && (
-                <span className="flex items-baseline gap-1.5">
-                  <Hours value={sheet.data.overtime} strong />
-                  <span className="text-xs text-muted-foreground">{t('period.overtime')}</span>
-                </span>
-              )}
-              {sheet.data.vacation + sheet.data.sick > 0 && (
-                <span className="flex items-baseline gap-1.5">
-                  <Hours value={sheet.data.vacation + sheet.data.sick} strong />
-                  <span className="text-xs text-muted-foreground">{t('period.timeOff')}</span>
-                </span>
-              )}
-              <span className="ml-auto flex items-center gap-3">
-                <SheetStatus timesheet={sheet.data.timesheet} />
-                <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
-                  {t('period.open')}
-                </Link>
-              </span>
-            </div>
-          )
+          <WeekList week={week} entries={entries.data} locked={lockedDay(first) && lockedDay(last)} />
         )}
       </div>
+
+      {/* Where this stands for payroll. */}
+      {sheet.isError ? (
+        <ErrorNote className="m-3" context={t('period.loadFailed')} error={sheet.error} />
+      ) : (
+        sheet.data && (
+          <div className="bottom-0 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-card px-4 py-2 text-sm md:sticky">
+            <span className="font-medium">{t('period.title')}</span>
+            <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
+            <span className="flex items-baseline gap-1.5">
+              <Hours value={sheet.data.regular + sheet.data.overtime} strong />
+              <span className="text-xs text-muted-foreground">{t('period.worked')}</span>
+            </span>
+            {sheet.data.overtime > 0 && (
+              <span className="flex items-baseline gap-1.5">
+                <Hours value={sheet.data.overtime} strong />
+                <span className="text-xs text-muted-foreground">{t('period.overtime')}</span>
+              </span>
+            )}
+            {sheet.data.vacation + sheet.data.sick > 0 && (
+              <span className="flex items-baseline gap-1.5">
+                <Hours value={sheet.data.vacation + sheet.data.sick} strong />
+                <span className="text-xs text-muted-foreground">{t('period.timeOff')}</span>
+              </span>
+            )}
+            <span className="ml-auto flex items-center gap-3">
+              <SheetStatus timesheet={sheet.data.timesheet} />
+              <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
+                {t('period.open')}
+              </Link>
+            </span>
+          </div>
+        )
+      )}
       <EntryDialog open={adding} onClose={() => setAdding(false)} day={today} />
     </main>
   );

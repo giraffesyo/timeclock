@@ -2,7 +2,6 @@ import { AngleDownIcon, AngleUpIcon } from '@parallelworks/ui/icons';
 import { type CSSProperties, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { DayTimeline } from '@/components/day-timeline';
-import { ZoneButton } from '@/components/zone';
 import { cn } from '@/lib/cn';
 import type { Entry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -77,32 +76,30 @@ export function WeekCalendar({
   const total = (ms: number) => tc('duration', hoursMinutes(ms));
 
   return (
-    <div style={{ '--tl-hour': '3rem' } as CSSProperties}>
+    <div className="wk" style={{ '--wk-hours': to - from } as CSSProperties}>
       {/* The days: on a wide screen the heads of the columns, on a narrow one the way to pick a day. */}
       <div className={cn('grid border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
-        {wide && (
-          <span className="flex items-end justify-center pb-2">
-            <ZoneButton className="wk-zone tabular" />
-          </span>
-        )}
+        {wide && <span />}
         {days.map((d) => {
           const date = dayToDate(d.day);
           const isToday = d.day === today;
           const head = (
             <>
-              <span className={cn('text-xs', isToday ? 'font-semibold text-primary' : 'text-muted-foreground')}>
-                {format.dateTime(date, { weekday: 'short' })}
-              </span>
               <span
                 className={cn(
-                  'tabular flex size-7 items-center justify-center rounded-full text-sm font-semibold',
+                  'tabular flex size-8 shrink-0 items-center justify-center rounded-full text-lg font-semibold',
                   isToday && 'bg-primary text-primary-foreground',
                 )}
               >
                 {format.dateTime(date, { day: 'numeric' })}
               </span>
-              <span className={cn('tabular text-xs', d.worked === 0 ? 'text-muted-foreground/60' : 'font-medium')}>
-                {total(d.worked)}
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className={cn('text-xs font-medium', isToday ? 'text-primary' : 'text-muted-foreground')}>
+                  {format.dateTime(date, { weekday: 'short' })}
+                </span>
+                <span className={cn('tabular text-xs', d.worked === 0 ? 'text-muted-foreground/60' : 'font-medium')}>
+                  {total(d.worked)}
+                </span>
               </span>
             </>
           );
@@ -116,7 +113,7 @@ export function WeekCalendar({
               key={d.day}
               role="group"
               aria-label={label}
-              className="flex flex-col items-center gap-0.5 border-l border-border py-2"
+              className="flex items-center gap-2 border-l border-border px-2.5 py-2"
             >
               {head}
             </div>
@@ -127,7 +124,7 @@ export function WeekCalendar({
               aria-label={label}
               aria-pressed={shown[0]?.day === d.day}
               className={cn(
-                'flex cursor-pointer flex-col items-center gap-0.5 py-2',
+                'flex cursor-pointer flex-col items-center gap-0.5 py-2 [&>span:last-child]:items-center',
                 shown[0]?.day === d.day && 'bg-muted',
               )}
               onClick={() => setPicked(d.day)}

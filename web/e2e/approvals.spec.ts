@@ -105,7 +105,7 @@ test('time off is requested, approved, and counted on the timesheet', async ({ m
 
 test('only people who approve time get Team, and only admins get Settings', async ({ me, adminPerson }) => {
   await me.page.goto('/');
-  const nav = me.page.getByRole('banner').getByRole('navigation', { name: 'Sections' });
+  const nav = me.page.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Team' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
@@ -114,7 +114,7 @@ test('only people who approve time get Team, and only admins get Settings', asyn
 
   const admin = await adminPerson();
   await admin.page.goto('/');
-  const adminNav = admin.page.getByRole('banner').getByRole('navigation', { name: 'Sections' });
+  const adminNav = admin.page.getByRole('navigation', { name: 'Sections' });
   await expect(adminNav.getByRole('link', { name: 'Settings' })).toBeVisible();
   await expect(adminNav.getByRole('link', { name: 'Team' })).toBeVisible();
 });

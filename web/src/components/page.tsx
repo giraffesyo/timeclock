@@ -20,10 +20,10 @@ export function Page({
   wide?: boolean;
 }) {
   return (
-    <main className={cn('mx-auto w-full px-4 py-6 sm:px-6', wide ? 'max-w-7xl' : 'max-w-5xl')}>
+    <main className={cn('w-full px-5 py-5', wide ? 'max-w-7xl' : 'max-w-5xl')}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
           {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -49,10 +49,10 @@ export function Panel({
   flush?: boolean;
 }) {
   return (
-    <section className={cn('rounded-lg border border-border bg-card text-card-foreground', className)}>
+    <section className={cn('rounded-lg border border-border', className)}>
       {(title || actions) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-          <h2 className="text-sm font-semibold">{title}</h2>
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-1.5">
+          <h2 className="text-sm font-medium">{title}</h2>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
       )}

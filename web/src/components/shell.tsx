@@ -1,19 +1,33 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { ArrowLeftIcon, ClockIcon, SignOutIcon } from '@parallelworks/ui/icons';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
-import { Button } from '@/components/button';
 import { ClockBar } from '@/components/clock-bar';
-import { cn } from '@/lib/cn';
+import {
+  BackIcon,
+  BrandIcon,
+  OverviewIcon,
+  ReportsIcon,
+  SettingsIcon,
+  SignOutIcon,
+  TeamIcon,
+  TimeOffIcon,
+  TimerIcon,
+  TimesheetIcon,
+} from '@/components/nav-icons';
+import { ZoneButton } from '@/components/zone';
 import { useSession } from '@/lib/session';
 
-const navLink =
-  'rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
-const navLinkActive = '!bg-muted !text-foreground';
+const item =
+  'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground md:h-7';
+const itemActive = '!bg-foreground/[0.07] !font-medium !text-foreground';
 
-/** The frame every page sits in: where you are, where you can go, and the clock. */
+/**
+ * The frame every page sits in: the sections down the side, and the page on
+ * a sheet beside them with the clock across its top. On a phone the sections
+ * are a strip above the clock.
+ */
 export function Shell({ children }: { children: ReactNode }) {
   const t = useTranslations('shell');
   const errorMessage = useErrorMessage();
@@ -31,76 +45,108 @@ export function Shell({ children }: { children: ReactNode }) {
     }
   };
 
-  const links = [
-    { to: '/', label: t('nav.today'), show: true, exact: true },
-    { to: '/overview', label: t('nav.overview'), show: true },
-    { to: '/timesheet', label: t('nav.timesheet'), show: true },
-    { to: '/time-off', label: t('nav.timeOff'), show: true },
-    { to: '/team', label: t('nav.team'), show: me.admin || me.manager },
-    { to: '/reports', label: t('nav.reports'), show: true },
-    { to: '/settings', label: t('nav.settings'), show: me.admin },
-  ] as const;
+  const groups = [
+    {
+      label: t('nav.groups.track'),
+      links: [
+        { to: '/', label: t('nav.today'), icon: <TimerIcon />, exact: true },
+        { to: '/overview', label: t('nav.overview'), icon: <OverviewIcon /> },
+      ],
+    },
+    {
+      label: t('nav.groups.yours'),
+      links: [
+        { to: '/timesheet', label: t('nav.timesheet'), icon: <TimesheetIcon /> },
+        { to: '/time-off', label: t('nav.timeOff'), icon: <TimeOffIcon /> },
+      ],
+    },
+    {
+      label: t('nav.groups.payroll'),
+      links: [
+        ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
+        { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
+        ...(me.admin ? [{ to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> }] : []),
+      ],
+    },
+  ];
+  const links = groups.flatMap((g) => g.links);
+  const link = (l: (typeof links)[number], className?: string) => (
+    <Link
+      key={l.to}
+      to={l.to}
+      className={className ? `${item} ${className}` : item}
+      activeProps={{ className: itemActive }}
+      activeOptions={{ exact: 'exact' in l }}
+    >
+      {l.icon}
+      {l.label}
+    </Link>
+  );
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="top-0 z-30 bg-background/95 backdrop-blur md:sticky">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
-            <ClockIcon className="size-5 text-primary" aria-hidden />
-            {t('name')}
-          </Link>
-          <nav aria-label={t('nav.label')} className="hidden items-center gap-0.5 md:flex">
-            {links
-              .filter((l) => l.show)
-              .map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={navLink}
-                  activeProps={{ className: navLinkActive }}
-                  activeOptions={{ exact: 'exact' in l }}
-                >
-                  {l.label}
-                </Link>
-              ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            {info.homeUrl && (
-              <a href={info.homeUrl} className={cn(navLink, 'hidden items-center gap-1.5 lg:flex')}>
-                <ArrowLeftIcon className="size-3.5" aria-hidden />
-                {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
-              </a>
-            )}
-            <span className="hidden max-w-40 truncate text-sm text-muted-foreground lg:inline">{me.person.name}</span>
+    <div className="shell">
+      <aside className="shell-side">
+        <Link to="/" className="flex h-9 items-center gap-2 px-2 text-sm font-semibold">
+          <BrandIcon className="text-primary" />
+          {t('name')}
+        </Link>
+        <nav aria-label={t('nav.label')} className="mt-3 flex flex-1 flex-col gap-4 overflow-y-auto">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div className="px-2 pb-1 text-xs text-muted-foreground/80">{g.label}</div>
+              <div className="flex flex-col gap-px">{g.links.map((l) => link(l))}</div>
+            </div>
+          ))}
+        </nav>
+        <div className="flex flex-col gap-px border-t border-border pt-2">
+          {info.homeUrl && (
+            <a href={info.homeUrl} className={item}>
+              <BackIcon />
+              {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
+            </a>
+          )}
+          <div className="flex h-8 items-center gap-2 pr-1 pl-2">
+            <span className="min-w-0 flex-1 truncate text-sm">{me.person.name}</span>
+            <ZoneButton className="shell-zone tabular" />
             {info.signOutUrl && (
-              <Button variant="ghost" size="sm" aria-label={t('signOut')} onClick={signOut}>
-                <SignOutIcon aria-hidden />
-              </Button>
+              <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
+                <SignOutIcon />
+              </button>
             )}
           </div>
         </div>
-        {/* On a phone the sections scroll sideways under the bar. */}
-        <nav
-          aria-label={t('nav.label')}
-          className="flex gap-0.5 overflow-x-auto border-t border-border px-3 py-1.5 md:hidden"
-        >
-          {links
-            .filter((l) => l.show)
-            .map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className={cn(navLink, 'shrink-0')}
-                activeProps={{ className: navLinkActive }}
-                activeOptions={{ exact: 'exact' in l }}
-              >
-                {l.label}
-              </Link>
-            ))}
+      </aside>
+
+      {/* A phone: the name and the way out, then the sections as a strip. */}
+      <header className="shell-top">
+        <div className="flex h-12 items-center gap-2 px-4">
+          <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
+            <BrandIcon className="text-primary" />
+            {t('name')}
+          </Link>
+          <span className="ml-auto" />
+          <ZoneButton className="shell-zone tabular" />
+          {info.signOutUrl && (
+            <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
+              <SignOutIcon />
+            </button>
+          )}
+        </div>
+        <nav aria-label={t('nav.label')} className="flex gap-1 overflow-x-auto px-3 pb-2">
+          {links.map((l) => link(l, 'shrink-0'))}
+          {info.homeUrl && (
+            <a href={info.homeUrl} className={`${item} shrink-0`}>
+              <BackIcon />
+              {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
+            </a>
+          )}
         </nav>
-        <ClockBar />
       </header>
-      <div className="flex-1">{children}</div>
+
+      <div className="shell-sheet">
+        <ClockBar />
+        <div className="min-h-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,12 @@
     "team": "Team",
     "reports": "Reports",
     "settings": "Settings",
-    "overview": "Overview"
+    "overview": "Overview",
+    "groups": {
+      "track": "Track",
+      "yours": "Your time",
+      "payroll": "Payroll"
+    }
   },
   "home": "Back to {name}",
   "signOut": "Sign out",
