@@ -1,0 +1,17 @@
+{
+  "range": "{start} – {end}",
+  "rangeRunning": "{start} – now",
+  "block": "{project}, {range}, {length}",
+  "editBlock": "Edit {block}",
+  "lockedBlock": "{block}, in a submitted timesheet",
+  "startOf": "Start of {project}",
+  "endOf": "End of {project}",
+  "new": "New",
+  "readout": "{range} · {length}",
+  "addAt": "Drag from {time} to add time",
+  "hint": "Drag an empty stretch to add time. Drag a block to move it, or its edge to change when it starts or ends.",
+  "hintTouch": "Tap an empty hour to add time. Tap a block to change it.",
+  "earlier": "Show earlier hours",
+  "later": "Show later hours",
+  "adjustFailed": "Couldn’t change the time."
+}

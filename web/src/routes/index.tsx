@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
+import { DayTimeline } from '@/components/day-timeline';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
 import { controlClass } from '@/components/field';
@@ -177,10 +178,15 @@ function TodayPage() {
             <ErrorNote className="m-4" context={t('entries.loadFailed')} error={entries.error} />
           ) : entries.isPending ? (
             <Loading />
-          ) : entries.data.length === 0 ? (
-            <Empty>{t('entries.empty')}</Empty>
           ) : (
-            <EntryList entries={entries.data} />
+            <>
+              <div className="p-4">
+                <DayTimeline day={today} entries={entries.data} readOnly={locked} />
+              </div>
+              <div className="border-t border-border">
+                {entries.data.length === 0 ? <Empty>{t('entries.empty')}</Empty> : <EntryList entries={entries.data} />}
+              </div>
+            </>
           )}
         </Panel>
       </div>
