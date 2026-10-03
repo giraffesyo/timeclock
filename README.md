@@ -80,6 +80,7 @@ make dev        # http://localhost:8090, signed in as DEV_USER (an admin)
 make test-db    # Go tests, with the database tests on
 make check      # every linter and test
 make vuln       # known vulnerabilities in the Go code
+make e2e        # the end-to-end tests: the built server, driven by real browsers
 make api        # after changing an API operation: regenerate the web app's types
 ```
 
@@ -94,6 +95,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | `internal/standalone/` | Accounts, OIDC sign-in and sessions for running alone |
 | `migrations/` | goose migrations, `NNNNN_name.sql` |
 | `web/` | The Vite app, embedded in the binary |
+| `web/e2e/` | End-to-end tests (Playwright): each test is its own people, against a schema made for the run |
 
 ## The payroll export
 

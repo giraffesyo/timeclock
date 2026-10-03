@@ -1,4 +1,4 @@
-.PHONY: dev server web install build check lint lint-go vuln test test-db api release
+.PHONY: dev server web install build check lint lint-go vuln test test-db e2e api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
@@ -56,6 +56,11 @@ db:
 # The Go tests with the database tests on: each makes and drops its own schema.
 test-db: db
 	TIMECLOCK_TEST_DATABASE_URL='$(TEST_DB_URL)' go test ./...
+
+# The end-to-end tests: the built server, with the app embedded, driven by
+# real browsers against the development database (a schema of its own per run).
+e2e: db build
+	@cd web && pnpm exec playwright test $(ARGS)
 
 # Regenerate the web app's API types from the server's OpenAPI document.
 api:

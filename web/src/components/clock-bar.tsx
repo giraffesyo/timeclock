@@ -122,6 +122,8 @@ function Running({ entry, locked }: { entry: Entry; locked: boolean }) {
   const save = useSaveEntry();
   const now = useNow(1000);
   const bar = useRef<HTMLDivElement>(null);
+  // Whether a press that began inside the bar is under way.
+  const pressed = useRef(false);
   const zone = useZone();
   const [note, setNote] = useState(entry.note);
 
@@ -129,22 +131,50 @@ function Running({ entry, locked }: { entry: Entry; locked: boolean }) {
   const edited = note.trim() !== entry.note;
   // A note typed just before choosing a project describes the work being
   // moved to, so it goes with the new stretch.
+  // The bar is drawn anew for the next stretch, so the word that it worked
+  // waits on the request itself rather than on this bar still being here.
   const change = (projectId: string) =>
-    switchTo.mutate(
-      { projectId: projectId || undefined, note: edited ? note : '' },
-      {
-        onSuccess: (next) =>
-          toast.success(t('switched', { project: projectName(next.projectId), time: time(next.startedAt) })),
-      },
-    );
+    switchTo
+      .mutateAsync({ projectId: projectId || undefined, note: edited ? note : '' })
+      .then((next) =>
+        toast.success(t('switched', { project: projectName(next.projectId), time: time(next.startedAt) })),
+      )
+      .catch(() => {
+        // Shown below from switchTo.error.
+      });
+  const writeNote = () =>
+    save.mutateAsync({ id: entry.id, projectId: entry.projectId, startedAt: entry.startedAt, note });
   const saveNote = (e: FocusEvent) => {
-    // Moving on to the project picker isn't done with the note yet.
-    if (!edited || bar.current?.contains(e.relatedTarget)) return;
-    save.mutate({ id: entry.id, projectId: entry.projectId, startedAt: entry.startedAt, note });
+    // Moving on to the project picker isn't done with the note yet. Safari
+    // doesn't focus a button that is clicked, so the press is noted as well.
+    if (!edited || pressed.current || bar.current?.contains(e.relatedTarget)) return;
+    writeNote().catch(() => {
+      // Shown below from save.error.
+    });
+  };
+  // A note still unsaved when the clock stops belongs to the stretch that ends.
+  const stop = async () => {
+    try {
+      if (edited) await writeNote();
+      await clockOut.mutateAsync();
+    } catch {
+      // Shown below from save.error or clockOut.error.
+    }
   };
 
   return (
-    <div ref={bar}>
+    <div
+      ref={bar}
+      onPointerDownCapture={() => {
+        pressed.current = true;
+      }}
+      onPointerUpCapture={() => {
+        pressed.current = false;
+      }}
+      onPointerCancelCapture={() => {
+        pressed.current = false;
+      }}
+    >
       <Bar
         below={
           <>
@@ -181,7 +211,7 @@ function Running({ entry, locked }: { entry: Entry; locked: boolean }) {
         <span className={elapsedClass} role="timer">
           {stopwatch(Math.max(0, now - Date.parse(entry.startedAt)))}
         </span>
-        <ClockButton running label={t('out')} disabled={clockOut.isPending} onClick={() => clockOut.mutate()} />
+        <ClockButton running label={t('out')} disabled={clockOut.isPending} onClick={stop} />
       </Bar>
     </div>
   );

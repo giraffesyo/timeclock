@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -62,6 +63,7 @@ type Auth struct {
 	verifier *oidc.IDTokenVerifier
 	oauth    *oauth2.Config
 	devID    string
+	devIDs   sync.Map // email → account id, for DevUserHeader
 }
 
 // New discovers the provider, when one is configured, and in development
@@ -171,9 +173,32 @@ func (a *Auth) sign(id string, expires time.Time) string {
 	return payload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
+// DevUserHeader names, in development only (Config.DevUser set), the email a
+// request is signed in as instead of DevUser.
+const DevUserHeader = "X-Timeclock-Dev-User"
+
+// devAccount is the account of a development user, made on first use.
+func (a *Auth) devAccount(ctx context.Context, email string) (string, bool) {
+	if id, ok := a.devIDs.Load(email); ok {
+		return id.(string), true
+	}
+	id, err := a.upsert(ctx, "dev", email, email, strings.Split(email, "@")[0])
+	if err != nil {
+		a.cfg.Logger.ErrorContext(ctx, "make development account", "email", email, "error", err)
+		return "", false
+	}
+	a.devIDs.Store(email, id)
+	return id, true
+}
+
 // Caller returns the signed-in account of a request.
 func (a *Auth) Caller(r *http.Request) (string, bool) {
 	if a.devID != "" {
+		// In development a request can name who it is from, which is how
+		// the end-to-end tests are several people at once.
+		if email := strings.ToLower(strings.TrimSpace(r.Header.Get(DevUserHeader))); email != "" {
+			return a.devAccount(r.Context(), email)
+		}
 		return a.devID, true
 	}
 	c, err := r.Cookie(cookieName)

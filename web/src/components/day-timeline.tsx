@@ -205,6 +205,8 @@ export function DayTimeline({
 
   const beginMove = (e: PointerEvent, b: Block) => {
     pointer.current = e.pointerType;
+    // The press is the block's: the track under it must not take it for a new stretch.
+    e.stopPropagation();
     if (e.button !== 0 || e.pointerType === 'touch') return;
     // A running entry, or one that crosses midnight, opens but doesn't move.
     const fixed = b.running || b.clippedStart || b.clippedEnd;
