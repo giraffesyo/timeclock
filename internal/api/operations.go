@@ -43,7 +43,7 @@ func registerMe(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			today := d.Clock.Today(cfg)
+			today := d.Clock.TodayFor(cfg, actor.Person)
 			out := meBody{
 				Person: actor.Person, Admin: actor.Admin, Settings: cfg, Today: today,
 				Period: cfg.PeriodOf(today), Running: running, Info: d.Info,
@@ -116,6 +116,23 @@ func registerPeople(a huma.API, d Deps) {
 				return nil, err
 			}
 			return &struct{ Body peopleBody }{peopleBody{People: orEmpty(people)}}, nil
+		})
+
+	huma.Register(a, op(http.MethodPut, "/me/timezone", "set-own-timezone", "Set the time zone the caller's days are cut in", "Me"),
+		func(ctx context.Context, in *struct {
+			Body struct {
+				Timezone string `json:"timezone" doc:"An IANA time zone. Empty uses the organization's." example:"America/Los_Angeles"`
+			}
+		}) (*struct{ Body clock.Person }, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := d.Clock.SetOwnTimezone(ctx, actor, in.Body.Timezone)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body clock.Person }{out}, nil
 		})
 
 	huma.Register(a, op(http.MethodPut, "/people/{id}", "update-person", "Set a person's manager and payroll details", "People"),
@@ -510,7 +527,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			day, err := d.day(ctx, "day", in.Day)
+			day, err := d.day(ctx, actor.Person, "day", in.Day)
 			if err != nil {
 				return nil, err
 			}
@@ -581,7 +598,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			day, err := d.day(ctx, "day", in.Day)
+			day, err := d.day(ctx, actor.Person, "day", in.Day)
 			if err != nil {
 				return nil, err
 			}

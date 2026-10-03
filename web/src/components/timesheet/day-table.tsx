@@ -13,6 +13,7 @@ import { cn } from '@/lib/cn';
 import { type Entry, type PeriodSummary, useEntries } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayOf, dayToDate } from '@/lib/time';
+import { useZone } from '@/lib/zone';
 
 const num = 'px-3 py-2 text-right';
 
@@ -35,7 +36,8 @@ export function DayTable({
   const te = useTranslations('entry');
   const tc = useTranslations('common.columns');
   const format = useFormatter();
-  const { today, settings } = useSession();
+  const { today } = useSession();
+  const zone = useZone(personId);
   const { period } = summary;
   const days = summary.days ?? [];
   const entries = useEntries(period.start, period.end, personId);
@@ -44,7 +46,7 @@ export function DayTable({
 
   const byDay = new Map<Day, Entry[]>();
   for (const e of entries.data ?? []) {
-    const day = dayOf(e.startedAt, settings.timezone);
+    const day = dayOf(e.startedAt, zone);
     byDay.set(day, [...(byDay.get(day) ?? []), e]);
   }
 

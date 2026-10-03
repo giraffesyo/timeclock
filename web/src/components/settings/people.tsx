@@ -7,6 +7,7 @@ import { controlClass } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { Switch } from '@/components/settings/switch';
 import { type Person, type PersonUpdate, usePeople, useSyncPeople, useUpdatePerson } from '@/lib/queries';
+import { timeZones } from '@/lib/zone';
 
 const th = 'px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground first:pl-4 last:pr-4';
 const td = 'px-3 py-2 align-middle first:pl-4 last:pr-4';
@@ -23,6 +24,7 @@ function PersonRow({ person, people }: { person: Person; people: Person[] }) {
   const shown: PersonUpdate = update.isPending
     ? update.variables
     : {
+        timezone: person.timezone,
         managerId: person.managerId,
         overtimeExempt: person.overtimeExempt,
         payrollId: person.payrollId,
@@ -34,6 +36,7 @@ function PersonRow({ person, people }: { person: Person; people: Person[] }) {
     if (busy) return Promise.resolve();
     return update.mutateAsync({
       id: person.id,
+      timezone: person.timezone,
       managerId: person.managerId,
       overtimeExempt: person.overtimeExempt,
       payrollId: person.payrollId,
@@ -79,6 +82,22 @@ function PersonRow({ person, people }: { person: Person; people: Person[] }) {
             {managers.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name || p.id}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td className={td}>
+          <select
+            className={`${controlClass} w-48`}
+            aria-label={t('timezoneFor', { name: person.name })}
+            value={shown.timezone}
+            disabled={busy}
+            onChange={(e) => save({ timezone: e.target.value })}
+          >
+            <option value="">{t('timezoneDefault')}</option>
+            {timeZones(shown.timezone).map((z) => (
+              <option key={z} value={z}>
+                {z}
               </option>
             ))}
           </select>
@@ -155,7 +174,7 @@ function PersonRow({ person, people }: { person: Person; people: Person[] }) {
       </tr>
       {update.isError && !deactivating && (
         <tr>
-          <td colSpan={7} className="px-4 pb-2">
+          <td colSpan={8} className="px-4 pb-2">
             <ErrorNote context={t('saveFailed', { name: person.name })} error={update.error} />
           </td>
         </tr>
@@ -206,6 +225,9 @@ export function People() {
                   </th>
                   <th scope="col" className={th}>
                     {t('columns.manager')}
+                  </th>
+                  <th scope="col" className={th}>
+                    {t('columns.timezone')}
                   </th>
                   <th scope="col" className={th}>
                     {t('columns.exempt')}

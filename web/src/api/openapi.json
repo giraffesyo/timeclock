@@ -954,12 +954,20 @@
           "payrollId": {
             "description": "The person's id in the payroll system, for the export.",
             "type": "string"
+          },
+          "timezone": {
+            "description": "The IANA time zone their days and workweeks are cut in; empty uses the organization's.",
+            "examples": [
+              "America/Los_Angeles"
+            ],
+            "type": "string"
           }
         },
         "required": [
           "id",
           "name",
           "email",
+          "timezone",
           "managerId",
           "overtimeExempt",
           "payrollId",
@@ -993,9 +1001,14 @@
           "payrollId": {
             "maxLength": 64,
             "type": "string"
+          },
+          "timezone": {
+            "description": "The IANA time zone their days are cut in. Empty uses the organization's.",
+            "type": "string"
           }
         },
         "required": [
+          "timezone",
           "managerId",
           "overtimeExempt",
           "payrollId",
@@ -1242,6 +1255,31 @@
         },
         "type": "object"
       },
+      "Set-own-timezoneRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Set-own-timezoneRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "timezone": {
+            "description": "An IANA time zone. Empty uses the organization's.",
+            "examples": [
+              "America/Los_Angeles"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone"
+        ],
+        "type": "object"
+      },
       "Settings": {
         "additionalProperties": false,
         "properties": {
@@ -1295,7 +1333,7 @@
             "type": "boolean"
           },
           "timezone": {
-            "description": "IANA time zone that days, workweeks and pay periods are cut in.",
+            "description": "IANA time zone that days and workweeks are cut in for everyone who hasn't set their own.",
             "examples": [
               "America/Chicago"
             ],
@@ -2253,6 +2291,47 @@
           }
         },
         "summary": "Who is calling, and how payroll runs",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/me/timezone": {
+      "put": {
+        "operationId": "set-own-timezone",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Set-own-timezoneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the time zone the caller's days are cut in",
         "tags": [
           "Me"
         ]

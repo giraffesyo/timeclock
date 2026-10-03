@@ -11,12 +11,16 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// zoneExpr is the time zone an entry's days are cut in: its person's own,
+// or the organization's ($1).
+const zoneExpr = `coalesce(nullif((SELECT timezone FROM people WHERE id = e.person_id), ''), $1)`
+
 // A day is locked for a person while a timesheet covering it is submitted
 // or approved.
 const lockedExpr = `EXISTS (SELECT 1 FROM timesheets t WHERE t.person_id = e.person_id
 	AND t.status IN ('submitted', 'approved')
-	AND (e.started_at AT TIME ZONE $1)::date <= t.period_end
-	AND (coalesce(e.ended_at, now()) AT TIME ZONE $1)::date >= t.period_start)`
+	AND (e.started_at AT TIME ZONE ` + zoneExpr + `)::date <= t.period_end
+	AND (coalesce(e.ended_at, now()) AT TIME ZONE ` + zoneExpr + `)::date >= t.period_start)`
 
 const entrySelect = `SELECT e.id, e.person_id, e.project_id, e.started_at, e.ended_at, e.note, e.source, ` + lockedExpr + `
 	FROM time_entries e`
@@ -37,7 +41,7 @@ func (s *Service) Entries(ctx context.Context, actor Actor, personID string, fro
 	if err != nil {
 		return nil, err
 	}
-	loc := cfg.Location()
+	loc := cfg.LocationOf(p)
 	rows, err := s.pool.Query(ctx, entrySelect+`
 		WHERE e.person_id = $2 AND e.started_at < $4 AND coalesce(e.ended_at, now()) >= $3
 		ORDER BY e.started_at`, cfg.Timezone, p.ID, from.In(loc), to.AddDays(1).In(loc))
@@ -90,7 +94,11 @@ func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, person
 	if end != nil && !end.After(start) {
 		return invalidField("endedAt", "must be after startedAt")
 	}
-	loc := cfg.Location()
+	var tz string
+	if err := q.QueryRow(ctx, `SELECT timezone FROM people WHERE id = $1`, personID).Scan(&tz); err != nil {
+		return fmt.Errorf("read time zone: %w", err)
+	}
+	loc := cfg.LocationOf(Person{Timezone: tz})
 	last := now
 	if end != nil {
 		last = *end

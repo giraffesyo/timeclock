@@ -12,6 +12,7 @@ import timeline from './timeline.json'
 import timer from './timer.json'
 import timesheet from './timesheet.json'
 import ui from './ui.json'
+import zone from './zone.json'
 
 export default {
   apiErrors,
@@ -28,4 +29,5 @@ export default {
   timer,
   timesheet,
   ui,
+  zone,
 }

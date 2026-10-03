@@ -7,6 +7,7 @@ import { ProjectSelect } from '@/components/project-select';
 import { type Entry, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, at, type Day, dayOf, hoursMinutes, timeInput } from '@/lib/time';
+import { useZone } from '@/lib/zone';
 
 /**
  * Adds or edits a stretch of time. Times are in the organization's time
@@ -66,7 +67,7 @@ function Form({
   const t = useTranslations('entry');
   const tc = useTranslations('common');
   const { settings } = useSession();
-  const zone = settings.timezone;
+  const zone = useZone(entry?.personId ?? personId);
   const save = useSaveEntry();
 
   const [date, setDate] = useState(entry ? dayOf(entry.startedAt, zone) : day);

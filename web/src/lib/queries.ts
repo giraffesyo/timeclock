@@ -292,6 +292,11 @@ export function useUpdatePerson() {
   );
 }
 
+/** Sets the time zone the caller's own days are cut in; empty is the organization's. */
+export function useSetOwnTimezone() {
+  return useWrite(async (timezone: string) => unwrap(await api.PUT('/api/v1/me/timezone', { body: { timezone } })));
+}
+
 export function useSyncPeople() {
   return useWrite(async () => unwrap(await api.POST('/api/v1/people/sync')));
 }

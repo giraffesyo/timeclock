@@ -2,6 +2,7 @@ import { AngleDownIcon, AngleUpIcon } from '@parallelworks/ui/icons';
 import { type CSSProperties, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { DayTimeline } from '@/components/day-timeline';
+import { ZoneButton } from '@/components/zone';
 import { cn } from '@/lib/cn';
 import type { Entry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -9,6 +10,7 @@ import { type Day, dayToDate, hoursMinutes } from '@/lib/time';
 import { covered, dayBounds, HOUR, type Span } from '@/lib/timeline';
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
+import { useZone } from '@/lib/zone';
 
 /**
  * A workweek as seven day rulers side by side over the same hours, each with
@@ -29,8 +31,8 @@ export function WeekCalendar({
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today, settings } = useSession();
-  const zone = settings.timezone;
+  const { today } = useSession();
+  const zone = useZone();
   const wide = useMedia('(min-width: 48rem)');
   const [picked, setPicked] = useState<Day | null>(null);
   const [earlier, setEarlier] = useState(0);
@@ -78,7 +80,11 @@ export function WeekCalendar({
     <div style={{ '--tl-hour': '3rem' } as CSSProperties}>
       {/* The days: on a wide screen the heads of the columns, on a narrow one the way to pick a day. */}
       <div className={cn('grid border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
-        {wide && <span />}
+        {wide && (
+          <span className="flex items-end justify-center pb-2">
+            <ZoneButton className="wk-zone tabular" />
+          </span>
+        )}
         {days.map((d) => {
           const date = dayToDate(d.day);
           const isToday = d.day === today;

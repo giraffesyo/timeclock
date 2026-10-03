@@ -123,12 +123,12 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 
 // --- People ---
 
-const personColumns = `id, name, email, CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END,
+const personColumns = `id, name, email, timezone, CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END,
 	overtime_exempt, payroll_id, active`
 
 func scanPerson(row pgx.Row) (Person, error) {
 	var p Person
-	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active)
+	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.Timezone, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active)
 	return p, err
 }
 
@@ -233,6 +233,7 @@ func (s *Service) People(ctx context.Context, actor Actor) ([]Person, error) {
 
 // PersonUpdate is what an admin sets on a person.
 type PersonUpdate struct {
+	Timezone       string `json:"timezone" doc:"The IANA time zone their days are cut in. Empty uses the organization's."`
 	ManagerID      string `json:"managerId" doc:"Who approves this person's time. Empty defers to the host's directory."`
 	OvertimeExempt bool   `json:"overtimeExempt"`
 	PayrollID      string `json:"payrollId" maxLength:"64"`
@@ -243,6 +244,9 @@ type PersonUpdate struct {
 func (s *Service) UpdatePerson(ctx context.Context, actor Actor, id string, in PersonUpdate) (Person, error) {
 	if !actor.Admin {
 		return Person{}, forbidden("only an admin changes people")
+	}
+	if err := checkTimezone(in.Timezone); err != nil {
+		return Person{}, err
 	}
 	var out Person
 	err := s.tx(ctx, id, func(tx pgx.Tx) error {
@@ -256,12 +260,43 @@ func (s *Service) UpdatePerson(ctx context.Context, actor Actor, id string, in P
 			}
 		}
 		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET manager_id = $2, overtime_exempt = $3, payroll_id = $4,
-			active = $5, updated_at = now() WHERE id = $1 RETURNING `+personColumns,
-			id, in.ManagerID, in.OvertimeExempt, in.PayrollID, in.Active))
+			active = $5, timezone = $6, updated_at = now() WHERE id = $1 RETURNING `+personColumns,
+			id, in.ManagerID, in.OvertimeExempt, in.PayrollID, in.Active, in.Timezone))
 		if err != nil {
 			return fmt.Errorf("update person: %w", err)
 		}
 		return audit(ctx, tx, actor, "person.update", id, map[string]any{"before": before, "after": out})
+	})
+	return out, err
+}
+
+// checkTimezone refuses a time zone the server doesn't know. Empty is the
+// organization's.
+func checkTimezone(tz string) error {
+	if tz == "" {
+		return nil
+	}
+	if _, err := time.LoadLocation(tz); err != nil {
+		return invalidField("timezone", "not an IANA time zone")
+	}
+	return nil
+}
+
+// SetOwnTimezone sets the time zone the actor's own days are cut in. Time in
+// a submitted timesheet keeps the days it was submitted with.
+func (s *Service) SetOwnTimezone(ctx context.Context, actor Actor, tz string) (Person, error) {
+	if err := checkTimezone(tz); err != nil {
+		return Person{}, err
+	}
+	var out Person
+	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+		var err error
+		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET timezone = $2, updated_at = now() WHERE id = $1 RETURNING `+personColumns,
+			actor.ID, tz))
+		if err != nil {
+			return fmt.Errorf("set time zone: %w", err)
+		}
+		return audit(ctx, tx, actor, "person.timezone", actor.ID, map[string]any{"before": actor.Timezone, "after": tz})
 	})
 	return out, err
 }

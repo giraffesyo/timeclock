@@ -1,0 +1,12 @@
+{
+  "title": "Your time zone",
+  "description": "Your times are shown in this zone, and your days and workweeks start at its midnight. Time in a timesheet you already submitted stays as it was.",
+  "label": "Time zone",
+  "organization": "The organization’s ({zone})",
+  "useBrowser": "Use this browser’s: {zone}",
+  "saveFailed": "Couldn’t change the time zone.",
+  "button": "Times are in {zone}. Change your time zone",
+  "banner": "This browser is in {here} time, but your times are shown in {zone} time.",
+  "switch": "Use {zone} time",
+  "keep": "Keep {zone} time"
+}

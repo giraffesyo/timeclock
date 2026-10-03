@@ -5,8 +5,8 @@ import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { isDay } from '@/components/settings/periods';
 import { type AuditEntry, useAudit, usePeople } from '@/lib/queries';
-import { useSession } from '@/lib/session';
 import { dayToDate } from '@/lib/time';
+import { useZone } from '@/lib/zone';
 
 /** The audit actions the catalog has words for, keyed as the catalog spells them. */
 const ACTIONS = {
@@ -49,7 +49,7 @@ export function History() {
   const tc = useTranslations('common');
   const format = useFormatter();
   const periodLabel = usePeriodLabel();
-  const { settings } = useSession();
+  const zone = useZone();
   const [personId, setPersonId] = useState('');
   const people = usePeople();
   const audit = useAudit(personId || undefined);
@@ -66,8 +66,8 @@ export function History() {
       if (!start) return '';
       const end = str(s['endedAt']);
       const time = (iso: string) =>
-        format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: settings.timezone });
-      const day = format.dateTime(new Date(start), { month: 'short', day: 'numeric', timeZone: settings.timezone });
+        format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
+      const day = format.dateTime(new Date(start), { month: 'short', day: 'numeric', timeZone: zone });
       return end
         ? t('about.entry', { day, start: time(start), end: time(end) })
         : t('about.entryRunning', { day, start: time(start) });
@@ -152,7 +152,7 @@ export function History() {
                         year: 'numeric',
                         hour: 'numeric',
                         minute: '2-digit',
-                        timeZone: settings.timezone,
+                        timeZone: zone,
                       })}
                     </td>
                     <td className={`${td} whitespace-nowrap`}>{name(entry.actor)}</td>
@@ -184,7 +184,7 @@ export function History() {
       )}
       {audit.data && audit.data.length > 0 && (
         <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          {t('footer', { count: audit.data.length, zone: settings.timezone })}
+          {t('footer', { count: audit.data.length, zone })}
         </p>
       )}
     </Panel>

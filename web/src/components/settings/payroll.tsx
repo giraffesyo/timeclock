@@ -11,6 +11,7 @@ import { SwitchRow } from '@/components/settings/switch';
 import { type Settings, useSaveSettings } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { dayToDate } from '@/lib/time';
+import { timeZones } from '@/lib/zone';
 
 const CYCLES = ['weekly', 'biweekly', 'semimonthly', 'monthly'] as const satisfies readonly Settings['payCycle'][];
 
@@ -35,12 +36,6 @@ function toDraft(s: Settings): Draft {
     overtime: String(s.overtimeWeeklyHours),
     longEntry: String(s.longEntryHours),
   };
-}
-
-function timeZones(current: string): string[] {
-  const zones = Intl.supportedValuesOf('timeZone');
-  // The list leaves out aliases such as UTC, which may be what is saved.
-  return zones.includes(current) ? zones : [current, ...zones];
 }
 
 /** How payroll runs. Nothing changes until Save. */

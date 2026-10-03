@@ -68,7 +68,7 @@ func (d Deps) payroll(ctx context.Context, dayParam string) (payrollBody, error)
 	if err != nil {
 		return payrollBody{}, err
 	}
-	day, err := d.day(ctx, "day", dayParam)
+	day, err := d.day(ctx, actor.Person, "day", dayParam)
 	if err != nil {
 		return payrollBody{}, err
 	}
@@ -100,7 +100,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			day, err := d.day(ctx, "day", in.Day)
+			day, err := d.day(ctx, actor.Person, "day", in.Day)
 			if err != nil {
 				return nil, err
 			}

@@ -8,7 +8,7 @@ import (
 
 // Settings is how the organization runs payroll.
 type Settings struct {
-	Timezone            string   `json:"timezone" doc:"IANA time zone that days, workweeks and pay periods are cut in." example:"America/Chicago"`
+	Timezone            string   `json:"timezone" doc:"IANA time zone that days and workweeks are cut in for everyone who hasn't set their own." example:"America/Chicago"`
 	PayCycle            PayCycle `json:"payCycle" enum:"weekly,biweekly,semimonthly,monthly"`
 	CycleAnchor         Date     `json:"cycleAnchor" format:"date" doc:"The first day of some weekly or biweekly pay period."`
 	WeekStart           int      `json:"weekStart" minimum:"0" maximum:"6" doc:"The day the workweek starts, for overtime: 0 is Sunday."`
@@ -28,6 +28,17 @@ func (s Settings) Location() *time.Location {
 	return loc
 }
 
+// LocationOf is the time zone a person's days and workweeks are cut in:
+// their own, or the organization's when they have none.
+func (s Settings) LocationOf(p Person) *time.Location {
+	if p.Timezone != "" {
+		if loc, err := time.LoadLocation(p.Timezone); err == nil {
+			return loc
+		}
+	}
+	return s.Location()
+}
+
 // Overtime is the settings' overtime rule for a person.
 func (s Settings) Overtime(exempt bool) OvertimeRule {
 	rule := OvertimeRule{WeekStart: time.Weekday(s.WeekStart)}
@@ -45,6 +56,7 @@ type Person struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`
 	Email          string `json:"email"`
+	Timezone       string `json:"timezone" doc:"The IANA time zone their days and workweeks are cut in; empty uses the organization's." example:"America/Los_Angeles"`
 	ManagerID      string `json:"managerId" doc:"Who approves this person's time; empty when no one is assigned."`
 	OvertimeExempt bool   `json:"overtimeExempt"`
 	PayrollID      string `json:"payrollId" doc:"The person's id in the payroll system, for the export."`
