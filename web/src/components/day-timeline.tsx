@@ -15,6 +15,7 @@ import { type Day, hoursMinutes, timeInput } from '@/lib/time';
 import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
+import { useZone } from '@/lib/zone';
 
 /** A stretch being dragged: a new one, or an entry's start, end or whole. */
 type Drag = Span & {
@@ -73,8 +74,8 @@ export function DayTimeline({
   const tc = useTranslations('common');
   const format = useFormatter();
   const errorMessage = useErrorMessage();
-  const { today, settings } = useSession();
-  const zone = settings.timezone;
+  const { today } = useSession();
+  const zone = useZone(personId ?? entries[0]?.personId);
   const projectName = useProjectName();
   const adjust = useAdjustEntry();
   const wide = useMedia('(min-width: 40rem)');

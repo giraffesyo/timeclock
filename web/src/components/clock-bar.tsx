@@ -10,6 +10,7 @@ import { type Entry, useClockIn, useClockOut, useSaveEntry, useSwitchClock } fro
 import { useSession } from '@/lib/session';
 import { stopwatch } from '@/lib/time';
 import { useNow } from '@/lib/use-now';
+import { useZone } from '@/lib/zone';
 
 /** The round button that starts or stops the clock. */
 function ClockButton({
@@ -121,10 +122,10 @@ function Running({ entry, locked }: { entry: Entry; locked: boolean }) {
   const save = useSaveEntry();
   const now = useNow(1000);
   const bar = useRef<HTMLDivElement>(null);
+  const zone = useZone();
   const [note, setNote] = useState(entry.note);
 
-  const time = (iso: string) =>
-    format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: settings.timezone });
+  const time = (iso: string) => format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
   const edited = note.trim() !== entry.note;
   // A note typed just before choosing a project describes the work being
   // moved to, so it goes with the new stretch.

@@ -36,7 +36,7 @@
     },
     "timezone": {
       "label": "Time zone",
-      "hint": "Days, workweeks and pay periods start at midnight here, wherever people work from."
+      "hint": "Days and workweeks start at midnight here for everyone who hasn’t set a time zone of their own."
     },
     "weekStart": {
       "label": "Workweek starts on",
@@ -141,7 +141,8 @@
       "exempt": "Overtime exempt",
       "payrollId": "Payroll ID",
       "active": "Active",
-      "status": "Saving"
+      "status": "Saving",
+      "timezone": "Time zone"
     },
     "managerDefault": "From the directory, or none",
     "managerFor": "Manager of {name}",
@@ -160,7 +161,9 @@
       "exempt": "Overtime exempt: all of the person’s hours are regular, whatever the weekly threshold.",
       "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export. Saved when you leave the field or press Enter.",
       "active": "Active: inactive people are left out of reports and exceptions."
-    }
+    },
+    "timezoneFor": "Time zone of {name}",
+    "timezoneDefault": "The organization’s"
   },
   "history": {
     "title": "Changes to payroll data",

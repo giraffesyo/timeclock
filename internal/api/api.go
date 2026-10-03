@@ -115,15 +115,15 @@ func op(method, path, id, summary string, tags ...string) huma.Operation {
 	return o
 }
 
-// day parses an optional YYYY-MM-DD query parameter, defaulting to today in
-// the organization's time zone.
-func (d Deps) day(ctx context.Context, param, value string) (clock.Date, error) {
+// day parses an optional YYYY-MM-DD query parameter, defaulting to today
+// where the caller is.
+func (d Deps) day(ctx context.Context, caller clock.Person, param, value string) (clock.Date, error) {
 	if value == "" {
 		cfg, err := d.Clock.Settings(ctx)
 		if err != nil {
 			return clock.Date{}, err
 		}
-		return d.Clock.Today(cfg), nil
+		return d.Clock.TodayFor(cfg, caller), nil
 	}
 	parsed, err := clock.ParseDate(value)
 	if err != nil {

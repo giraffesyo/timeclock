@@ -212,6 +212,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/timezone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the time zone the caller's days are cut in */
+        put: operations["set-own-timezone"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/people": {
         parameters: {
             query?: never;
@@ -939,6 +956,11 @@ export interface components {
             overtimeExempt: boolean;
             /** @description The person's id in the payroll system, for the export. */
             payrollId: string;
+            /**
+             * @description The IANA time zone their days and workweeks are cut in; empty uses the organization's.
+             * @example America/Los_Angeles
+             */
+            timezone: string;
         };
         PersonUpdate: {
             /**
@@ -953,6 +975,8 @@ export interface components {
             managerId: string;
             overtimeExempt: boolean;
             payrollId: string;
+            /** @description The IANA time zone their days are cut in. Empty uses the organization's. */
+            timezone: string;
         };
         Problem: {
             /**
@@ -1054,6 +1078,19 @@ export interface components {
             readonly $schema?: string;
             note?: string;
         };
+        "Set-own-timezoneRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Set-own-timezoneRequest.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description An IANA time zone. Empty uses the organization's.
+             * @example America/Los_Angeles
+             */
+            timezone: string;
+        };
         Settings: {
             /**
              * Format: uri
@@ -1085,7 +1122,7 @@ export interface components {
             /** @description Every time entry names a project. */
             requireProject: boolean;
             /**
-             * @description IANA time zone that days, workweeks and pay periods are cut in.
+             * @description IANA time zone that days and workweeks are cut in for everyone who hasn't set their own.
              * @example America/Chicago
              */
             timezone: string;
@@ -1706,6 +1743,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "set-own-timezone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Set-own-timezoneRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
                 };
             };
             /** @description Error */

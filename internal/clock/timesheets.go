@@ -24,6 +24,9 @@ func scanTimesheet(row pgx.Row) (Timesheet, error) {
 // Today is the current day in the organization's time zone.
 func (s *Service) Today(cfg Settings) Date { return DateOf(s.now(), cfg.Location()) }
 
+// TodayFor is the current day where a person is.
+func (s *Service) TodayFor(cfg Settings, p Person) Date { return DateOf(s.now(), cfg.LocationOf(p)) }
+
 // periodFor is the pay period a day falls in for a person: the period of a
 // timesheet they already submitted covering it, which keeps its bounds even
 // if the pay cycle changed since, and otherwise the settings' period.
@@ -43,7 +46,7 @@ func periodFor(ctx context.Context, q querier, cfg Settings, personID string, d 
 
 // summarize adds up a person's pay period.
 func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Period) (PeriodSummary, error) {
-	loc := cfg.Location()
+	loc := cfg.LocationOf(p)
 	rule := cfg.Overtime(p.OvertimeExempt)
 	out := PeriodSummary{Person: p, Period: period}
 
@@ -184,12 +187,12 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 		if err != nil {
 			return err
 		}
-		if period.Start.After(s.Today(cfg)) {
+		if period.Start.After(s.TodayFor(cfg, p)) {
 			return invalidField("day", "the pay period hasn't started")
 		}
 		var running bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE person_id = $1 AND ended_at IS NULL AND started_at < $2)`,
-			p.ID, period.End.AddDays(1).In(cfg.Location())).Scan(&running); err != nil {
+			p.ID, period.End.AddDays(1).In(cfg.LocationOf(p))).Scan(&running); err != nil {
 			return fmt.Errorf("check running clock: %w", err)
 		}
 		if running {

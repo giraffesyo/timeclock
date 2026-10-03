@@ -8,12 +8,14 @@ import type { Standing } from '@/components/timesheet/sheet';
 import { type SheetAction, SheetDialog } from '@/components/timesheet/sheet-dialog';
 import { type PeriodSummary, usePeople, useReopenTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
+import { useZone } from '@/lib/zone';
 
 /** Who submitted or decided the sheet and when, in a sentence. */
 function useHistory(summary: PeriodSummary): string | null {
   const t = useTranslations('timesheet.status');
   const format = useFormatter();
   const me = useSession();
+  const zone = useZone();
   // Only admins and managers can list people; everyone else gets the general wording.
   const people = usePeople(me.admin || me.manager);
   const ts = summary.timesheet;
@@ -25,7 +27,7 @@ function useHistory(summary: PeriodSummary): string | null {
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      timeZone: me.settings.timezone,
+      timeZone: zone,
     });
   const who = (id: string) =>
     id === me.person.id

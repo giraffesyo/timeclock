@@ -20,9 +20,7 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 	if err != nil {
 		return nil, err
 	}
-	today := s.Today(cfg)
 	limit := time.Duration(cfg.LongEntryHours * float64(time.Hour))
-	loc := cfg.Location()
 
 	out := []Exception{}
 	for _, sum := range team {
@@ -32,7 +30,7 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 			out = append(out, e)
 		}
 
-		long, err := s.longEntries(ctx, p.ID, sum.Period, loc, limit)
+		long, err := s.longEntries(ctx, p.ID, sum.Period, cfg.LocationOf(p), limit)
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +38,7 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 			add(e)
 		}
 
-		ended := sum.Period.End.Before(today)
+		ended := sum.Period.End.Before(s.TodayFor(cfg, p))
 		switch {
 		case sum.Timesheet == nil && ended && sum.Regular+sum.Overtime+sum.Vacation+sum.Sick+sum.PendingTimeOff == 0 && !sum.Running:
 			add(Exception{Kind: ExceptionNoTime})
@@ -102,7 +100,8 @@ func (s *Service) Payroll(ctx context.Context, actor Actor, day Date) ([]PeriodS
 
 // ProjectReport adds up finished time on the days from..to by project and
 // person, for the people whose time actor may see. Time is cut at the first
-// and last midnight, so an entry across one counts only its part inside.
+// and last midnight where each person is, so an entry across one counts only
+// its part inside.
 func (s *Service) ProjectReport(ctx context.Context, actor Actor, from, to Date) ([]ProjectHours, error) {
 	if to.Before(from) {
 		return nil, invalidField("to", "must not be before from")
@@ -111,20 +110,25 @@ func (s *Service) ProjectReport(ctx context.Context, actor Actor, from, to Date)
 	if err != nil {
 		return nil, err
 	}
-	loc := cfg.Location()
 	rows, err := s.pool.Query(ctx, `
+		WITH e AS (
+			SELECT t.*, pe.name AS person_name,
+				($1::timestamp AT TIME ZONE coalesce(nullif(pe.timezone, ''), $5)) AS lo,
+				($2::timestamp AT TIME ZONE coalesce(nullif(pe.timezone, ''), $5)) AS hi
+			FROM time_entries t JOIN people pe ON pe.id = t.person_id
+			WHERE t.ended_at IS NOT NULL
+			AND ($3 OR pe.id = $4 OR (CASE WHEN pe.manager_id <> '' THEN pe.manager_id ELSE pe.host_manager_id END) = $4)
+		)
 		SELECT coalesce(c.name, ''), coalesce(p.id::text, ''), coalesce(p.name, ''), coalesce(p.code, ''), coalesce(p.billable, false),
-			pe.id, pe.name,
-			extract(epoch FROM sum(least(e.ended_at, $2) - greatest(e.started_at, $1)))::float8
-		FROM time_entries e
-		JOIN people pe ON pe.id = e.person_id
+			e.person_id, e.person_name,
+			extract(epoch FROM sum(least(e.ended_at, e.hi) - greatest(e.started_at, e.lo)))::float8
+		FROM e
 		LEFT JOIN projects p ON p.id = e.project_id
 		LEFT JOIN customers c ON c.id = p.customer_id
-		WHERE e.ended_at IS NOT NULL AND e.started_at < $2 AND e.ended_at > $1
-		AND ($3 OR pe.id = $4 OR (CASE WHEN pe.manager_id <> '' THEN pe.manager_id ELSE pe.host_manager_id END) = $4)
-		GROUP BY c.name, p.id, p.name, p.code, p.billable, pe.id, pe.name
-		ORDER BY lower(coalesce(c.name, '')), lower(coalesce(p.name, '')), lower(pe.name)`,
-		from.In(loc), to.AddDays(1).In(loc), actor.Admin, actor.ID)
+		WHERE e.started_at < e.hi AND e.ended_at > e.lo
+		GROUP BY c.name, p.id, p.name, p.code, p.billable, e.person_id, e.person_name
+		ORDER BY lower(coalesce(c.name, '')), lower(coalesce(p.name, '')), lower(e.person_name)`,
+		from.Time(), to.AddDays(1).Time(), actor.Admin, actor.ID, cfg.Timezone)
 	if err != nil {
 		return nil, fmt.Errorf("project report: %w", err)
 	}

@@ -484,6 +484,17 @@
     position: relative;
     height: calc(var(--tl-hours) * var(--tl-hour));
   }
+  .wk-zone {
+    cursor: pointer;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.6875rem;
+    color: var(--color-muted-foreground);
+  }
+  .wk-zone:hover {
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+  }
   .wk-future {
     background-image: repeating-linear-gradient(
       135deg,

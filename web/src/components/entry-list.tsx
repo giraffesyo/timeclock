@@ -8,9 +8,9 @@ import { EntryDialog } from '@/components/entry-dialog';
 import { ErrorNote } from '@/components/page';
 import { ProjectDot, useProjectName } from '@/components/project-select';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
-import { useSession } from '@/lib/session';
 import { dayOf, elapsed, hoursMinutes } from '@/lib/time';
 import { useNow } from '@/lib/use-now';
+import { useZone } from '@/lib/zone';
 
 /**
  * A day's entries, oldest first: when, on what, for how long. Each can be
@@ -20,8 +20,7 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
   const t = useTranslations('entry');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { settings } = useSession();
-  const zone = settings.timezone;
+  const zone = useZone(entries[0]?.personId);
   const projectName = useProjectName();
   const remove = useDeleteEntry();
   const again = useContinue();

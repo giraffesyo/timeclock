@@ -297,6 +297,63 @@ func TestEntriesCannotBeInTheFuture(t *testing.T) {
 	wantProblem(t, err, "in_the_future")
 }
 
+func TestOwnTimezoneCutsTheDay(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	// 21:00–23:30 Pacific on Thursday runs past midnight in Chicago.
+	loc, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 10, 1, 21, 0, 0, 0, loc)
+	end := time.Date(2026, 10, 1, 23, 30, 0, 0, loc)
+	if _, err := f.CreateEntry(ctx, f.ada, EntryInput{StartedAt: start, EndedAt: &end}); err != nil {
+		t.Fatal(err)
+	}
+	hoursOn := func(who Actor, date string) float64 {
+		t.Helper()
+		sum, err := f.Summary(ctx, who, "", day(t, date))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range sum.Days {
+			if d.Day == day(t, date) {
+				return d.Regular
+			}
+		}
+		return 0
+	}
+	if got := hoursOn(f.ada, "2026-10-02"); got != 1.5 {
+		t.Errorf("in the organization's zone, Friday = %v, want 1.5", got)
+	}
+
+	_, err = f.SetOwnTimezone(ctx, f.ada, "Mars/Olympus")
+	wantProblem(t, err, "validation")
+	p, err := f.SetOwnTimezone(ctx, f.ada, "America/Los_Angeles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ada := f.ada
+	ada.Person = p
+	if got := hoursOn(ada, "2026-10-01"); got != 2.5 {
+		t.Errorf("in her own zone, Thursday = %v, want 2.5", got)
+	}
+	if got := hoursOn(ada, "2026-10-02"); got != 0 {
+		t.Errorf("in her own zone, Friday = %v, want 0", got)
+	}
+	// Her entries for Thursday, asked for by her day, include it.
+	entries, err := f.Entries(ctx, ada, "", day(t, "2026-10-01"), day(t, "2026-10-01"))
+	if err != nil || len(entries) != 1 {
+		t.Errorf("Thursday's entries = %v, %v", entries, err)
+	}
+	rows, err := f.HoursByDayAndProject(ctx, ada, day(t, "2026-10-01"), day(t, "2026-10-02"), true)
+	if err != nil || len(rows) != 1 || rows[0].Day != day(t, "2026-10-01") {
+		t.Errorf("hours by day = %+v, %v", rows, err)
+	}
+}
+
 func TestActivity(t *testing.T) {
 	f := newFixture(t)
 	f.settings(func(s *Settings) { s.RequireProject = false })

@@ -13,11 +13,13 @@ import { Segmented } from '@/components/segmented';
 import { SheetStatus } from '@/components/status';
 import { WeekCalendar } from '@/components/week-calendar';
 import { useWeek, WeekNav } from '@/components/week-nav';
+import { ZoneBanner } from '@/components/zone';
 import { type Entry, useEntries, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayOf, dayToDate, hoursMinutes } from '@/lib/time';
 import { covered } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
+import { useZone } from '@/lib/zone';
 
 type View = 'calendar' | 'list';
 
@@ -42,10 +44,11 @@ function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; lo
   const t = useTranslations('timer');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today, settings } = useSession();
+  const { today } = useSession();
+  const zone = useZone();
   const days = [...week]
     .reverse()
-    .map((day) => ({ day, entries: entries.filter((e) => dayOf(e.startedAt, settings.timezone) === day) }))
+    .map((day) => ({ day, entries: entries.filter((e) => dayOf(e.startedAt, zone) === day) }))
     .filter((d) => d.entries.length > 0);
   if (days.length === 0) return <Empty>{t('empty')}</Empty>;
   return (
@@ -111,6 +114,7 @@ function TimerPage() {
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
       <h1 className="sr-only">{t('title')}</h1>
       <div className="space-y-4">
+        <ZoneBanner />
         <ClockBar locked={submitted} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
