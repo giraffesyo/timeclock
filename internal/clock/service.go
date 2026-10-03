@@ -286,3 +286,23 @@ func checkManager(ctx context.Context, q querier, personID, managerID string) er
 	}
 	return nil
 }
+
+// personNames returns the names of the people with the given ids.
+func personNames(ctx context.Context, q querier, ids []string) (map[string]string, error) {
+	names := map[string]string{}
+	if len(ids) == 0 {
+		return names, nil
+	}
+	rows, err := q.Query(ctx, `SELECT id, name FROM people WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("read names: %w", err)
+	}
+	var id, name string
+	if _, err := pgx.ForEachRow(rows, []any{&id, &name}, func() error {
+		names[id] = name
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("read names: %w", err)
+	}
+	return names, nil
+}

@@ -2,8 +2,13 @@ import { inputClasses } from '@parallelworks/ui';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
-/** The class names of a text input, select or textarea. */
-export const controlClass = cn(inputClasses, 'h-8 py-0 disabled:cursor-not-allowed disabled:opacity-60');
+/**
+ * The class names of a one-line text input or select. Spelled out rather
+ * than built on the library's inputClasses, whose vertical padding leaves a
+ * 32px control too little room for its text.
+ */
+export const controlClass =
+  'h-8 w-full rounded-md border border-border bg-(--theme-input-bg) px-2.5 py-0 text-sm leading-none text-foreground outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
 
 /** The same, for a textarea, which sets its own height. */
 export const textareaClass = cn(inputClasses, 'min-h-16 disabled:cursor-not-allowed disabled:opacity-60');

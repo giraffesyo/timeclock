@@ -7,11 +7,32 @@ export type Schemas = components['schemas'];
 
 export { ApiError } from '@parallelworks/problem';
 
+const RELOAD_KEY = 'timeclock-signin-reload';
+
+/** Whether this tab already reloaded for sign-in in the last minute, noting that it is about to. */
+function reloadedRecently(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
+    if (Date.now() - last < 60_000) return true;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+    return false;
+  } catch {
+    return true; // storage blocked: can't tell, so don't risk a loop
+  }
+}
+
 /** Sends a signed-out browser to sign in, returning to where it is now. */
 async function signIn() {
   const res = await fetch(`${basePath}/api/v1/info`).catch(() => null);
   const info = res?.ok ? ((await res.json()) as Schemas['Info']) : null;
-  if (!info?.signInUrl) return; // nowhere to sign in: the caller's error says so
+  if (!info?.signInUrl) {
+    // A host that guards this path too answers the page itself: loading it
+    // again sends a signed-out browser through the host's sign-in.
+    // Once: if the host serves the page but still refuses the API, reloading
+    // again would loop.
+    if (res && !res.ok && !reloadedRecently()) window.location.reload();
+    return;
+  }
   const back = window.location.pathname + window.location.search;
   window.location.assign(info.signInUrl + encodeURIComponent(back));
 }

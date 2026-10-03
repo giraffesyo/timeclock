@@ -37,7 +37,7 @@ function Clock({ locked }: { locked: boolean }) {
           <div className="tabular text-4xl font-semibold tracking-tight" role="timer">
             {stopwatch(Math.max(0, now - Date.parse(running.startedAt)))}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">
             <div className="truncate text-sm font-medium">{projectName(running.projectId)}</div>
             <div className="text-sm text-muted-foreground">
               {t('since', {
@@ -52,7 +52,7 @@ function Clock({ locked }: { locked: boolean }) {
           </div>
           <Button
             variant="primary"
-            className="h-10 px-5 text-base"
+            className="ml-auto h-10 px-5 text-base"
             loading={clockOut.isPending}
             icon={<StopSolidIcon aria-hidden />}
             onClick={() => clockOut.mutate()}

@@ -1,0 +1,206 @@
+{
+  "title": "Settings",
+  "description": "How payroll runs, what time is recorded against, and who tracks it.",
+  "adminOnly": "An admin manages payroll settings, projects and people.",
+  "tabs": {
+    "payroll": "Payroll",
+    "projects": "Customers and projects",
+    "people": "People",
+    "history": "History"
+  },
+  "payroll": {
+    "periods": {
+      "title": "Pay periods"
+    },
+    "cycle": {
+      "label": "Pay cycle",
+      "hint": "How long a pay period is. Each period gets one timesheet per person.",
+      "weekly": "Weekly",
+      "biweekly": "Every two weeks",
+      "semimonthly": "Twice a month (1st–15th, 16th–end)",
+      "monthly": "Monthly"
+    },
+    "anchor": {
+      "label": "A day a pay period starts on",
+      "hint": "Any one start day, past or future. Every other period is counted from it."
+    },
+    "preview": {
+      "current": "Current period",
+      "next": "Next period",
+      "needAnchor": "Choose a start day",
+      "saved": "As saved, the current period is {period}.",
+      "submittedKeep": "Timesheets already submitted keep the period they were submitted for."
+    },
+    "time": {
+      "title": "Time and overtime"
+    },
+    "timezone": {
+      "label": "Time zone",
+      "hint": "Days, workweeks and pay periods start at midnight here, wherever people work from."
+    },
+    "weekStart": {
+      "label": "Workweek starts on",
+      "hint": "Overtime is counted per workweek, starting this day."
+    },
+    "overtime": {
+      "label": "Weekly overtime after (hours)",
+      "hint": "Hours in a workweek beyond this are overtime, unless the person is exempt. 0 means no overtime."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "timesheets": "Timesheets need approval",
+      "timesheetsOn": "A submitted timesheet waits for the person’s manager or an admin.",
+      "timesheetsOff": "Off: a submitted timesheet is final at once, with no one reviewing it.",
+      "timeOff": "Time off needs approval",
+      "timeOffOn": "Vacation and sick time wait for the person’s manager or an admin before they count.",
+      "timeOffOff": "Off: time off is recorded at once and counts toward payroll without review."
+    },
+    "entries": {
+      "title": "Time entries",
+      "requireProject": "Require a project on every entry",
+      "requireProjectOn": "No one can clock in or add time without choosing a project.",
+      "requireProjectOff": "Off: time can be recorded with no project, and shows as “No project” in reports.",
+      "longEntry": "Long-entry limit (hours)",
+      "longEntryHint": "An entry or a running clock longer than this is flagged as an exception, usually a forgotten clock-out."
+    },
+    "unsaved": "Unsaved changes.",
+    "invalid": "A value is missing or out of range.",
+    "noChanges": "No changes to save.",
+    "saved": "Saved",
+    "discard": "Discard changes",
+    "saveFailed": "Couldn’t save the settings.",
+    "confirm": {
+      "title": "Change pay periods?",
+      "description": "This moves every pay period boundary from now on. The current period becomes {current}, and the next {next}. Timesheets already submitted keep the period they were submitted for.",
+      "action": "Change pay periods"
+    }
+  },
+  "catalog": {
+    "title": "Customers and projects",
+    "showArchived": "Show archived ({count})",
+    "hideArchived": "Hide archived",
+    "archived": "Archived",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "archiveInstead": "Archive instead",
+    "alreadyArchived": "It is already archived.",
+    "archiveTitle": "Archive {name}?",
+    "deleteTitle": "Delete {name}?",
+    "archiveNote": "Archiving stops new time from being recorded and keeps everything already recorded in reports. Only customers with no projects, and projects with no time, can be deleted.",
+    "empty": "No customers yet. Add a customer, then the projects people record time on.",
+    "emptyAllArchived": "Every customer is archived. Show archived to bring one back, or add a customer.",
+    "loadFailed": "Couldn’t load customers and projects.",
+    "changeFailed": "Couldn’t change {name}.",
+    "deleteFailed": "Couldn’t delete it.",
+    "customer": {
+      "add": "Add customer",
+      "addTitle": "Add customer",
+      "rename": "Rename",
+      "renameTitle": "Rename customer",
+      "name": "Name",
+      "delete": "Delete {name}",
+      "saveFailed": "Couldn’t save the customer.",
+      "archiveDescription": "No new time can be recorded on any of its projects. Time already recorded stays in reports. You can unarchive it later.",
+      "deleteDescription": "A customer can be deleted only when it has no projects. This can’t be undone.",
+      "inUse": "This customer still has projects, so it can’t be deleted. Archive it to stop new time instead."
+    },
+    "project": {
+      "add": "Add project",
+      "addTitle": "Add project",
+      "edit": "Edit {name}",
+      "editTitle": "Edit project",
+      "archive": "Archive {name}",
+      "delete": "Delete {name}",
+      "name": "Name",
+      "code": "Code",
+      "codeHint": "A charge code or contract number, shown in reports and exports. Optional.",
+      "customer": "Customer",
+      "billable": "Billable",
+      "notBillable": "Not billable",
+      "billableOn": "Time on this project is reported as billable to the customer.",
+      "billableOff": "Time on this project is reported as not billable.",
+      "none": "No projects yet. Add one so people can record time for this customer.",
+      "noneArchived": "No projects.",
+      "saveFailed": "Couldn’t save the project.",
+      "archiveDescription": "No new time can be recorded on it. Time already recorded stays in reports. You can unarchive it later.",
+      "deleteDescription": "A project can be deleted only when no time was ever recorded on it. This can’t be undone.",
+      "inUse": "This project has time recorded on it, so it can’t be deleted. Archive it to stop new time instead."
+    }
+  },
+  "people": {
+    "title": "People",
+    "sync": "Bring in everyone from the directory",
+    "synced": "{count, plural, one {# person} other {# people}} in Timeclock after bringing in the directory.",
+    "syncFailed": "Couldn’t bring people in from the directory.",
+    "loadFailed": "Couldn’t load people.",
+    "empty": "No one here yet. People appear when they first sign in, or bring everyone in from the directory.",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "manager": "Manager",
+      "exempt": "Overtime exempt",
+      "payrollId": "Payroll ID",
+      "active": "Active",
+      "status": "Saving"
+    },
+    "managerDefault": "From the directory, or none",
+    "managerFor": "Manager of {name}",
+    "exemptFor": "{name} is overtime exempt",
+    "payrollIdFor": "Payroll ID of {name}",
+    "activeFor": "{name} is active",
+    "saving": "Saving",
+    "saveFailed": "Couldn’t save {name}.",
+    "deactivate": {
+      "title": "Deactivate {name}?",
+      "description": "They are left out of payroll reports, the Gusto export and exceptions from now on. Their recorded time is kept, and you can make them active again.",
+      "action": "Deactivate"
+    },
+    "notes": {
+      "manager": "Manager: who approves the person’s timesheets and time off. Left to the directory, it follows the host’s directory; with none, an admin approves.",
+      "exempt": "Overtime exempt: all of the person’s hours are regular, whatever the weekly threshold.",
+      "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export. Saved when you leave the field or press Enter.",
+      "active": "Active: inactive people are left out of reports and exceptions."
+    }
+  },
+  "history": {
+    "title": "Changes to payroll data",
+    "filter": "Show changes to one person’s time",
+    "everyone": "Everyone’s time",
+    "loadFailed": "Couldn’t load the history.",
+    "empty": "Nothing has changed yet. Every change to time, timesheets, time off and settings is listed here.",
+    "emptyPerson": "No changes to {name}’s time yet.",
+    "own": "Their own",
+    "organization": "Whole organization",
+    "footer": "The {count, plural, one {most recent change} other {# most recent changes}}, newest first. Times are in {zone}.",
+    "columns": {
+      "when": "When",
+      "who": "Who",
+      "what": "What",
+      "whose": "Whose time"
+    },
+    "about": {
+      "entry": "{day}, {start} – {end}",
+      "entryRunning": "{day}, from {start}",
+      "timeOff": "{kind}, {day}, {hours} h"
+    },
+    "actions": {
+      "entry_create": "Added time",
+      "entry_update": "Changed time",
+      "entry_delete": "Deleted time",
+      "time_off_request": "Recorded time off",
+      "time_off_cancel": "Cancelled time off",
+      "time_off_approved": "Approved time off",
+      "time_off_rejected": "Rejected time off",
+      "timesheet_submit": "Submitted a timesheet",
+      "timesheet_approved": "Approved a timesheet",
+      "timesheet_rejected": "Sent a timesheet back",
+      "timesheet_reopen": "Reopened a timesheet",
+      "settings_update": "Changed payroll settings",
+      "person_update": "Changed a person’s payroll details",
+      "customer_save": "Saved a customer",
+      "customer_delete": "Deleted a customer",
+      "project_save": "Saved a project",
+      "project_delete": "Deleted a project"
+    }
+  }
+}

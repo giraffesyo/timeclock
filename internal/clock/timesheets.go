@@ -110,6 +110,11 @@ func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Pe
 	case err != nil:
 		return out, fmt.Errorf("read timesheet: %w", err)
 	default:
+		names, err := personNames(ctx, q, []string{ts.DecidedBy})
+		if err != nil {
+			return out, err
+		}
+		ts.DecidedByName = names[ts.DecidedBy]
 		out.Timesheet = &ts
 	}
 	return out, nil

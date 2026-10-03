@@ -27,6 +27,11 @@ type payrollBody struct {
 	NotReady int `json:"notReady"`
 }
 
+type exceptionsBody struct {
+	Period     clock.Period      `json:"period"`
+	Exceptions []clock.Exception `json:"exceptions"`
+}
+
 type csvResponse struct {
 	ContentType        string `header:"Content-Type"`
 	ContentDisposition string `header:"Content-Disposition"`
@@ -90,11 +95,7 @@ func registerReports(a huma.API, d Deps) {
 	huma.Register(a, op(http.MethodGet, "/exceptions", "list-exceptions", "What payroll should look at in a pay period", "Reports"),
 		func(ctx context.Context, in *struct {
 			Day string `query:"day" format:"date" doc:"Any day in the pay period. Defaults to today."`
-		}) (*struct {
-			Body struct {
-				Exceptions []clock.Exception `json:"exceptions"`
-			}
-		}, error) {
+		}) (*struct{ Body exceptionsBody }, error) {
 			actor, err := d.actor(ctx)
 			if err != nil {
 				return nil, err
@@ -103,17 +104,15 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
+			cfg, err := d.Clock.Settings(ctx)
+			if err != nil {
+				return nil, err
+			}
 			list, err := d.Clock.Exceptions(ctx, actor, day)
 			if err != nil {
 				return nil, err
 			}
-			out := &struct {
-				Body struct {
-					Exceptions []clock.Exception `json:"exceptions"`
-				}
-			}{}
-			out.Body.Exceptions = orEmpty(list)
-			return out, nil
+			return &struct{ Body exceptionsBody }{exceptionsBody{Period: cfg.PeriodOf(day), Exceptions: orEmpty(list)}}, nil
 		})
 
 	huma.Register(a, op(http.MethodGet, "/reports/payroll", "payroll-report", "Everyone's hours for a pay period", "Reports"),

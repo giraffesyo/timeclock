@@ -25,8 +25,7 @@
   "project": {
     "label": "Project",
     "none": "No project",
-    "choose": "Choose a project",
-    "empty": "No projects yet. An admin adds them in Settings."
+    "choose": "Choose a project"
   },
   "columns": {
     "regular": "Regular",
@@ -38,6 +37,5 @@
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
-  "edit": "Edit",
   "note": "Note"
 }

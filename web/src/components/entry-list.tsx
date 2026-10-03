@@ -41,10 +41,15 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
       <ul className="divide-y divide-border">
         {entries.map((e) => (
           <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="tabular w-36 shrink-0 text-sm">{range(e)}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{projectName(e.projectId)}</span>
-              {e.note && <span className="block truncate text-xs text-muted-foreground">{e.note}</span>}
+            {/* Side by side on a wide screen; the time above the project on a phone. */}
+            <span className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
+              <span className="tabular block shrink-0 text-xs text-muted-foreground sm:w-36 sm:text-sm sm:text-foreground">
+                {range(e)}
+              </span>
+              <span className="block min-w-0 sm:flex-1">
+                <span className="block truncate text-sm font-medium">{projectName(e.projectId)}</span>
+                {e.note && <span className="block truncate text-xs text-muted-foreground">{e.note}</span>}
+              </span>
             </span>
             <span className="tabular shrink-0 text-sm font-medium">
               {tc('duration', hoursMinutes(elapsed(e.startedAt, e.endedAt)))}

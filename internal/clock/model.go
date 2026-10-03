@@ -73,7 +73,9 @@ type Project struct {
 	Name         string    `json:"name"`
 	Code         string    `json:"code" doc:"A charge code or contract number."`
 	Billable     bool      `json:"billable"`
-	Archived     bool      `json:"archived"`
+	Archived     bool      `json:"archived" doc:"The project itself is archived."`
+	// CustomerArchived means the project takes no new time either way.
+	CustomerArchived bool `json:"customerArchived"`
 }
 
 // Entry is a stretch of work.
@@ -104,28 +106,31 @@ const (
 
 // TimeOff is vacation or sick hours on one day.
 type TimeOff struct {
-	ID           uuid.UUID  `json:"id"`
-	PersonID     string     `json:"personId"`
-	Kind         string     `json:"kind" enum:"vacation,sick"`
-	Day          Date       `json:"day" format:"date"`
-	Hours        float64    `json:"hours"`
-	Note         string     `json:"note"`
-	Status       string     `json:"status" enum:"pending,approved,rejected"`
-	DecidedBy    string     `json:"decidedBy,omitempty"`
-	DecidedAt    *time.Time `json:"decidedAt,omitempty"`
-	DecisionNote string     `json:"decisionNote,omitempty"`
+	ID            uuid.UUID  `json:"id"`
+	PersonID      string     `json:"personId"`
+	Kind          string     `json:"kind" enum:"vacation,sick"`
+	Day           Date       `json:"day" format:"date"`
+	Hours         float64    `json:"hours"`
+	Note          string     `json:"note"`
+	Status        string     `json:"status" enum:"pending,approved,rejected"`
+	DecidedBy     string     `json:"decidedBy,omitempty"`
+	DecidedByName string     `json:"decidedByName,omitempty"`
+	DecidedAt     *time.Time `json:"decidedAt,omitempty"`
+	DecisionNote  string     `json:"decisionNote,omitempty"`
+	Locked        bool       `json:"locked" doc:"Its day is in a submitted or approved timesheet, so it can't be removed."`
 }
 
 // Timesheet is a person's statement that a pay period's time is complete.
 type Timesheet struct {
-	ID           uuid.UUID  `json:"id"`
-	PersonID     string     `json:"personId"`
-	Period       Period     `json:"period"`
-	Status       string     `json:"status" enum:"submitted,approved,rejected"`
-	SubmittedAt  time.Time  `json:"submittedAt"`
-	DecidedBy    string     `json:"decidedBy,omitempty"`
-	DecidedAt    *time.Time `json:"decidedAt,omitempty"`
-	DecisionNote string     `json:"decisionNote,omitempty"`
+	ID            uuid.UUID  `json:"id"`
+	PersonID      string     `json:"personId"`
+	Period        Period     `json:"period"`
+	Status        string     `json:"status" enum:"submitted,approved,rejected"`
+	SubmittedAt   time.Time  `json:"submittedAt"`
+	DecidedBy     string     `json:"decidedBy,omitempty" doc:"Who approved it or sent it back; the person themselves when they took it back."`
+	DecidedByName string     `json:"decidedByName,omitempty"`
+	DecidedAt     *time.Time `json:"decidedAt,omitempty"`
+	DecisionNote  string     `json:"decisionNote,omitempty"`
 }
 
 // DaySummary is one day of a person's pay period, in hours.

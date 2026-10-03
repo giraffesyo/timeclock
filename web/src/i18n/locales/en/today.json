@@ -1,6 +1,5 @@
 {
   "title": "Today",
-  "date": "{date}",
   "clock": {
     "in": "Clock in",
     "out": "Clock out",
@@ -20,7 +19,6 @@
     "period": "This pay period",
     "overtime": "Overtime",
     "timeOff": "Time off",
-    "sheet": "Timesheet",
     "open": "Open timesheet",
     "loadFailed": "Couldn’t load this pay period."
   }

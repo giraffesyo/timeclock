@@ -11,14 +11,12 @@
   },
   "running": {
     "label": "Clock running",
-    "noProject": "No project",
     "stop": "Clock out",
     "stopFailed": "Couldn’t clock out"
   },
   "home": "Back to {name}",
   "signOut": "Sign out",
   "signOutFailed": "Couldn’t sign out",
-  "loading": "Loading Timeclock",
   "loadFailed": "Couldn’t load Timeclock.",
   "retry": "Try again",
   "notFound": {

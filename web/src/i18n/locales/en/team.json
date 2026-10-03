@@ -1,0 +1,69 @@
+{
+  "title": "Team",
+  "notApprover": "This page is for people who approve time.",
+  "ownTimesheet": "Open your timesheet",
+  "loadFailed": "Couldn’t load the team’s pay period.",
+  "needs": {
+    "sheets": "Timesheets waiting",
+    "sheetsHint": "in this pay period",
+    "timeOff": "Time off waiting",
+    "timeOffHint": "{count, plural, =0 {nothing to decide} one {# day in all} other {# days in all}}",
+    "missing": "Not submitted",
+    "missingEnded": "this period ended {date}",
+    "missingOpen": "counted once the period ends {date}",
+    "previous": "The previous pay period ({period}) still has {waiting, plural, =0 {no timesheets} one {# timesheet} other {# timesheets}} waiting and {missing, plural, =0 {no one} one {# person} other {# people}} who didn’t submit.",
+    "openPrevious": "Open it"
+  },
+  "table": {
+    "title": "Pay period",
+    "person": "Person",
+    "pendingTimeOff": "Time off pending",
+    "status": "Timesheet",
+    "decide": "Decision",
+    "you": "you",
+    "running": "Clocked in",
+    "runningHint": "A clock is running; its time isn’t counted until it stops.",
+    "empty": "No one’s time is yours to see yet. An admin assigns people to their manager in Settings.",
+    "approve": "Approve",
+    "sendBack": "Send back",
+    "own": "Yours: your manager or an admin decides it.",
+    "sentBackNote": "Sent back: {note}",
+    "openSheet": "Open {name}’s timesheet"
+  },
+  "sheet": {
+    "approveTitle": "Approve {name}’s timesheet?",
+    "approveDescription": "{period}: {total} h in all. Approved hours go to payroll.",
+    "sendBackTitle": "Send {name}’s timesheet back?",
+    "sendBackDescription": "{period}. It unlocks so they can fix their time and submit again. They see your note.",
+    "failed": "Couldn’t record the decision."
+  },
+  "timeOff": {
+    "title": "Waiting for you",
+    "loadFailed": "Couldn’t load the time off waiting for you.",
+    "empty": "No time off is waiting for your decision.",
+    "unknownPerson": "Someone no longer listed",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "perDay": "{hours} h a day",
+    "approve": "Approve",
+    "approveAll": "Approve all {count} days",
+    "reject": "Reject",
+    "rejectAll": "Reject all {count} days",
+    "byDay": "Decide day by day",
+    "together": "Decide together",
+    "approveLabel": "Approve {name}’s {kind} on {days}",
+    "rejectLabel": "Reject {name}’s {kind} on {days}",
+    "approveTitle": "Approve {name}’s time off?",
+    "rejectTitle": "Reject {name}’s time off?",
+    "description": "{kind}, {days}: {count, plural, one {# day} other {# days}}, {total} h.",
+    "failed": "Couldn’t record the decision.",
+    "partial": "{done} of {total} days were decided. These weren’t:",
+    "retry": "Try {count, plural, one {# day} other {# days}} again"
+  },
+  "note": {
+    "optional": "Note (optional)",
+    "required": "Note (required)",
+    "sendBackPlaceholder": "What needs fixing?",
+    "rejectPlaceholder": "Why it can’t be approved",
+    "approvePlaceholder": "Anything they should know"
+  }
+}

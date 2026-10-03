@@ -98,7 +98,7 @@ export function useExceptions(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['exceptions', day ?? ''],
     queryFn: enabled
-      ? async () => unwrap(await api.GET('/api/v1/exceptions', { params: { query: { day } } })).exceptions ?? []
+      ? async () => unwrap(await api.GET('/api/v1/exceptions', { params: { query: { day } } }))
       : skipToken,
   });
 }

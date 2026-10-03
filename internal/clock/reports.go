@@ -143,6 +143,7 @@ func (s *Service) ProjectReport(ctx context.Context, actor Actor, from, to Date)
 
 // AuditEntry is one change to payroll data.
 type AuditEntry struct {
+	ID       uuid.UUID      `json:"id"`
 	At       time.Time      `json:"at"`
 	Actor    string         `json:"actor"`
 	Action   string         `json:"action"`
@@ -156,7 +157,7 @@ func (s *Service) Audit(ctx context.Context, actor Actor, personID string, limit
 	if !actor.Admin {
 		return nil, forbidden("only an admin reads the audit log")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT at, actor, action, person_id, detail FROM audit_log
+	rows, err := s.pool.Query(ctx, `SELECT id, at, actor, action, person_id, detail FROM audit_log
 		WHERE $1 = '' OR person_id = $1 ORDER BY at DESC, id DESC LIMIT $2`, personID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("read audit log: %w", err)
@@ -164,7 +165,7 @@ func (s *Service) Audit(ctx context.Context, actor Actor, personID string, limit
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (AuditEntry, error) {
 		var a AuditEntry
 		var detail any
-		err := row.Scan(&a.At, &a.Actor, &a.Action, &a.PersonID, &detail)
+		err := row.Scan(&a.ID, &a.At, &a.Actor, &a.Action, &a.PersonID, &detail)
 		// Detail is an object for one record and a list for several.
 		if m, ok := detail.(map[string]any); ok {
 			a.Detail = m

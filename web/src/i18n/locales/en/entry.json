@@ -17,8 +17,6 @@
   "deleteFailed": "Couldn’t delete the time.",
   "edit": "Edit time",
   "locked": "In a submitted timesheet",
-  "running": "running",
-  "manual": "Added by hand",
   "range": "{start} – {end}",
   "rangeRunning": "{start} – now"
 }

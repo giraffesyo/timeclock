@@ -1,0 +1,114 @@
+{
+  "title": "Reports",
+  "tabs": {
+    "label": "Reports",
+    "payroll": "Payroll",
+    "exceptions": "Exceptions",
+    "projects": "Projects"
+  },
+  "openTimesheet": "Open timesheet",
+  "openTimesheetFor": "Open the timesheet of {name}",
+  "payroll": {
+    "loadFailed": "Couldn't load payroll.",
+    "empty": "There is no one in this pay period yet.",
+    "ready": "{ready} of {total, plural, one {# person is} other {# people are}} ready.",
+    "allReady": "{total, plural, one {# person is} other {All # people are}} ready. No one is left out of the export.",
+    "leftOut": "{count, plural, one {# is} other {# are}} left out of the export:",
+    "readyApproved": "A person is ready once their timesheet is approved.",
+    "readySubmitted": "A person is ready once they submit their timesheet.",
+    "columns": {
+      "person": "Person",
+      "payrollId": "Payroll id",
+      "status": "Timesheet",
+      "ready": "Export"
+    },
+    "isReady": "Ready",
+    "notReady": "Not ready",
+    "noPayrollId": "Not set",
+    "clockRunning": "Clock running",
+    "pendingTimeOff": "{hours} h time off pending",
+    "totals": "Total",
+    "missingIds": "{count, plural, one {# person has} other {# people have}} no payroll id, so Gusto can't match their hours: {names}. Set it in <link>Settings</link>.",
+    "export": {
+      "gusto": "Export for Gusto",
+      "everyone": "Include everyone",
+      "explain": "A CSV with one row per ready person: regular, overtime, vacation (as PTO) and sick hours. Each person's payroll id goes in the gusto_employee_id column.",
+      "noneReady": "No one is ready, so there is nothing to export yet.",
+      "confirmTitle": "Export time that isn't approved?",
+      "confirmDescription": "{count, plural, one {# person isn't} other {# people aren't}} ready: {names}. Including them puts time no one has approved in the file, and Gusto would pay it.",
+      "confirm": "Export everyone"
+    }
+  },
+  "exceptions": {
+    "loadFailed": "Couldn't load exceptions.",
+    "scopeAll": "What to settle before payroll runs, for everyone.",
+    "scopeReports": "What to settle before payroll runs, for the people who report to you.",
+    "empty": "Nothing to look at. Everyone's time in this pay period is in order.",
+    "count": "{count, plural, one {# exception} other {# exceptions}}",
+    "filter": {
+      "label": "Show one kind",
+      "all": "All"
+    },
+    "kind": {
+      "clock_running": "Clock running",
+      "long_entry": "Long entry",
+      "not_submitted": "Not submitted",
+      "awaiting_approval": "Awaiting approval",
+      "rejected": "Sent back",
+      "time_off_pending": "Time off pending",
+      "overtime": "Overtime",
+      "no_time": "No time"
+    },
+    "severity": {
+      "blocking": "Settle before payroll",
+      "check": "Check",
+      "info": "For information"
+    },
+    "sentence": {
+      "clock_running": "A clock has been running for {hours} h, since {day}.",
+      "long_entry": "An entry of {hours} h on {day}.",
+      "not_submitted": "The period ended and the timesheet hasn't been submitted.",
+      "awaiting_approval": "The timesheet is submitted and waiting for approval.",
+      "rejected": "The timesheet was sent back and hasn't been resubmitted.",
+      "time_off_pending": "{hours} h of time off is waiting for a decision.",
+      "overtime": "{hours} h of overtime in this period.",
+      "no_time": "Nothing was recorded in this period."
+    },
+    "action": {
+      "clock_running": "Stop the clock and correct the entry. Running time isn't counted.",
+      "long_entry": "Check that it's right, and correct it if a clock was left on.",
+      "not_submitted": "Ask them to submit it.",
+      "awaiting_approval": "Approve it or send it back.",
+      "rejected": "Ask them to fix it and submit again.",
+      "time_off_pending": "Approve or reject the request.",
+      "overtime": "Nothing to do unless it's unexpected.",
+      "no_time": "Confirm they had no hours, or ask them to record their time."
+    }
+  },
+  "projects": {
+    "loadFailed": "Couldn't load the project report.",
+    "scopeAll": "Everyone's time by customer and project. A running clock isn't counted until it stops.",
+    "scopeReports": "Your time and your reports' time by customer and project. A running clock isn't counted until it stops.",
+    "scopeOwn": "Your time by customer and project. A running clock isn't counted until it stops.",
+    "from": "From",
+    "to": "To",
+    "quick": {
+      "label": "Quick ranges",
+      "thisPeriod": "This period",
+      "lastPeriod": "Last period",
+      "thisMonth": "This month",
+      "lastMonth": "Last month"
+    },
+    "export": "Export CSV",
+    "empty": "No time was recorded in this range. Choose a wider range.",
+    "columns": {
+      "name": "Customer, project, person",
+      "billable": "Billing",
+      "hours": "Hours"
+    },
+    "billable": "Billable",
+    "notBillable": "Not billable",
+    "noCustomer": "No customer",
+    "total": "Total"
+  }
+}

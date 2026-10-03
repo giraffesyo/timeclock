@@ -1,0 +1,40 @@
+{
+  "title": "Time off",
+  "description": "Vacation and sick hours recorded here go on your timesheet. Balances aren’t tracked here; they live in the payroll system.",
+  "request": {
+    "title": "Record time off",
+    "kind": "Kind",
+    "from": "First day",
+    "to": "Last day",
+    "hours": "Hours per day",
+    "weekends": "Include Saturdays and Sundays",
+    "notePlaceholder": "Optional, for whoever approves it",
+    "submit": "Record time off",
+    "submitForApproval": "Request time off",
+    "preview": "{count, plural, one {# day} other {# days}} × {hours} h = {total} h of {kind}",
+    "previewSkipped": "{count, plural, one {# weekend day} other {# weekend days}} skipped",
+    "invalidDates": "Choose a first and a last day.",
+    "invalidOrder": "The last day is before the first.",
+    "invalidHours": "Hours per day must be more than 0 and at most 24.",
+    "tooLong": "One request covers at most {max} days. Split it into shorter runs.",
+    "noDays": "That range has only weekend days. Include Saturdays and Sundays to record them.",
+    "failed": "Couldn’t record the time off. Nothing was saved.",
+    "donePending": "{count, plural, one {# day} other {# days}} ({total} h) requested. It waits for your manager or an admin to approve.",
+    "doneRecorded": "{count, plural, one {# day} other {# days}} ({total} h) recorded. No approval is needed."
+  },
+  "list": {
+    "upcoming": "Upcoming",
+    "past": "Past 12 months",
+    "loadFailed": "Couldn’t load your time off.",
+    "emptyUpcoming": "No time off coming up. Record vacation or sick time above.",
+    "emptyPast": "No time off in the past 12 months.",
+    "days": "{count, plural, one {# day} other {# days}}",
+    "decisionNote": "Decision note:",
+    "remove": "Remove",
+    "removeDay": "Remove {day}",
+    "removeTitle": "Remove this day off?",
+    "removeDescription": "{hours} h of {kind} on {day} will be removed from your timesheet.",
+    "removeFailed": "Couldn’t remove the day off.",
+    "locked": "In a submitted timesheet, so it can’t be removed"
+  }
+}

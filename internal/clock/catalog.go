@@ -98,17 +98,17 @@ func (s *Service) DeleteCustomer(ctx context.Context, actor Actor, id uuid.UUID)
 // --- Projects ---
 
 const projectSelect = `SELECT p.id, p.customer_id, c.name, p.name, p.code, p.billable,
-	p.archived_at IS NOT NULL OR c.archived_at IS NOT NULL
+	p.archived_at IS NOT NULL, c.archived_at IS NOT NULL
 	FROM projects p JOIN customers c ON c.id = p.customer_id`
 
 func scanProject(row pgx.Row) (Project, error) {
 	var p Project
-	err := row.Scan(&p.ID, &p.CustomerID, &p.CustomerName, &p.Name, &p.Code, &p.Billable, &p.Archived)
+	err := row.Scan(&p.ID, &p.CustomerID, &p.CustomerName, &p.Name, &p.Code, &p.Billable, &p.Archived, &p.CustomerArchived)
 	return p, err
 }
 
 // Projects lists projects by customer then name, with archived ones when
-// asked. A project of an archived customer counts as archived.
+// asked: its own, and those of archived customers.
 func (s *Service) Projects(ctx context.Context, archived bool) ([]Project, error) {
 	rows, err := s.pool.Query(ctx, projectSelect+`
 		WHERE $1 OR (p.archived_at IS NULL AND c.archived_at IS NULL) ORDER BY lower(c.name), lower(p.name)`, archived)
@@ -200,7 +200,7 @@ func usableProject(ctx context.Context, q querier, id uuid.UUID) error {
 		return invalidField("projectId", "no such project")
 	case err != nil:
 		return fmt.Errorf("read project: %w", err)
-	case p.Archived:
+	case p.Archived || p.CustomerArchived:
 		return ErrProjectArchived.New("")
 	}
 	return nil

@@ -516,6 +516,7 @@ export interface components {
             detail: {
                 [key: string]: unknown;
             };
+            id: string;
             personId?: string;
         };
         "Clock-inRequest": {
@@ -628,6 +629,16 @@ export interface components {
             personId: string;
             personName: string;
         };
+        ExceptionsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/ExceptionsBody.json
+             */
+            readonly $schema?: string;
+            exceptions: components["schemas"]["Exception"][] | null;
+            period: components["schemas"]["Period"];
+        };
         FieldError: {
             /** @description Stable name of the rule, for clients to show a localized message. New codes can appear: fall back to a generic message for one you don't know. */
             code: string;
@@ -691,15 +702,6 @@ export interface components {
              */
             readonly $schema?: string;
             entries: components["schemas"]["Entry"][] | null;
-        };
-        "List-exceptionsResponse": {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/List-exceptionsResponse.json
-             */
-            readonly $schema?: string;
-            exceptions: components["schemas"]["Exception"][] | null;
         };
         "List-projectsResponse": {
             /**
@@ -892,10 +894,12 @@ export interface components {
              * @example https://example.com/api/schemas/Project.json
              */
             readonly $schema?: string;
+            /** @description The project itself is archived. */
             archived: boolean;
             billable: boolean;
             /** @description A charge code or contract number. */
             code: string;
+            customerArchived: boolean;
             customerId: string;
             customerName: string;
             id: string;
@@ -1023,12 +1027,15 @@ export interface components {
             /** Format: date-time */
             decidedAt?: string;
             decidedBy?: string;
+            decidedByName?: string;
             decisionNote?: string;
             /** Format: double */
             hours: number;
             id: string;
             /** @enum {string} */
             kind: "vacation" | "sick";
+            /** @description Its day is in a submitted or approved timesheet, so it can't be removed. */
+            locked: boolean;
             note: string;
             personId: string;
             /** @enum {string} */
@@ -1079,7 +1086,9 @@ export interface components {
             readonly $schema?: string;
             /** Format: date-time */
             decidedAt?: string;
+            /** @description Who approved it or sent it back; the person themselves when they took it back. */
             decidedBy?: string;
+            decidedByName?: string;
             decisionNote?: string;
             id: string;
             period: components["schemas"]["Period"];
@@ -1471,7 +1480,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["List-exceptionsResponse"];
+                    "application/json": components["schemas"]["ExceptionsBody"];
                 };
             };
             /** @description Error */

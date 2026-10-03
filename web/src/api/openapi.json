@@ -18,11 +18,15 @@
             "additionalProperties": {},
             "type": "object"
           },
+          "id": {
+            "type": "string"
+          },
           "personId": {
             "type": "string"
           }
         },
         "required": [
+          "id",
           "at",
           "actor",
           "action",
@@ -301,6 +305,37 @@
         ],
         "type": "object"
       },
+      "ExceptionsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ExceptionsBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/Exception"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          }
+        },
+        "required": [
+          "period",
+          "exceptions"
+        ],
+        "type": "object"
+      },
       "FieldError": {
         "additionalProperties": false,
         "properties": {
@@ -455,33 +490,6 @@
         },
         "required": [
           "entries"
-        ],
-        "type": "object"
-      },
-      "List-exceptionsResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/List-exceptionsResponse.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "exceptions": {
-            "items": {
-              "$ref": "#/components/schemas/Exception"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "exceptions"
         ],
         "type": "object"
       },
@@ -941,6 +949,7 @@
             "type": "string"
           },
           "archived": {
+            "description": "The project itself is archived.",
             "type": "boolean"
           },
           "billable": {
@@ -949,6 +958,9 @@
           "code": {
             "description": "A charge code or contract number.",
             "type": "string"
+          },
+          "customerArchived": {
+            "type": "boolean"
           },
           "customerId": {
             "type": "string"
@@ -970,7 +982,8 @@
           "name",
           "code",
           "billable",
-          "archived"
+          "archived",
+          "customerArchived"
         ],
         "type": "object"
       },
@@ -1262,6 +1275,9 @@
           "decidedBy": {
             "type": "string"
           },
+          "decidedByName": {
+            "type": "string"
+          },
           "decisionNote": {
             "type": "string"
           },
@@ -1278,6 +1294,10 @@
               "sick"
             ],
             "type": "string"
+          },
+          "locked": {
+            "description": "Its day is in a submitted or approved timesheet, so it can't be removed.",
+            "type": "boolean"
           },
           "note": {
             "type": "string"
@@ -1301,7 +1321,8 @@
           "day",
           "hours",
           "note",
-          "status"
+          "status",
+          "locked"
         ],
         "type": "object"
       },
@@ -1405,6 +1426,10 @@
             "type": "string"
           },
           "decidedBy": {
+            "description": "Who approved it or sent it back; the person themselves when they took it back.",
+            "type": "string"
+          },
+          "decidedByName": {
             "type": "string"
           },
           "decisionNote": {
@@ -1948,7 +1973,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/List-exceptionsResponse"
+                  "$ref": "#/components/schemas/ExceptionsBody"
                 }
               }
             },

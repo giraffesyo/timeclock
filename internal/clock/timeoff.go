@@ -13,12 +13,44 @@ import (
 
 const timeOffColumns = `id, person_id, kind, day, hours::float8, note, status, decided_by, decided_at, decision_note`
 
+// timeOffLocked is whether a time_off row (aliased o) is in a submitted or
+// approved timesheet.
+const timeOffLocked = `EXISTS (SELECT 1 FROM timesheets t WHERE t.person_id = o.person_id
+	AND t.status IN ('submitted', 'approved') AND o.day BETWEEN t.period_start AND t.period_end)`
+
 func scanTimeOff(row pgx.Row) (TimeOff, error) {
 	var t TimeOff
 	var day time.Time
 	err := row.Scan(&t.ID, &t.PersonID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote)
 	t.Day = DateFromTime(day)
 	return t, err
+}
+
+// scanTimeOffListed reads a row of timeOffColumns followed by timeOffLocked.
+func scanTimeOffListed(row pgx.CollectableRow) (TimeOff, error) {
+	var t TimeOff
+	var day time.Time
+	err := row.Scan(&t.ID, &t.PersonID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote, &t.Locked)
+	t.Day = DateFromTime(day)
+	return t, err
+}
+
+// nameDeciders fills in who decided each one, by name.
+func nameDeciders(ctx context.Context, q querier, list []TimeOff) error {
+	var ids []string
+	for _, t := range list {
+		if t.DecidedBy != "" {
+			ids = append(ids, t.DecidedBy)
+		}
+	}
+	names, err := personNames(ctx, q, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		list[i].DecidedByName = names[list[i].DecidedBy]
+	}
+	return nil
 }
 
 // TimeOff lists a person's time off on the days from..to.
@@ -31,29 +63,29 @@ func (s *Service) TimeOff(ctx context.Context, actor Actor, personID string, fro
 }
 
 func timeOff(ctx context.Context, q querier, personID string, from, to Date) ([]TimeOff, error) {
-	rows, err := q.Query(ctx, `SELECT `+timeOffColumns+` FROM time_off
-		WHERE person_id = $1 AND day BETWEEN $2 AND $3 ORDER BY day, kind`, personID, from.Time(), to.Time())
+	rows, err := q.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o
+		WHERE o.person_id = $1 AND o.day BETWEEN $2 AND $3 ORDER BY o.day, o.kind`, personID, from.Time(), to.Time())
 	if err != nil {
 		return nil, fmt.Errorf("list time off: %w", err)
 	}
-	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (TimeOff, error) { return scanTimeOff(row) })
+	out, err := pgx.CollectRows(rows, scanTimeOffListed)
 	if err != nil {
 		return nil, fmt.Errorf("list time off: %w", err)
 	}
-	return out, nil
+	return out, nameDeciders(ctx, q, out)
 }
 
 // PendingTimeOff lists the time off waiting for actor's decision: their
 // reports', or everyone's for an admin.
 func (s *Service) PendingTimeOff(ctx context.Context, actor Actor) ([]TimeOff, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+` FROM time_off o JOIN people p ON p.id = o.person_id
+	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o JOIN people p ON p.id = o.person_id
 		WHERE o.status = 'pending'
 		AND ($1 OR ((CASE WHEN p.manager_id <> '' THEN p.manager_id ELSE p.host_manager_id END) = $2 AND p.id <> $2))
 		ORDER BY o.day, o.person_id`, actor.Admin, actor.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list pending time off: %w", err)
 	}
-	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (TimeOff, error) { return scanTimeOff(row) })
+	out, err := pgx.CollectRows(rows, scanTimeOffListed)
 	if err != nil {
 		return nil, fmt.Errorf("list pending time off: %w", err)
 	}

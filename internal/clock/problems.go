@@ -82,8 +82,8 @@ var (
 	ErrInUse = Problems.Define(problem.Type{
 		Code:   "in_use",
 		Status: http.StatusConflict,
-		Title:  "Still has time recorded",
-		Doc:    "It has time recorded against it, so it can't be deleted. Archive it instead.",
+		Title:  "Still in use",
+		Doc:    "A customer with projects, or a project with time recorded on it, can't be deleted. Archive it instead.",
 	})
 	ErrNameTaken = Problems.Define(problem.Type{
 		Code:   "name_taken",
