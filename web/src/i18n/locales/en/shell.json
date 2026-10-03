@@ -10,11 +10,6 @@
     "settings": "Settings",
     "overview": "Overview"
   },
-  "running": {
-    "label": "Clock running",
-    "stop": "Clock out",
-    "stopFailed": "Couldn’t clock out"
-  },
   "home": "Back to {name}",
   "signOut": "Sign out",
   "signOutFailed": "Couldn’t sign out",

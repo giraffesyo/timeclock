@@ -3,7 +3,6 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
-import { ClockBar } from '@/components/clock-bar';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
 import { Hours } from '@/components/hours';
@@ -115,7 +114,6 @@ function TimerPage() {
       <h1 className="sr-only">{t('title')}</h1>
       <div className="space-y-4">
         <ZoneBanner />
-        <ClockBar locked={submitted} />
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
