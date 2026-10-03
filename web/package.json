@@ -15,6 +15,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@giraffesyo/timeclock": "workspace:*",
     "@headlessui/react": "^2.2.10",
     "@parallelworks/i18n": "^0.2.0",
     "@parallelworks/problem": "^0.2.0",

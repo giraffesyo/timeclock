@@ -84,7 +84,6 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
                       aria-label={t('continue')}
                       data-tooltip-id={TOOLTIP_ID}
                       data-tooltip-content={t('continue')}
-                      disabled={again.pending}
                       onClick={() => again.start(e)}
                     >
                       <StartIcon aria-hidden className="!size-4.5" />

@@ -1,4 +1,5 @@
 import './theme-init';
+import '@giraffesyo/timeclock/styles.css';
 import './index.css';
 import 'virtual:timeclock-theme.css';
 // Their runtime style injection is off (vite-csp.ts); the CSP allows files.

@@ -1,4 +1,4 @@
-web/node_modules
+node_modules
 web/dist/*
 !web/dist/.gitkeep
 *.tsbuildinfo
@@ -6,3 +6,4 @@ web/dist/*
 /timeclock-server
 web/test-results
 web/playwright-report
+web/packages/*/dist

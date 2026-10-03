@@ -78,6 +78,9 @@ jobs:
         working-directory: web
       - run: pnpm build
         working-directory: web
+      - name: The npm package builds and packs
+        run: pnpm typecheck && pnpm build && npm pack --dry-run
+        working-directory: web/packages/timeclock
 
   # The built server, with the app embedded and its production CSP, driven by
   # real browsers: Chromium, WebKit and a phone.

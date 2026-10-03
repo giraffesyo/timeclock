@@ -1,0 +1,236 @@
+/* The look of @giraffesyo/timeclock's ClockBar and ProjectPicker. Colors come
+ * from the --tc-* properties, which default to @parallelworks/ui's theme
+ * contract (--theme-*) and, without it, to plain light values. Set --tc-*
+ * on any ancestor to fit another look. */
+.tc-bar,
+.tc-picker {
+  --tc-bg: var(--theme-panel-bg, #fff);
+  --tc-fg: var(--theme-panel, #16181d);
+  --tc-muted: var(--theme-muted-text-color, #5d6370);
+  --tc-border: var(--theme-border, #d9dce3);
+  --tc-hover: var(--theme-hover, #eef0f4);
+  --tc-accent: var(--theme-accent, #474fd4);
+  --tc-accent-fg: var(--theme-accent-text, #fff);
+  --tc-stop: var(--danger, #d92d20);
+  --tc-radius: 0.5rem;
+  box-sizing: border-box;
+  color: var(--tc-fg);
+  font-variant-numeric: tabular-nums;
+}
+.tc-bar *,
+.tc-picker * {
+  box-sizing: border-box;
+}
+
+.tc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+}
+.tc-note {
+  flex: 1 1 100%;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--tc-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+.tc-note::placeholder {
+  color: var(--tc-muted);
+}
+.tc-note:hover,
+.tc-note:focus-visible {
+  border-color: var(--tc-border);
+}
+.tc-bar-picker {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 2.5rem;
+}
+.tc-time {
+  width: 6rem;
+  text-align: right;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.tc-time-idle {
+  display: none;
+  color: color-mix(in oklab, var(--tc-muted) 60%, transparent);
+}
+.tc-go {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--tc-accent);
+  color: var(--tc-accent-fg);
+  cursor: pointer;
+  transition:
+    scale 120ms ease-out,
+    opacity 120ms ease-out;
+}
+.tc-go svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.tc-go-stop {
+  background: var(--tc-stop);
+  color: var(--tc-bg);
+}
+.tc-go:hover:enabled {
+  opacity: 0.9;
+}
+.tc-go:active:enabled {
+  scale: 0.95;
+}
+.tc-go:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (min-width: 40rem) {
+  .tc-note {
+    flex-basis: 12rem;
+  }
+  .tc-bar-picker {
+    flex: 0 0 15rem;
+  }
+  .tc-time-idle {
+    display: block;
+  }
+}
+
+.tc-picker {
+  position: relative;
+  min-height: 2.25rem;
+}
+.tc-picker-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 100%;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: var(--tc-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+.tc-picker-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.tc-picker-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-muted {
+  color: var(--tc-muted);
+}
+.tc-chevron,
+.tc-check {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--tc-muted);
+}
+.tc-check {
+  color: var(--tc-accent);
+}
+.tc-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  width: 18rem;
+  max-width: calc(100vw - 2rem);
+  margin-top: 0.25rem;
+  border: 1px solid var(--tc-border);
+  border-radius: 0.625rem;
+  background: var(--tc-bg);
+  box-shadow:
+    0 10px 28px -10px rgb(0 0 0 / 0.3),
+    0 2px 6px -2px rgb(0 0 0 / 0.12);
+}
+.tc-search {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--tc-border);
+  border-radius: 0.625rem 0.625rem 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+}
+.tc-search::placeholder {
+  color: var(--tc-muted);
+}
+.tc-options {
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+.tc-group {
+  padding: 0.5rem 0.5rem 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--tc-muted);
+}
+.tc-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.tc-option-active {
+  background: var(--tc-hover);
+}
+.tc-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-empty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--tc-muted);
+}
+
+.tc-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: oklch(0.64 0.15 var(--tc-hue));
+}
+.tc-dot-none {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--tc-muted);
+}

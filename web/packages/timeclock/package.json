@@ -1,0 +1,50 @@
+{
+  "name": "@giraffesyo/timeclock",
+  "version": "0.1.0",
+  "description": "The Timeclock clock for a host application: a headless store and React hook, and a ready-made bar.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giraffesyo/timeclock.git",
+    "directory": "web/packages/timeclock"
+  },
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc6 -p tsconfig.build.json && cp src/styles.css dist/styles.css",
+    "typecheck": "tsc6 -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

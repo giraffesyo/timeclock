@@ -55,6 +55,17 @@ Timeclock keeps its tables, and [hopper](https://github.com/parallelworks/hopper
 
 It is built on [foundation](https://github.com/parallelworks/foundation): errors are RFC 9457 problems with stable codes (`/problems/timeclock/<code>`), the handler sets security headers and a strict CSP, and refuses cross-site writes.
 
+### The clock in the host's own pages
+
+[`@giraffesyo/timeclock`](web/packages/timeclock) is the clock bar as an npm package, for the host's own header: a ready-made `ClockBar`, a headless `useClock()` hook, and a store with no React. Timeclock's own bar is that package.
+
+```tsx
+import { ClockBar } from '@giraffesyo/timeclock/react';
+import '@giraffesyo/timeclock/styles.css';
+
+<ClockBar basePath="/timeclock" />;
+```
+
 ## Standalone
 
 ```sh
@@ -95,6 +106,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | `internal/standalone/` | Accounts, OIDC sign-in and sessions for running alone |
 | `migrations/` | goose migrations, `NNNNN_name.sql` |
 | `web/` | The Vite app, embedded in the binary |
+| `web/packages/timeclock/` | `@giraffesyo/timeclock`, the clock for a host application; the app is built on its source |
 | `web/e2e/` | End-to-end tests (Playwright): each test is its own people, against a schema made for the run |
 
 ## The payroll export
@@ -104,6 +116,10 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 ## Releasing
 
 `make release VERSION=v0.2.0` builds the web app, commits `web/dist` on top of the current commit, and tags that commit, so a tagged version carries the app while `canary` stays free of build output. Push the tag with `git push origin v0.2.0`. A host depends on a tag, never on `canary`, which embeds no app.
+
+### The npm package
+
+Set the version in `web/packages/timeclock/package.json`, merge, then tag that commit `npm-vX.Y.Z` and push the tag: the `Publish` workflow builds and publishes it.
 
 ## License
 
