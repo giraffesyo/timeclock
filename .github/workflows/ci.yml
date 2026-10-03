@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [canary]
+
+# Every job states what it needs; nothing is granted by default.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: timeclock_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d timeclock_test"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Verify go.mod is tidy
+        run: go mod tidy -diff
+      - name: Verify dependencies match go.sum
+        run: go mod verify
+      - name: Lint
+        run: make lint-go
+      - name: Test
+        env:
+          TIMECLOCK_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/timeclock_test?sslmode=disable
+        # -count=1: the database tests depend on the live service, never reuse cached runs.
+        run: go test -race -shuffle=on -count=1 -timeout 5m ./...
+      - name: Known vulnerabilities
+        run: make vuln
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      # --ignore-scripts: a dependency's install script never runs with the job's access.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: web
+      - name: Verify generated API types are current
+        run: make api && git diff --exit-code web/src/api
+      - run: pnpm lint
+        working-directory: web
+      - run: pnpm build
+        working-directory: web
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          tags: timeclock-server:ci
+      - name: The image runs
+        run: docker run --rm timeclock-server:ci /timeclock-server openapi | jq -e '.paths | length > 0'
+
+  # Refuses a pull request that adds a dependency with a known vulnerability.
+  dependencies:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high

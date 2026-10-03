@@ -10,6 +10,9 @@ import { timeclockTheme } from './vite-theme.ts';
 
 // The Go server is the one address in development too: it proxies the app
 // from this dev server (TIMECLOCK_VITE_URL) until it embeds a build.
+// Where the Go server listens in development (make dev).
+const server = process.env.TIMECLOCK_SERVER_URL ?? 'http://localhost:8090';
+
 export default defineConfig(({ command }) => ({
   // Relative asset URLs resolve against the <base href> the server injects,
   // so one build serves at / or under a host's path.
@@ -36,6 +39,12 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5174,
     strictPort: true,
+    // This address works too: the API and sign-in are passed on to the Go
+    // server. Only the Go server's address applies its CSP, so develop there.
+    proxy: {
+      '/api': server,
+      '/auth': server,
+    },
   },
   build: {
     outDir: 'dist',
