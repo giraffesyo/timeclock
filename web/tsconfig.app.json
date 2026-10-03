@@ -18,7 +18,9 @@
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@giraffesyo/timeclock": ["./packages/timeclock/src/index.ts"],
+      "@giraffesyo/timeclock/react": ["./packages/timeclock/src/react.tsx"]
     }
   },
   "include": ["src"]

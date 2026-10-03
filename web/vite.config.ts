@@ -10,6 +10,8 @@ import { timeclockTheme } from './vite-theme.ts';
 
 // The Go server is the one address in development too: it proxies the app
 // from this dev server (TIMECLOCK_VITE_URL) until it embeds a build.
+const pkg = (path: string) => fileURLToPath(new URL(`./packages/timeclock/${path}`, import.meta.url));
+
 // Where the Go server listens in development (make dev).
 const server = process.env.TIMECLOCK_SERVER_URL ?? 'http://localhost:8090';
 
@@ -31,7 +33,14 @@ export default defineConfig(({ command }) => ({
     rolldownOptions: { plugins: [noInlineStylesDeps] },
   },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      // The clock package is built from its source here, so the app and the
+      // package can't drift apart; hosts get the published build.
+      { find: /^@giraffesyo\/timeclock\/react$/, replacement: pkg('src/react.tsx') },
+      { find: /^@giraffesyo\/timeclock\/styles\.css$/, replacement: pkg('src/styles.css') },
+      { find: /^@giraffesyo\/timeclock$/, replacement: pkg('src/index.ts') },
+    ],
   },
   // The Go server's development CSP accepts this nonce (spa.DevNonce), which
   // Vite puts on the scripts and styles it injects.

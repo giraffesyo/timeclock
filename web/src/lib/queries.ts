@@ -1,5 +1,7 @@
+import { clockFor } from '@giraffesyo/timeclock';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type Schemas, unwrap } from '@/api/client';
+import { basePath } from '@/lib/base';
 import type { Day } from '@/lib/time';
 
 export type Me = Schemas['MeBody'];
@@ -158,25 +160,12 @@ function useWrite<TIn, TOut>(fn: (input: TIn) => Promise<TOut>) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => client.invalidateQueries(),
+    onSuccess: () => {
+      // The clock in the bar keeps its own state; a write here may have changed what is running.
+      void clockFor(basePath).refresh();
+      return client.invalidateQueries();
+    },
   });
-}
-
-export function useClockIn() {
-  return useWrite(async (body: { projectId?: string; note?: string }) =>
-    unwrap(await api.POST('/api/v1/clock/in', { body })),
-  );
-}
-
-/** Moves the running clock to other work: the time so far stays where it was, and the clock goes on. */
-export function useSwitchClock() {
-  return useWrite(async (body: { projectId?: string; note?: string }) =>
-    unwrap(await api.POST('/api/v1/clock/switch', { body })),
-  );
-}
-
-export function useClockOut() {
-  return useWrite(async () => unwrap(await api.POST('/api/v1/clock/out')));
 }
 
 /** Creates an entry, or with an id changes one. */
@@ -212,7 +201,10 @@ export function useAdjustEntry() {
     onError: (_err, _input, context) => {
       for (const [key, data] of context?.previous ?? []) client.setQueryData(key, data);
     },
-    onSettled: () => client.invalidateQueries(),
+    onSettled: () => {
+      void clockFor(basePath).refresh();
+      return client.invalidateQueries();
+    },
   });
 }
 

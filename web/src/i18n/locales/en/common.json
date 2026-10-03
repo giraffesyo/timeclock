@@ -27,8 +27,7 @@
     "none": "No project",
     "choose": "Choose a project",
     "search": "Search projects",
-    "noMatch": "No project matches.",
-    "picker": "{label}: {value}"
+    "noMatch": "No project matches."
   },
   "columns": {
     "regular": "Regular",

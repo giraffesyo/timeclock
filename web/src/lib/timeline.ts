@@ -78,10 +78,4 @@ export function covered(spans: Span[]): number {
   return total;
 }
 
-/** A project's hue, the same every time, so its time is recognizable at a glance. */
-export function projectHue(projectId: string): number {
-  let h = 0;
-  for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
-  // Steps of the golden angle keep any two projects' hues apart.
-  return Math.round((h % 997) * 137.508) % 360;
-}
+export { projectHue } from '@giraffesyo/timeclock';

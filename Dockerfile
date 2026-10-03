@@ -4,6 +4,7 @@ FROM node:26-alpine AS web
 WORKDIR /app/web
 RUN npm install -g pnpm@11.28.3
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+COPY web/packages/timeclock/package.json ./packages/timeclock/
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
