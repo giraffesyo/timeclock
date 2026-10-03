@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - gocritic
+  settings:
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: "${base-path}/internal/gorules/rules.go"
+          failOn: all

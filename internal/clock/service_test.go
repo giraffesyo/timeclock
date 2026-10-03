@@ -605,3 +605,38 @@ func TestManagersAndTheAuditLog(t *testing.T) {
 		t.Errorf("a non-admin reading the audit log: %v", err)
 	}
 }
+
+func TestRemindersGoOutOnce(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	// Ada worked last period (Sep 14–27) and never submitted; Bob did submit.
+	f.work(f.ada, "2026-09-21 09:00", "2026-09-21 17:00")
+	f.work(f.bob, "2026-09-21 09:00", "2026-09-21 17:00")
+	if _, err := f.Submit(ctx, f.bob, "", day(t, "2026-09-21")); err != nil {
+		t.Fatal(err)
+	}
+	// Bob left a clock running since yesterday morning.
+	f.at("2026-10-01 08:00")
+	if _, err := f.ClockIn(ctx, f.bob, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	f.at("2026-10-02 17:00")
+
+	due, err := f.DueReminders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]Reminder{}
+	for _, r := range due {
+		got[r.PersonID+"/"+r.Kind] = r
+	}
+	if len(due) != 2 || got["bob/clock_running"].Hours != 33 || got["ada/timesheet_due"].Period.Start.String() != "2026-09-14" {
+		t.Fatalf("due = %+v, want bob's running clock (33h) and ada's timesheet for Sep 14", due)
+	}
+	// Recorded as sent, so the next run is quiet.
+	if again, err := f.DueReminders(ctx); err != nil || len(again) != 0 {
+		t.Errorf("second run = %+v, %v; want nothing", again, err)
+	}
+}

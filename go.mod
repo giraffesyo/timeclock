@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/parallelworks/foundation v0.11.0
 	github.com/parallelworks/hopper v0.3.1
+	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	golang.org/x/oauth2 v0.37.0
 )
 
