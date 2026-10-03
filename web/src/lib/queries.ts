@@ -161,6 +161,34 @@ export function useSaveEntry() {
   );
 }
 
+/**
+ * Changes when an entry starts or ends, as the ruler does on a drag. The
+ * change shows at once and is taken back if the API refuses it.
+ */
+export function useAdjustEntry() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ entry, startedAt, endedAt }: { entry: Entry; startedAt: string; endedAt?: string }) =>
+      unwrap(
+        await api.PUT('/api/v1/entries/{id}', {
+          params: { path: { id: entry.id } },
+          body: { projectId: entry.projectId, startedAt, endedAt, note: entry.note },
+        }),
+      ),
+    onMutate: ({ entry, startedAt, endedAt }) => {
+      const previous = client.getQueriesData<Entry[]>({ queryKey: ['entries'] });
+      client.setQueriesData<Entry[]>({ queryKey: ['entries'] }, (list) =>
+        list?.map((e) => (e.id === entry.id ? { ...e, startedAt, endedAt } : e)),
+      );
+      return { previous };
+    },
+    onError: (_err, _input, context) => {
+      for (const [key, data] of context?.previous ?? []) client.setQueryData(key, data);
+    },
+    onSettled: () => client.invalidateQueries(),
+  });
+}
+
 export function useDeleteEntry() {
   return useWrite(async (id: string) => unwrap(await api.DELETE('/api/v1/entries/{id}', { params: { path: { id } } })));
 }

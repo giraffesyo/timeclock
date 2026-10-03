@@ -19,6 +19,8 @@ export function EntryDialog({
   entry,
   day,
   personId,
+  start,
+  end,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,14 +30,39 @@ export function EntryDialog({
   day: Day;
   /** Whose time a new entry is; absent is the caller's. */
   personId?: string;
+  /** The HH:mm a new entry starts and ends at, when the caller already knows. */
+  start?: string;
+  end?: string;
 }) {
   // A fresh form per entry: remounting on the key resets every field.
   return open ? (
-    <Form key={entry?.id ?? `new-${day}`} onClose={onClose} entry={entry} day={day} personId={personId} />
+    <Form
+      key={entry?.id ?? `new-${day}-${start}-${end}`}
+      onClose={onClose}
+      entry={entry}
+      day={day}
+      personId={personId}
+      from={start ?? '09:00'}
+      to={end ?? '17:00'}
+    />
   ) : null;
 }
 
-function Form({ onClose, entry, day, personId }: { onClose: () => void; entry?: Entry; day: Day; personId?: string }) {
+function Form({
+  onClose,
+  entry,
+  day,
+  personId,
+  from,
+  to,
+}: {
+  onClose: () => void;
+  entry?: Entry;
+  day: Day;
+  personId?: string;
+  from: string;
+  to: string;
+}) {
   const t = useTranslations('entry');
   const tc = useTranslations('common');
   const { settings } = useSession();
@@ -43,8 +70,8 @@ function Form({ onClose, entry, day, personId }: { onClose: () => void; entry?: 
   const save = useSaveEntry();
 
   const [date, setDate] = useState(entry ? dayOf(entry.startedAt, zone) : day);
-  const [start, setStart] = useState(entry ? timeInput(entry.startedAt, zone) : '09:00');
-  const [end, setEnd] = useState(entry?.endedAt ? timeInput(entry.endedAt, zone) : entry ? '' : '17:00');
+  const [start, setStart] = useState(entry ? timeInput(entry.startedAt, zone) : from);
+  const [end, setEnd] = useState(entry?.endedAt ? timeInput(entry.endedAt, zone) : entry ? '' : to);
   const [projectId, setProjectId] = useState(entry?.projectId ?? '');
   const [note, setNote] = useState(entry?.note ?? '');
   const [invalid, setInvalid] = useState(false);

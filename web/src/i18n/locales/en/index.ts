@@ -6,6 +6,7 @@ import settings from './settings.json'
 import shell from './shell.json'
 import team from './team.json'
 import timeOff from './timeOff.json'
+import timeline from './timeline.json'
 import timesheet from './timesheet.json'
 import today from './today.json'
 import ui from './ui.json'
@@ -19,6 +20,7 @@ export default {
   shell,
   team,
   timeOff,
+  timeline,
   timesheet,
   today,
   ui,

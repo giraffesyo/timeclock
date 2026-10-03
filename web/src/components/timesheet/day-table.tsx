@@ -2,6 +2,7 @@ import { AddIcon, ChevronRightIcon } from '@parallelworks/ui/icons';
 import { Fragment, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
+import { DayTimeline } from '@/components/day-timeline';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
 import { Hours } from '@/components/hours';
@@ -152,6 +153,11 @@ export function DayTable({
                           <Loading className="py-4" />
                         ) : (
                           <>
+                            {!future && (dayEntries.length > 0 || !readOnly) && (
+                              <div className="border-b border-border px-4 py-3">
+                                <DayTimeline day={d.day} entries={dayEntries} readOnly={readOnly} personId={personId} />
+                              </div>
+                            )}
                             {dayEntries.length > 0 ? (
                               <EntryList entries={dayEntries} readOnly={readOnly} />
                             ) : (
