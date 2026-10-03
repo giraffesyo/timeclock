@@ -1,6 +1,7 @@
-.PHONY: dev server web install build check lint test test-db api release
+.PHONY: dev server web install build check lint lint-go vuln test test-db api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
 TEST_DB_PORT ?= 54331
 TEST_DB_URL := postgres://postgres:postgres@localhost:$(TEST_DB_PORT)/timeclock_test?sslmode=disable
@@ -10,6 +11,7 @@ TEST_DB_URL := postgres://postgres:postgres@localhost:$(TEST_DB_PORT)/timeclock_
 # Vite (hot reload included) until web/dist holds a build.
 DEV_USER ?= dev@example.com
 dev: db
+	@echo "Starting Timeclock on http://localhost:8090 ..."
 	@$(MAKE) -j2 server web
 
 server:
@@ -30,10 +32,16 @@ build:
 
 check: lint test
 
-lint:
+lint: lint-go
+	@cd web && pnpm lint && pnpm typecheck
+
+lint-go:
 	go vet ./...
 	$(GOLANGCI) run ./...
-	@cd web && pnpm lint && pnpm typecheck
+
+# Known vulnerabilities in the code the module actually calls.
+vuln:
+	$(GOVULNCHECK) ./...
 
 test:
 	go test ./...

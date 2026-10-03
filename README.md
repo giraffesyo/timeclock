@@ -76,10 +76,11 @@ make install
 make dev        # http://localhost:8090, signed in as DEV_USER (an admin)
 make test-db    # Go tests, with the database tests on
 make check      # every linter and test
+make vuln       # known vulnerabilities in the Go code
 make api        # after changing an API operation: regenerate the web app's types
 ```
 
-In development the Go server proxies the web app from Vite, so open the Go server's address, not Vite's.
+In development the Go server proxies the web app from Vite, so open the Go server's address. Vite's own address (`:5174`) passes the API on to the Go server and works too, but only the Go server applies the CSP.
 
 | Where | What |
 | --- | --- |
