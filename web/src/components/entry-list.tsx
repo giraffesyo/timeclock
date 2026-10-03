@@ -1,11 +1,12 @@
 import { ConfirmModal, TOOLTIP_ID } from '@parallelworks/ui';
-import { EditIcon, LockIcon, TrashIcon } from '@parallelworks/ui/icons';
+import { EditIcon, LockIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
+import { useContinue } from '@/components/clock-bar';
 import { EntryDialog } from '@/components/entry-dialog';
 import { ErrorNote } from '@/components/page';
-import { useProjectName } from '@/components/project-select';
+import { ProjectDot, useProjectName } from '@/components/project-select';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { dayOf, elapsed, hoursMinutes } from '@/lib/time';
@@ -23,6 +24,7 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
   const zone = settings.timezone;
   const projectName = useProjectName();
   const remove = useDeleteEntry();
+  const again = useContinue();
   const [editing, setEditing] = useState<Entry | null>(null);
   const [deleting, setDeleting] = useState<Entry | null>(null);
   useNow(
@@ -47,8 +49,17 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
                 {range(e)}
               </span>
               <span className="block min-w-0 sm:flex-1">
-                <span className="block truncate text-sm font-medium">{projectName(e.projectId)}</span>
-                {e.note && <span className="block truncate text-xs text-muted-foreground">{e.note}</span>}
+                {e.note && <span className="block truncate text-sm font-medium">{e.note}</span>}
+                <span
+                  className={
+                    e.note
+                      ? 'flex items-center gap-1.5 text-xs text-muted-foreground'
+                      : 'flex items-center gap-2 text-sm font-medium'
+                  }
+                >
+                  <ProjectDot projectId={e.projectId} />
+                  <span className="truncate">{projectName(e.projectId)}</span>
+                </span>
               </span>
             </span>
             <span className="tabular shrink-0 text-sm font-medium">
@@ -57,7 +68,7 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
             {!readOnly &&
               (e.locked ? (
                 <span
-                  className="flex w-16 justify-end text-muted-foreground"
+                  className="flex w-24 justify-end text-muted-foreground"
                   role="img"
                   aria-label={t('locked')}
                   data-tooltip-id={TOOLTIP_ID}
@@ -66,7 +77,20 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
                   <LockIcon className="size-3.5" aria-hidden />
                 </span>
               ) : (
-                <span className="flex w-16 justify-end gap-0.5">
+                <span className="flex w-24 justify-end gap-0.5">
+                  {e.endedAt && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t('continue')}
+                      data-tooltip-id={TOOLTIP_ID}
+                      data-tooltip-content={t('continue')}
+                      disabled={again.pending}
+                      onClick={() => again.start(e)}
+                    >
+                      <StartIcon aria-hidden className="!size-4.5" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" aria-label={t('edit')} onClick={() => setEditing(e)}>
                     <EditIcon aria-hidden />
                   </Button>

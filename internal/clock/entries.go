@@ -80,9 +80,9 @@ func (s *Service) writable(ctx context.Context, q querier, actor Actor, personID
 	return p, nil
 }
 
-// checkSpan refuses time that is locked, overlaps other time, or lies in the
-// future. end is nil for a running clock. skip is the entry being changed.
-func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, personID string, skip uuid.UUID, start time.Time, end *time.Time) error {
+// checkSpan refuses time that is locked or lies in the future. end is nil
+// for a running clock. Time may overlap other time: hours count it once.
+func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, personID string, start time.Time, end *time.Time) error {
 	now := s.now()
 	if start.After(now.Add(time.Minute)) || (end != nil && end.After(now.Add(time.Minute))) {
 		return ErrFuture.New("")
@@ -103,15 +103,6 @@ func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, person
 	}
 	if locked {
 		return ErrLocked.New("")
-	}
-	var overlaps bool
-	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE person_id = $1 AND id <> $2
-		AND started_at < coalesce($4, 'infinity'::timestamptz) AND coalesce(ended_at, 'infinity'::timestamptz) > $3)`,
-		personID, skip, start, end).Scan(&overlaps); err != nil {
-		return fmt.Errorf("check overlap: %w", err)
-	}
-	if overlaps {
-		return ErrOverlap.New("")
 	}
 	return nil
 }
@@ -145,7 +136,7 @@ func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID
 			return err
 		}
 		start := s.now().Truncate(time.Second)
-		if err := s.checkSpan(ctx, tx, cfg, actor.ID, uuid.Nil, start, nil); err != nil {
+		if err := s.checkSpan(ctx, tx, cfg, actor.ID, start, nil); err != nil {
 			return err
 		}
 		id := newID()
@@ -195,7 +186,7 @@ func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID,
 			if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1`, id, now); err != nil {
 				return fmt.Errorf("stop running clock: %w", err)
 			}
-			if err := s.checkSpan(ctx, tx, cfg, actor.ID, uuid.Nil, now, nil); err != nil {
+			if err := s.checkSpan(ctx, tx, cfg, actor.ID, now, nil); err != nil {
 				return err
 			}
 			id = newID()
@@ -268,7 +259,7 @@ func (s *Service) CreateEntry(ctx context.Context, actor Actor, in EntryInput) (
 		if err := checkProject(ctx, tx, cfg, in.ProjectID); err != nil {
 			return err
 		}
-		if err := s.checkSpan(ctx, tx, cfg, p.ID, uuid.Nil, in.StartedAt, in.EndedAt); err != nil {
+		if err := s.checkSpan(ctx, tx, cfg, p.ID, in.StartedAt, in.EndedAt); err != nil {
 			return err
 		}
 		id := newID()
@@ -335,7 +326,7 @@ func (s *Service) UpdateEntry(ctx context.Context, actor Actor, id uuid.UUID, in
 				return err
 			}
 		}
-		if err := s.checkSpan(ctx, tx, cfg, p.ID, id, in.StartedAt, in.EndedAt); err != nil {
+		if err := s.checkSpan(ctx, tx, cfg, p.ID, in.StartedAt, in.EndedAt); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, started_at = $3, ended_at = $4, note = $5,

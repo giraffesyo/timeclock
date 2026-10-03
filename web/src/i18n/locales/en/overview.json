@@ -1,0 +1,30 @@
+{
+  "title": "Overview",
+  "descriptionTeam": "What everyone you can see recorded this week.",
+  "descriptionMine": "What you recorded this week.",
+  "loadFailed": "Couldn’t load the week.",
+  "scope": {
+    "label": "Whose time",
+    "team": "Team",
+    "mine": "Mine"
+  },
+  "chart": {
+    "title": "Hours by day",
+    "total": "{hours} h",
+    "caption": "Hours recorded on each day of the week, by project.",
+    "day": "{date}: {hours} hours",
+    "segment": "{project}: {hours} h"
+  },
+  "projects": {
+    "title": "Projects",
+    "empty": "Nothing recorded this week."
+  },
+  "tracking": {
+    "title": "On the clock",
+    "count": "{tracking} of {people} tracking",
+    "idle": "Not tracking",
+    "hours": "{today} h today · {week} h this week",
+    "empty": "No one to show.",
+    "loadFailed": "Couldn’t load who is tracking."
+  }
+}

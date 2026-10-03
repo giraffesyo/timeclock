@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
-import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
+import { ErrorNote, Loading, Panel } from '@/components/page';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
 import {
@@ -70,7 +70,7 @@ function ProjectDialog({
   onClose,
 }: {
   project?: Project;
-  /** The customer a new project starts under. */
+  /** The customer a new project starts under; empty for internal work. */
   customerId: string;
   customers: Customer[];
   onClose: () => void;
@@ -89,13 +89,13 @@ function ProjectDialog({
       onClose={onClose}
       title={project ? t('project.editTitle') : t('project.addTitle')}
       confirmLabel={tc('save')}
-      confirmDisabled={!name.trim() || !customer}
+      confirmDisabled={!name.trim()}
       closeOnConfirm={false}
       onConfirm={async () => {
         try {
           await save.mutateAsync({
             id: project?.id,
-            customerId: customer,
+            customerId: customer || undefined,
             name: name.trim(),
             code: code.trim(),
             billable,
@@ -123,6 +123,7 @@ function ProjectDialog({
         </Field>
         <Field label={t('project.customer')}>
           <select className={controlClass} value={customer} onChange={(e) => setCustomer(e.target.value)}>
+            <option value="">{t('project.noCustomer')}</option>
             {customers
               .filter((c) => !c.archived || c.id === customer)
               .map((c) => (
@@ -210,6 +211,11 @@ export function Catalog() {
     allCustomers.filter((c) => c.archived).length +
     allProjects.filter((p) => p.archived && !allCustomers.find((c) => c.id === p.customerId)?.archived).length;
   const shownCustomers = allCustomers.filter((c) => showArchived || !c.archived);
+  // Internal work has no customer: it is listed first, as a group of its own.
+  const groups: (Customer & { internal?: boolean })[] = [
+    { id: '', name: t('internal'), archived: false, internal: true },
+    ...shownCustomers,
+  ];
 
   const addCustomer = (
     <Button variant="primary" size="sm" icon={<AddIcon aria-hidden />} onClick={() => setCustomerDialog({})}>
@@ -240,12 +246,10 @@ export function Catalog() {
           <ErrorNote className="m-4" context={t('loadFailed')} error={customers.error ?? projects.error} />
         ) : customers.isPending || projects.isPending ? (
           <Loading />
-        ) : shownCustomers.length === 0 ? (
-          <Empty>{allCustomers.length === 0 ? t('empty') : t('emptyAllArchived')}</Empty>
         ) : (
           <ul className="divide-y divide-border">
-            {shownCustomers.map((c) => {
-              const own = allProjects.filter((p) => p.customerId === c.id && (showArchived || !p.archived));
+            {groups.map((c) => {
+              const own = allProjects.filter((p) => (p.customerId ?? '') === c.id && (showArchived || !p.archived));
               return (
                 <li key={c.id}>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-muted px-4 py-2">
@@ -276,26 +280,32 @@ export function Catalog() {
                           >
                             {t('project.add')}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setCustomerDialog({ customer: c })}>
-                            {t('customer.rename')}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setArchiving({ type: 'customer', customer: c })}
-                          >
-                            {t('archive')}
-                          </Button>
+                          {!c.internal && (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => setCustomerDialog({ customer: c })}>
+                                {t('customer.rename')}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setArchiving({ type: 'customer', customer: c })}
+                              >
+                                {t('archive')}
+                              </Button>
+                            </>
+                          )}
                         </>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t('customer.delete', { name: c.name })}
-                        onClick={() => setDeleting({ type: 'customer', customer: c })}
-                      >
-                        <TrashIcon aria-hidden />
-                      </Button>
+                      {!c.internal && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t('customer.delete', { name: c.name })}
+                          onClick={() => setDeleting({ type: 'customer', customer: c })}
+                        >
+                          <TrashIcon aria-hidden />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {own.length === 0 ? (
@@ -339,7 +349,7 @@ export function Catalog() {
                                     variant="ghost"
                                     size="sm"
                                     aria-label={t('project.edit', { name: p.name })}
-                                    onClick={() => setProjectDialog({ project: p, customerId: p.customerId })}
+                                    onClick={() => setProjectDialog({ project: p, customerId: p.customerId ?? '' })}
                                   >
                                     <EditIcon aria-hidden />
                                   </Button>

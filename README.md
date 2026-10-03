@@ -9,8 +9,10 @@ It is one Go module with its web app embedded. It runs two ways:
 
 ## What it does
 
-- **The clock.** One running clock per person, started and stopped from any page. Choosing another project while it runs moves the clock to it without stopping: the time so far stays where it was. Time can also be added and corrected by hand.
-- **Projects.** Every entry can be tagged with a project, which belongs to a customer. An organization can require one.
+- **The clock.** One running clock per person: say what you are working on, pick its project, and start. Choosing another project while it runs moves the clock to it without stopping: the time so far stays where it was. Time can also be added and corrected by hand.
+- **Projects.** Every entry can be tagged with a project: a customer's, or internal work with no customer. An organization can require one.
+- **The week.** A calendar of the workweek, a day to a column: drag to add time, drag a block or its edge to change it. Entries may overlap, as a meeting inside a longer stretch does; worked hours count the overlap once, so they are never more than the time that passed.
+- **Overview.** Hours per day by project, each project's share of the week, and who is on the clock now.
 - **Pay periods.** Weekly, biweekly, twice a month or monthly, set by an admin. Days, workweeks and periods are cut in the organization's time zone.
 - **Overtime.** Time beyond a weekly threshold is overtime, counted per workweek on the day it was worked, so a week that straddles two pay periods puts its overtime in the right one. People can be marked exempt.
 - **Time off.** Vacation and sick hours are recorded per day and reported per pay period. Balances stay in the payroll system.

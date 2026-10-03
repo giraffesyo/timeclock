@@ -65,11 +65,12 @@ type Customer struct {
 	Archived bool      `json:"archived"`
 }
 
-// Project is a body of work for a customer that time is tagged with.
+// Project is a body of work that time is tagged with: for a customer, or
+// internal when it has none.
 type Project struct {
-	ID           uuid.UUID `json:"id"`
-	CustomerID   uuid.UUID `json:"customerId"`
-	CustomerName string    `json:"customerName"`
+	ID           uuid.UUID  `json:"id"`
+	CustomerID   *uuid.UUID `json:"customerId,omitempty" doc:"Absent for internal work."`
+	CustomerName string     `json:"customerName" doc:"Empty for internal work."`
 	Name         string    `json:"name"`
 	Code         string    `json:"code" doc:"A charge code or contract number."`
 	Billable     bool      `json:"billable"`
@@ -179,6 +180,22 @@ type Exception struct {
 	Day        *Date      `json:"day,omitempty" format:"date"`
 	EntryID    *uuid.UUID `json:"entryId,omitempty"`
 	Hours      float64    `json:"hours,omitempty" doc:"The hours the exception is about: the entry's length, the overtime, or the pending time off."`
+}
+
+// Activity is what one person is doing now and how much they have tracked.
+type Activity struct {
+	Person  Person  `json:"person"`
+	Running *Entry  `json:"running,omitempty" doc:"Their running clock."`
+	Today   float64 `json:"today" doc:"Hours today, with the running clock up to now."`
+	Week    float64 `json:"week" doc:"Hours this workweek, with the running clock up to now."`
+}
+
+// DayProjectHours is time on one project on one day, with a running clock
+// counted up to now.
+type DayProjectHours struct {
+	Day       Date    `json:"day" format:"date"`
+	ProjectID string  `json:"projectId" doc:"Empty for time with no project."`
+	Hours     float64 `json:"hours"`
 }
 
 // ProjectHours is time on one project by one person, for the project report.

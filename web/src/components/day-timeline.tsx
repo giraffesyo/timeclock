@@ -12,18 +12,7 @@ import { morph } from '@/lib/morph';
 import { type Entry, useAdjustEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
-import {
-  clamp,
-  dayBounds,
-  gapAround,
-  HOUR,
-  MINUTE,
-  projectHue,
-  rulerWindow,
-  SNAP,
-  type Span,
-  snap,
-} from '@/lib/timeline';
+import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
 
@@ -56,21 +45,29 @@ const iso = (ms: number) => new Date(ms).toISOString();
  * clock's block grows as time passes. Dragging empty space adds time, dragging
  * a block moves it, and dragging an edge changes when it starts or ends; a
  * block opens for editing. Everything lands on five-minute marks (one-minute
- * with Shift) and stops at its neighbours and at now. The edges are sliders
- * for the keyboard. On a narrow screen the ruler runs top to bottom.
+ * with Shift) and stops at now. Entries that overlap sit side by side. The
+ * edges are sliders for the keyboard.
+ *
+ * On its own the ruler runs left to right on a wide screen and top to bottom
+ * on a narrow one. As a column of a week (`hours` given) it runs top to
+ * bottom over hours its parent chose and labels.
  */
 export function DayTimeline({
   day,
   entries,
   readOnly,
   personId,
+  hours: shared,
 }: {
   day: Day;
+  /** The entries that touch the day. */
   entries: Entry[];
   /** Locked, or not the caller's to change: the day shows without controls. */
   readOnly?: boolean;
   /** Whose day, when it isn't the caller's. */
   personId?: string;
+  /** The hours from midnight to show, as a column of a week that shows the same hours in every day. */
+  hours?: { from: number; to: number };
 }) {
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
@@ -81,10 +78,13 @@ export function DayTimeline({
   const projectName = useProjectName();
   const adjust = useAdjustEntry();
   const wide = useMedia('(min-width: 40rem)');
+  const column = !!shared;
+  const across = !column && wide;
 
   const root = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const keyTimer = useRef(0);
+  const pointer = useRef('mouse');
   const [drag, setDrag] = useState<Drag | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [earlier, setEarlier] = useState(0);
@@ -92,10 +92,9 @@ export function DayTimeline({
   const [editing, setEditing] = useState<Entry | null>(null);
   const [adding, setAdding] = useState<Span | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const pointer = useRef('mouse');
 
   const isToday = day === today;
-  const now = useNow(15_000, isToday || entries.some((e) => !e.endedAt));
+  const now = useNow(15_000, isToday);
   const bounds = dayBounds(day, zone);
   // Time can't be recorded in the future.
   const cap = clamp(Math.floor(now / SNAP) * SNAP, bounds.start, bounds.end);
@@ -117,26 +116,28 @@ export function DayTimeline({
     })
     .filter((b) => b.end > b.start)
     .sort((a, b) => a.start - b.start);
+  const side = lanes(blocks);
 
-  const win = rulerWindow(bounds, isToday ? [...blocks, { start: now, end: now }] : blocks, earlier, later);
+  const win = shared
+    ? { start: bounds.start + shared.from * HOUR, end: Math.min(bounds.end, bounds.start + shared.to * HOUR) }
+    : rulerWindow(bounds, isToday ? [...blocks, { start: now, end: now }] : blocks, earlier, later);
   const length = win.end - win.start;
   const at = (ms: number) => clamp((ms - win.start) / length, 0, 1);
   const place = (s: Span) => ({ '--s': at(s.start), '--w': at(s.end) - at(s.start) }) as CSSProperties;
-  const hours: number[] = [];
-  for (let h = win.start; h <= win.end; h += HOUR) hours.push(h);
+  const marks: number[] = [];
+  for (let h = win.start; h <= win.end; h += HOUR) marks.push(h);
   // Every hour is named until they crowd; then every other one.
-  const labelEvery = wide && hours.length > 17 ? 2 : 1;
+  const labelEvery = across && marks.length > 17 ? 2 : 1;
 
   const clock = (ms: number) => format.dateTime(new Date(ms), { hour: 'numeric', minute: '2-digit', timeZone: zone });
   const hourLabel = (ms: number) => format.dateTime(new Date(ms), { hour: 'numeric', timeZone: zone });
   const range = (s: Span) => t('range', { start: clock(s.start), end: clock(s.end) });
   const span = (s: Span) => tc('duration', hoursMinutes(s.end - s.start));
 
-  const others = (id?: string) => blocks.filter((b) => b.entry.id !== id);
   const instant = (e: { clientX: number; clientY: number }) => {
     const r = track.current?.getBoundingClientRect();
     if (!r) return win.start;
-    const f = wide ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+    const f = across ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
     return win.start + clamp(f, 0, 1) * length;
   };
 
@@ -185,38 +186,34 @@ export function DayTimeline({
   const beginCreate = (e: PointerEvent) => {
     if (!editable || e.button !== 0 || adding) return;
     const ms = instant(e);
-    const gap = gapAround(ms, blocks, { start: bounds.start, end: cap });
-    if (!gap) return;
-    const anchor = clamp(snap(ms), gap.start, gap.end);
+    if (ms > cap + SNAP || cap - bounds.start < SNAP) return;
+    const anchor = clamp(snap(ms), bounds.start, cap);
     if (e.pointerType === 'touch') {
       // A touch scrolls the page; a tap adds an hour here.
-      const end = Math.min(anchor + HOUR, gap.end);
+      const end = Math.min(anchor + HOUR, cap);
       if (end - anchor >= SNAP) openNew({ start: anchor, end });
       return;
     }
-    begin(e, { kind: 'create', start: anchor, end: anchor, lo: gap.start, hi: gap.end, grab: anchor, moved: false });
+    begin(e, { kind: 'create', start: anchor, end: anchor, lo: bounds.start, hi: cap, grab: anchor, moved: false });
   };
 
   const beginEdge = (e: PointerEvent, b: Block, kind: 'start' | 'end') => {
     if (e.button !== 0) return;
-    const gap = gapAround((b.start + b.end) / 2, others(b.entry.id), { start: bounds.start, end: cap });
-    if (!gap) return;
-    begin(e, { kind, id: b.entry.id, start: b.start, end: b.end, lo: gap.start, hi: gap.end, grab: 0, moved: false });
+    begin(e, { kind, id: b.entry.id, start: b.start, end: b.end, lo: bounds.start, hi: cap, grab: 0, moved: false });
   };
 
   const beginMove = (e: PointerEvent, b: Block) => {
     pointer.current = e.pointerType;
     if (e.button !== 0 || e.pointerType === 'touch') return;
-    const gap = gapAround((b.start + b.end) / 2, others(b.entry.id), { start: bounds.start, end: cap });
     // A running entry, or one that crosses midnight, opens but doesn't move.
-    const fixed = b.running || b.clippedStart || b.clippedEnd || !gap;
+    const fixed = b.running || b.clippedStart || b.clippedEnd;
     begin(e, {
       kind: 'move',
       id: b.entry.id,
       start: b.start,
       end: b.end,
-      lo: fixed ? b.start : gap.start,
-      hi: fixed ? b.end : gap.end,
+      lo: fixed ? b.start : bounds.start,
+      hi: fixed ? b.end : cap,
       grab: instant(e) - b.start,
       moved: false,
     });
@@ -226,8 +223,7 @@ export function DayTimeline({
     const ms = instant(e);
     if (!drag) {
       if (e.pointerType !== 'mouse' || !editable) return;
-      const free = e.target === track.current && gapAround(ms, blocks, { start: bounds.start, end: cap });
-      setHover(free ? clamp(snap(ms), free.start, free.end) : null);
+      setHover(e.target === track.current && ms <= cap + SNAP ? clamp(snap(ms), bounds.start, cap) : null);
       return;
     }
     const step = e.shiftKey ? MINUTE : SNAP;
@@ -278,15 +274,12 @@ export function DayTimeline({
     const dir = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1, PageUp: -6, PageDown: 6 }[e.key];
     if (!dir) return;
     e.preventDefault();
-    const gap = gapAround((b.start + b.end) / 2, others(b.entry.id), { start: bounds.start, end: cap });
-    if (!gap) return;
     const delta = dir * (e.shiftKey ? MINUTE : SNAP);
     const next =
       kind === 'start'
-        ? { start: clamp(b.start + delta, gap.start, b.end - SNAP), end: b.end }
-        : { start: b.start, end: clamp(b.end + delta, b.start + SNAP, gap.end) };
-    const held: Drag = { kind, id: b.entry.id, ...next, lo: gap.start, hi: gap.end, grab: 0, moved: true };
-    setDrag(held);
+        ? { start: clamp(b.start + delta, bounds.start, b.end - SNAP), end: b.end }
+        : { start: b.start, end: clamp(b.end + delta, b.start + SNAP, cap) };
+    setDrag({ kind, id: b.entry.id, ...next, lo: bounds.start, hi: cap, grab: 0, moved: true });
     // Saved once the keys rest, so a held arrow is one change.
     window.clearTimeout(keyTimer.current);
     keyTimer.current = window.setTimeout(() => {
@@ -303,24 +296,32 @@ export function DayTimeline({
   return (
     <div
       ref={root}
-      className={cn('tl', drag && 'tl-dragging', drag && (drag.kind === 'move' ? 'cursor-grabbing' : 'tl-resizing'))}
+      className={cn(
+        'tl',
+        across && 'tl-across',
+        column && 'tl-column',
+        drag && 'tl-dragging',
+        drag && (drag.kind === 'move' ? 'cursor-grabbing' : 'tl-resizing'),
+      )}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => setDrag(null)}
       onPointerLeave={() => setHover(null)}
       style={{ '--tl-hours': length / HOUR } as CSSProperties}
     >
-      {/* The hours. */}
-      <div className="tl-scale" aria-hidden>
-        {hours.map((h, i) => (
-          <span key={h} className="tl-at tl-hour" style={{ '--s': at(h) } as CSSProperties}>
-            {i % labelEvery === 0 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
-          </span>
-        ))}
-      </div>
+      {/* The hours. A column's are named by the week around it. */}
+      {!column && (
+        <div className="tl-scale" aria-hidden>
+          {marks.map((h, i) => (
+            <span key={h} className="tl-at tl-hour" style={{ '--s': at(h) } as CSSProperties}>
+              {i % labelEvery === 0 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="tl-row">
-        {win.start > bounds.start && (
+        {!column && win.start > bounds.start && (
           <button
             type="button"
             className="tl-more tl-more-start"
@@ -329,31 +330,33 @@ export function DayTimeline({
             data-tooltip-content={t('earlier')}
             onClick={() => setEarlier(earlier + 2)}
           >
-            <ChevronLeftIcon aria-hidden className="size-3.5 max-sm:rotate-90" />
+            <ChevronLeftIcon aria-hidden className={cn('size-3.5', !across && 'rotate-90')} />
           </button>
         )}
 
         {/* Dragging here is the pointer's shortcut; the Add time button and each block's own controls are the keyboard's. */}
         <div ref={track} className={cn('tl-track', editable && 'tl-track-editable')} onPointerDown={beginCreate}>
-          {hours.slice(1, -1).map((h) => (
+          {marks.slice(1, -1).map((h) => (
             <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': at(h) } as CSSProperties} />
           ))}
 
-          {blocks.map((b) => {
+          {blocks.map((b, i) => {
             const name = projectName(b.entry.projectId);
+            const title = b.entry.note || name;
             const label = t('block', {
-              project: name,
+              project: b.entry.note ? `${b.entry.note}, ${name}` : name,
               range: b.running ? t('rangeRunning', { start: clock(b.start) }) : range(b),
               length: span(b),
             });
             const live = editable && !b.entry.locked;
+            const inHand = held?.id === b.entry.id;
             const slider = (kind: 'start' | 'end') => (
               <span
                 role="slider"
                 tabIndex={0}
                 className={cn('tl-handle', kind === 'start' ? 'tl-handle-start' : 'tl-handle-end')}
-                aria-label={t(kind === 'start' ? 'startOf' : 'endOf', { project: name })}
-                aria-orientation={wide ? 'horizontal' : 'vertical'}
+                aria-label={t(kind === 'start' ? 'startOf' : 'endOf', { project: title })}
+                aria-orientation={across ? 'horizontal' : 'vertical'}
                 aria-valuemin={0}
                 aria-valuemax={Math.round((bounds.end - bounds.start) / MINUTE)}
                 aria-valuenow={Math.round(((kind === 'start' ? b.start : b.end) - bounds.start) / MINUTE)}
@@ -361,6 +364,12 @@ export function DayTimeline({
                 onPointerDown={(e) => beginEdge(e, b, kind)}
                 onKeyDown={(e) => nudge(e, b, kind)}
               />
+            );
+            // In hand, a block says when it now runs; at rest, what it is.
+            const text = inHand ? (
+              <BlockText name={range(b)} detail={span(b)} />
+            ) : (
+              <BlockText name={title} sub={b.entry.note ? name : undefined} detail={span(b)} locked={b.entry.locked} />
             );
             return (
               <div
@@ -373,9 +382,16 @@ export function DayTimeline({
                   b.entry.locked && 'tl-locked',
                   b.clippedStart && 'tl-clipped-start',
                   b.clippedEnd && 'tl-clipped-end',
-                  held?.id === b.entry.id && 'tl-held',
+                  inHand && 'tl-held',
                 )}
-                style={{ ...place(b), '--hue': b.entry.projectId ? projectHue(b.entry.projectId) : 0 } as CSSProperties}
+                style={
+                  {
+                    ...place(b),
+                    '--lane': side[i]?.lane ?? 0,
+                    '--lanes': side[i]?.of ?? 1,
+                    '--hue': b.entry.projectId ? projectHue(b.entry.projectId) : 0,
+                  } as CSSProperties
+                }
               >
                 {live ? (
                   <button
@@ -390,7 +406,7 @@ export function DayTimeline({
                       if (e.detail === 0 || pointer.current === 'touch') openEntry(b.entry);
                     }}
                   >
-                    <BlockText name={name} detail={span(b)} />
+                    {text}
                   </button>
                 ) : (
                   <div
@@ -400,7 +416,7 @@ export function DayTimeline({
                     data-tooltip-id={TOOLTIP_ID}
                     data-tooltip-content={label}
                   >
-                    <BlockText name={name} detail={span(b)} locked={b.entry.locked} />
+                    {text}
                   </div>
                 )}
                 {live && !b.clippedStart && slider('start')}
@@ -412,13 +428,15 @@ export function DayTimeline({
           {draft && (
             <div data-draft className="tl-pos tl-draft" style={place(draft)} aria-hidden>
               <span className="tl-body">
-                <BlockText name={t('new')} detail={span(draft)} />
+                <BlockText name={column ? range(draft) : t('new')} detail={span(draft)} />
               </span>
             </div>
           )}
 
           {hover !== null && (
-            <span aria-hidden className="tl-at tl-cursor" style={{ '--s': at(hover) } as CSSProperties} />
+            <span aria-hidden className="tl-at tl-cursor" style={{ '--s': at(hover) } as CSSProperties}>
+              {column && <span className="tl-cursor-label tabular">{clock(hover)}</span>}
+            </span>
           )}
 
           {isToday && now >= win.start && now <= win.end && (
@@ -426,7 +444,7 @@ export function DayTimeline({
           )}
         </div>
 
-        {win.end < bounds.end && (
+        {!column && win.end < bounds.end && (
           <button
             type="button"
             className="tl-more tl-more-end"
@@ -435,21 +453,21 @@ export function DayTimeline({
             data-tooltip-content={t('later')}
             onClick={() => setLater(later + 2)}
           >
-            <ChevronRightIcon aria-hidden className="size-3.5 max-sm:rotate-90" />
+            <ChevronRightIcon aria-hidden className={cn('size-3.5', !across && 'rotate-90')} />
           </button>
         )}
       </div>
 
       {/* What is in hand, in words: it follows the pointer and is announced for the keyboard. */}
-      <p className="tl-readout tabular" aria-live="polite">
+      <p className={cn('tl-readout tabular', column && 'sr-only')} aria-live="polite">
         {readout ? (
           <span className="font-medium text-foreground">
             {t('readout', { range: range(readout), length: span(readout) })}
           </span>
         ) : hover !== null ? (
           t('addAt', { time: clock(hover) })
-        ) : editable ? (
-          wide ? (
+        ) : editable && !column ? (
+          across ? (
             t('hint')
           ) : (
             t('hintTouch')
@@ -483,13 +501,14 @@ export function DayTimeline({
 }
 
 /** A block's words, which show only when the block has room for them. */
-function BlockText({ name, detail, locked }: { name: string; detail: string; locked?: boolean }) {
+function BlockText({ name, sub, detail, locked }: { name: string; sub?: string; detail: string; locked?: boolean }) {
   return (
     <span className="tl-text">
       <span className="tl-name">
         {locked && <LockIcon aria-hidden className="mr-1 inline size-3 align-[-1px]" />}
         {name}
       </span>
+      {sub && <span className="tl-sub">{sub}</span>}
       <span className="tl-detail tabular">{detail}</span>
     </span>
   );

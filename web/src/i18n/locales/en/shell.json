@@ -2,12 +2,13 @@
   "name": "Timeclock",
   "nav": {
     "label": "Sections",
-    "today": "Today",
+    "today": "Timer",
     "timesheet": "Timesheet",
     "timeOff": "Time off",
     "team": "Team",
     "reports": "Reports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "overview": "Overview"
   },
   "running": {
     "label": "Clock running",
@@ -22,7 +23,7 @@
   "notFound": {
     "title": "Page not found",
     "description": "There’s nothing at this address.",
-    "home": "Go to today"
+    "home": "Go to the timer"
   },
   "toast": {
     "label": "Notifications",
