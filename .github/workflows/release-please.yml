@@ -1,0 +1,116 @@
+name: release-please
+
+# Keeps a release PR open on canary. Merging it:
+#  - publishes a timeclock-vX.Y.Z GitHub release with the notes, on the canary commit;
+#  - tags the Go module version vX.Y.Z on a commit that carries the built web
+#    app, which hosts depend on. That commit is reachable only from its tag,
+#    so canary never holds build output;
+#  - publishes @giraffesyo/timeclock X.Y.Z to npm.
+# The two tags differ because release-please finds the previous release by
+# walking canary back to its tag, and the module tag is never on canary.
+#
+# npm trusts this workflow file as the package's publisher (OIDC), so there
+# is no token to keep.
+
+on:
+  push:
+    branches: [canary]
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ github.token }}
+
+  module:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: v${{ needs.release-please.outputs.version }}
+    steps:
+      # The token stays in the checkout: this job pushes the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Refuse an existing tag
+        run: |
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "$VERSION already exists" >&2
+            exit 1
+          fi
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: web
+      - run: pnpm build
+        working-directory: web
+      - name: Check the module builds with the app inside
+        run: |
+          test -f web/dist/index.html
+          go build ./...
+      - name: Tag a release commit that carries the app
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f web/dist
+          git commit -q -m "release $VERSION"
+          git tag -a "$VERSION" -m "Timeclock $VERSION"
+          git push origin "refs/tags/$VERSION"
+
+  npm:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: web
+      - name: The package carries the release's version
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: test "$(node -p "require('./package.json').version")" = "$VERSION"
+        working-directory: web/packages/timeclock
+      - run: pnpm build
+        working-directory: web/packages/timeclock
+      - run: npm publish
+        working-directory: web/packages/timeclock
