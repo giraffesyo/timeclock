@@ -41,8 +41,8 @@ export function ClockBar() {
   };
   const time = (iso: string) => format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
   return (
-    <div className="border-b border-border bg-card text-card-foreground">
-      <div className="mx-auto min-h-14 max-w-7xl px-4 py-2 sm:px-6">
+    <div className="sticky top-0 z-20 border-b border-border bg-card">
+      <div className="min-h-14 px-3 py-2">
         <Bar
           store={clock}
           labels={{
