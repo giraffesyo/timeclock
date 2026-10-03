@@ -2,7 +2,7 @@ import { expect, lastWeek, RECENT, test } from './fixtures';
 
 const note = (page: import('@playwright/test').Page) => page.getByRole('textbox', { name: 'What you are working on' });
 const picker = (page: import('@playwright/test').Page, label = 'Project') =>
-  page.getByRole('main').getByRole('button', { name: new RegExp(`^${label}: `) });
+  page.getByRole('form', { name: 'Clock' }).getByRole('button', { name: new RegExp(`^${label}: `) });
 const pick = async (page: import('@playwright/test').Page, project: string) => {
   await page.getByRole('combobox', { name: 'Search projects' }).fill(project);
   await page.getByRole('option', { name: project }).click();
@@ -16,14 +16,12 @@ test('the clock starts with a note and a project, and stops', async ({ me }) => 
   await pick(page, 'Platform');
   await page.getByRole('button', { name: 'Start the clock', exact: true }).click();
 
-  await expect(page.getByRole('main').getByRole('timer')).toHaveText(/^0:00:0\d$/);
-  // The header shows it on every page.
-  await expect(page.getByRole('banner').getByRole('timer')).toBeVisible();
+  await expect(page.getByRole('form', { name: 'Clock' }).getByRole('timer')).toHaveText(/^0:00:0\d$/);
   await expect(page.getByRole('listitem').filter({ hasText: 'Fix the scheduler' })).toContainText('Acme / Platform');
 
   await page.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
-  await expect(page.getByRole('banner').getByRole('timer')).toHaveCount(0);
+  await expect(page.getByRole('timer')).toHaveCount(0);
   const { entries } = await api.get(RECENT());
   expect(entries).toHaveLength(1);
   expect(entries[0].endedAt).toBeTruthy();
@@ -33,7 +31,8 @@ test('a project is required before the clock starts', async ({ me }) => {
   const { page } = me;
   await page.goto('/');
   await page.getByRole('button', { name: 'Start the clock', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Couldn’t start the clock');
+  await expect(page.getByText('Couldn’t start the clock.')).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveCount(0);
 });
 
 test('choosing another project moves the running clock without stopping it', async ({ me }) => {
@@ -53,7 +52,7 @@ test('choosing another project moves the running clock without stopping it', asy
   expect(before.note).toBe('Build');
   expect(after.endedAt).toBeUndefined();
   expect(after.projectId).toBe(await api.project('Acme / Support'));
-  await expect(page.getByRole('main').getByRole('timer')).toHaveText(/^0:00:\d\d$/);
+  await expect(page.getByRole('form', { name: 'Clock' }).getByRole('timer')).toHaveText(/^0:00:\d\d$/);
 });
 
 test('changing project seconds after starting corrects the clock in place', async ({ me }) => {
@@ -115,4 +114,28 @@ test('a note still unsaved when the clock stops is kept', async ({ me }) => {
   const { entries } = await api.get(RECENT());
   expect(entries).toHaveLength(1);
   expect(entries[0].note).toBe('Wrapping up');
+});
+
+test('the clock is on every page, and keeps running from one to the next', async ({ me }) => {
+  const { page, api } = me;
+  await api.clockInAgo('Acme / Platform', 12, 'Build');
+  for (const path of ['/overview', '/timesheet', '/time-off', '/reports']) {
+    await page.goto(path);
+    const bar = page.getByRole('form', { name: 'Clock' });
+    await expect(bar.getByRole('timer')).toHaveText(/^0:1\d:\d\d$/);
+    await expect(note(page)).toHaveValue('Build');
+  }
+  // It stops from wherever you are.
+  await page.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
+  expect((await api.get('/me')).running).toBeUndefined();
+});
+
+test('a submitted pay period turns the clock off', async ({ me }) => {
+  const { page, api } = me;
+  await api.post('/timesheet/submit', { day: new Date().toISOString().slice(0, 10) });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeDisabled();
+  await expect(note(page)).toBeDisabled();
+  await expect(note(page)).toHaveAttribute('placeholder', /timesheet is submitted/);
 });

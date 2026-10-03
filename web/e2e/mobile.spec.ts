@@ -46,12 +46,12 @@ test('the clock starts and stops', async ({ me }) => {
   const { page } = me;
   await page.goto('/');
   await page
-    .getByRole('main')
+    .getByRole('form', { name: 'Clock' })
     .getByRole('button', { name: /^Project: / })
     .tap();
   await page.getByRole('option', { name: 'Platform' }).tap();
   await page.getByRole('button', { name: 'Start the clock', exact: true }).tap();
-  await expect(page.getByRole('main').getByRole('timer')).toBeVisible();
+  await expect(page.getByRole('form', { name: 'Clock' }).getByRole('timer')).toBeVisible();
   await page.getByRole('button', { name: 'Stop the clock' }).tap();
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
 });

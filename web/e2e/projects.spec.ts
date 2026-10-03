@@ -18,16 +18,16 @@ test('an admin adds an internal project, and people record time on it', async ({
   const { page, api } = me;
   await page.goto('/');
   await page
-    .getByRole('main')
+    .getByRole('form', { name: 'Clock' })
     .getByRole('button', { name: /^Project: / })
     .click();
   await page.getByRole('combobox', { name: 'Search projects' }).fill('holiday');
   await page.getByRole('option', { name }).click();
   await page.getByRole('button', { name: 'Start the clock', exact: true }).click();
-  await expect(page.getByRole('main').getByRole('timer')).toBeVisible();
+  await expect(page.getByRole('form', { name: 'Clock' }).getByRole('timer')).toBeVisible();
   // It goes by its own name, with no customer in front.
   await expect(
-    page.getByRole('main').getByRole('button', { name: `Project the clock is running on: ${name}` }),
+    page.getByRole('form', { name: 'Clock' }).getByRole('button', { name: `Project the clock is running on: ${name}` }),
   ).toBeVisible();
   expect((await api.get(RECENT())).entries).toHaveLength(1);
 });
@@ -35,7 +35,7 @@ test('an admin adds an internal project, and people record time on it', async ({
 test('the project picker works from the keyboard', async ({ me }) => {
   const { page } = me;
   await page.goto('/');
-  const trigger = page.getByRole('main').getByRole('button', { name: /^Project: / });
+  const trigger = page.getByRole('form', { name: 'Clock' }).getByRole('button', { name: /^Project: / });
   await trigger.focus();
   await page.keyboard.press('ArrowDown');
   const search = page.getByRole('combobox', { name: 'Search projects' });

@@ -3,13 +3,13 @@
   "out": "Stop the clock",
   "notePlaceholder": "What are you working on?",
   "noteLabel": "What you are working on",
-  "since": "Running since {time}.",
+  "since": "Running since {time}",
   "switchLabel": "Project the clock is running on",
-  "switchHint": "Pick another project to move the clock to it; the time so far stays where it was.",
   "switched": "Now on {project}, from {time}.",
   "switchFailed": "Couldn’t change the project.",
   "noteFailed": "Couldn’t save the note.",
   "inFailed": "Couldn’t start the clock.",
   "outFailed": "Couldn’t stop the clock.",
-  "locked": "This pay period’s timesheet is submitted, so the clock is off until it’s sent back or the next period starts."
+  "locked": "This pay period’s timesheet is submitted, so the clock is off.",
+  "label": "Clock"
 }
