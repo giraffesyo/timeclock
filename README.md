@@ -97,7 +97,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 
 ## Releasing
 
-`make release VERSION=v0.2.0` builds the web app, commits `web/dist` on top of the current commit, and tags that commit, so a tagged version carries the app while `main` stays free of build output. Push the tag with `git push origin v0.2.0`. A host depends on a tag, never on `main`, which embeds no app.
+`make release VERSION=v0.2.0` builds the web app, commits `web/dist` on top of the current commit, and tags that commit, so a tagged version carries the app while `canary` stays free of build output. Push the tag with `git push origin v0.2.0`. A host depends on a tag, never on `canary`, which embeds no app.
 
 ## License
 

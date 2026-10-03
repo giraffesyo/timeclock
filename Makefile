@@ -54,7 +54,7 @@ api:
 	@cd web && pnpm gen:api
 
 # Tag a version that carries the web build: a commit on top of HEAD that adds
-# web/dist, reachable only from the tag, so main never holds build output.
+# web/dist, reachable only from the tag, so canary never holds build output.
 # Then push it: git push origin $(VERSION)
 release:
 	@test -n "$(VERSION)" || (echo "usage: make release VERSION=v0.1.0" && exit 1)
