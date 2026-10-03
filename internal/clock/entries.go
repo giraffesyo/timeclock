@@ -159,6 +159,57 @@ func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID
 	return out, err
 }
 
+// retagWithin is how young a running clock is retagged rather than split: a
+// switch that soon after clocking in is a correction, not a change of work.
+const retagWithin = time.Minute
+
+// Switch moves the actor's running clock to other work without stopping it:
+// the time so far stays on what it was recorded against, and the clock goes
+// on, from this instant, against the given project and note.
+func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID, note string) (Entry, error) {
+	var out Entry
+	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+		cfg, err := settings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		var id uuid.UUID
+		var start time.Time
+		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrClockNotRunning.New("")
+		}
+		if err != nil {
+			return fmt.Errorf("read running clock: %w", err)
+		}
+		if err := checkProject(ctx, tx, cfg, projectID); err != nil {
+			return err
+		}
+		note = strings.TrimSpace(note)
+		now := s.now().Truncate(time.Second)
+		if now.Sub(start) < retagWithin {
+			if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, note = $3, updated_at = now() WHERE id = $1`, id, projectID, note); err != nil {
+				return fmt.Errorf("retag running clock: %w", err)
+			}
+		} else {
+			if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1`, id, now); err != nil {
+				return fmt.Errorf("stop running clock: %w", err)
+			}
+			if err := s.checkSpan(ctx, tx, cfg, actor.ID, uuid.Nil, now, nil); err != nil {
+				return err
+			}
+			id = newID()
+			if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, person_id, project_id, started_at, note, source, created_by)
+				VALUES ($1, $2, $3, $4, $5, 'clock', $2)`, id, actor.ID, projectID, now, note); err != nil {
+				return fmt.Errorf("start clock: %w", err)
+			}
+		}
+		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		return err
+	})
+	return out, err
+}
+
 // ClockOut stops the actor's clock.
 func (s *Service) ClockOut(ctx context.Context, actor Actor) (Entry, error) {
 	var out Entry

@@ -119,6 +119,56 @@ func day(t *testing.T, s string) Date {
 	return d
 }
 
+func TestSwitch(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	_, err := f.Switch(ctx, f.ada, nil, "")
+	wantProblem(t, err, "clock_not_running")
+
+	f.at("2026-10-02 09:00")
+	first, err := f.ClockIn(ctx, f.ada, nil, "build")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Seconds after clocking in, a switch corrects the clock in place.
+	f.at("2026-10-02 09:00")
+	fixed, err := f.Switch(ctx, f.ada, nil, "review")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fixed.ID != first.ID || fixed.Note != "review" || fixed.EndedAt != nil {
+		t.Errorf("retagged = %+v", fixed)
+	}
+
+	// Later, it ends that stretch and goes on with the next, with no gap.
+	f.at("2026-10-02 10:30")
+	next, err := f.Switch(ctx, f.ada, nil, " standup ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.ID == first.ID || next.EndedAt != nil || next.Note != "standup" || next.Source != "clock" {
+		t.Errorf("switched = %+v", next)
+	}
+	running, err := f.Running(ctx, f.ada)
+	if err != nil || running == nil || running.ID != next.ID {
+		t.Fatalf("running after switch = %+v, %v", running, err)
+	}
+	from, to := NewDate(2026, 10, 2), NewDate(2026, 10, 2)
+	entries, err := f.Entries(ctx, f.ada, "", from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries after switch = %d, want 2", len(entries))
+	}
+	if entries[0].EndedAt == nil || !entries[0].EndedAt.Equal(next.StartedAt) || entries[0].Note != "review" {
+		t.Errorf("the stretch before the switch = %+v, next starts %v", entries[0], next.StartedAt)
+	}
+}
+
 func TestClockInAndOut(t *testing.T) {
 	f := newFixture(t)
 	f.settings(func(s *Settings) { s.RequireProject = false })
