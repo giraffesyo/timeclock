@@ -53,14 +53,33 @@ type OvertimeRule struct {
 	Weekly time.Duration
 }
 
-// HoursByDay adds up spans per calendar day in loc. Within each workweek,
+// merged joins spans that overlap or touch, so time recorded twice over the
+// same hours counts once: worked time is never more than the time that passed.
+func merged(spans []Span) []Span {
+	sorted := append([]Span(nil), spans...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Start.Before(sorted[j].Start) })
+	var out []Span
+	for _, s := range sorted {
+		if n := len(out); n > 0 && !s.Start.After(out[n-1].End) {
+			if s.End.After(out[n-1].End) {
+				out[n-1].End = s.End
+			}
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// HoursByDay adds up spans per calendar day in loc, counting overlapping
+// spans once. Within each workweek,
 // time beyond the weekly threshold is overtime, counted on the day it was
 // worked, so a week that straddles two pay periods puts its overtime in the
 // period the extra hours fell in. spans must include the whole of every
 // workweek the caller reports on.
 func HoursByDay(spans []Span, loc *time.Location, rule OvertimeRule) map[Date]DayHours {
 	var segs []segment
-	for _, s := range spans {
+	for _, s := range merged(spans) {
 		segs = append(segs, split(s, loc)...)
 	}
 	sort.Slice(segs, func(i, j int) bool { return segs[i].start.Before(segs[j].start) })

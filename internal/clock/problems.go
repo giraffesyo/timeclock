@@ -28,8 +28,8 @@ var (
 	ErrOverlap = Problems.Define(problem.Type{
 		Code:   "entry_overlaps",
 		Status: http.StatusConflict,
-		Title:  "Time overlaps another entry",
-		Doc:    "The person already has time recorded in part of this stretch. Two entries can't cover the same minutes.",
+		Title:  "Time off already recorded",
+		Doc:    "The person already has time off of this kind on one of these days.",
 	})
 	ErrLocked = Problems.Define(problem.Type{
 		Code:   "period_locked",

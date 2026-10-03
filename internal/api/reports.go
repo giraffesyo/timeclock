@@ -190,6 +190,60 @@ func registerReports(a huma.API, d Deps) {
 			return csvFile(fmt.Sprintf("projects-%s-to-%s.csv", from, to), rows)
 		})
 
+	huma.Register(a, op(http.MethodGet, "/reports/days", "hours-by-day", "Hours by day and project", "Reports"),
+		func(ctx context.Context, in *struct {
+			From string `query:"from" format:"date" required:"true"`
+			To   string `query:"to" format:"date" required:"true"`
+			Mine bool   `query:"mine" doc:"Only the caller's own time, rather than everyone's they may see."`
+		}) (*struct {
+			Body struct {
+				Rows []clock.DayProjectHours `json:"rows"`
+			}
+		}, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			from, to, err := rangeQuery{From: in.From, To: in.To}.dates()
+			if err != nil {
+				return nil, err
+			}
+			rows, err := d.Clock.HoursByDayAndProject(ctx, actor, from, to, in.Mine)
+			if err != nil {
+				return nil, err
+			}
+			out := &struct {
+				Body struct {
+					Rows []clock.DayProjectHours `json:"rows"`
+				}
+			}{}
+			out.Body.Rows = orEmpty(rows)
+			return out, nil
+		})
+
+	huma.Register(a, op(http.MethodGet, "/activity", "list-activity", "What people are on now, and their hours today and this week", "Reports"),
+		func(ctx context.Context, _ *struct{}) (*struct {
+			Body struct {
+				People []clock.Activity `json:"people"`
+			}
+		}, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			list, err := d.Clock.Activity(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			out := &struct {
+				Body struct {
+					People []clock.Activity `json:"people"`
+				}
+			}{}
+			out.Body.People = orEmpty(list)
+			return out, nil
+		})
+
 	huma.Register(a, op(http.MethodGet, "/audit", "list-audit", "Recent changes to payroll data", "Reports"),
 		func(ctx context.Context, in *struct {
 			Person string `query:"person" doc:"Only changes to this person's time."`

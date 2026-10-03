@@ -25,7 +25,10 @@
   "project": {
     "label": "Project",
     "none": "No project",
-    "choose": "Choose a project"
+    "choose": "Choose a project",
+    "search": "Search projects",
+    "noMatch": "No project matches.",
+    "picker": "{label}: {value}"
   },
   "columns": {
     "regular": "Regular",
@@ -37,5 +40,11 @@
   "save": "Save",
   "cancel": "Cancel",
   "delete": "Delete",
-  "note": "Note"
+  "note": "Note",
+  "week": {
+    "previous": "Previous week",
+    "next": "Next week",
+    "this": "This week",
+    "range": "{start} – {end}"
+  }
 }

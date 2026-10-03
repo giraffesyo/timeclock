@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What people are on now, and their hours today and this week */
+        get: operations["list-activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -282,6 +299,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hours by day and project */
+        get: operations["hours-by-day"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/payroll": {
         parameters: {
             query?: never;
@@ -525,6 +559,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Activity: {
+            person: components["schemas"]["Person"];
+            /** @description Their running clock. */
+            running?: components["schemas"]["Entry"];
+            /**
+             * Format: double
+             * @description Hours today, with the running clock up to now.
+             */
+            today: number;
+            /**
+             * Format: double
+             * @description Hours this workweek, with the running clock up to now.
+             */
+            week: number;
+        };
         AuditEntry: {
             action: string;
             actor: string;
@@ -576,6 +625,14 @@ export interface components {
             readonly $schema?: string;
             archived?: boolean;
             name: string;
+        };
+        DayProjectHours: {
+            /** Format: date */
+            day: string;
+            /** Format: double */
+            hours: number;
+            /** @description Empty for time with no project. */
+            projectId: string;
         };
         DaySummary: {
             /** Format: date */
@@ -690,6 +747,15 @@ export interface components {
              */
             type: string;
         };
+        "Hours-by-dayResponse": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Hours-by-dayResponse.json
+             */
+            readonly $schema?: string;
+            rows: components["schemas"]["DayProjectHours"][] | null;
+        };
         Info: {
             /**
              * Format: uri
@@ -702,6 +768,15 @@ export interface components {
             signInUrl?: string;
             signOutUrl?: string;
             themeStorageKey?: string;
+        };
+        "List-activityResponse": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/List-activityResponse.json
+             */
+            readonly $schema?: string;
+            people: components["schemas"]["Activity"][] | null;
         };
         "List-auditResponse": {
             /**
@@ -927,7 +1002,9 @@ export interface components {
             /** @description A charge code or contract number. */
             code: string;
             customerArchived: boolean;
-            customerId: string;
+            /** @description Absent for internal work. */
+            customerId?: string;
+            /** @description Empty for internal work. */
             customerName: string;
             id: string;
             name: string;
@@ -955,7 +1032,8 @@ export interface components {
             billable: boolean;
             /** @description A charge code or contract number. */
             code?: string;
-            customerId: string;
+            /** @description Absent for internal work. */
+            customerId?: string;
             name: string;
         };
         ProjectsBody: {
@@ -1134,6 +1212,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "list-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["List-activityResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "list-audit": {
         parameters: {
             query?: {
@@ -1822,6 +1929,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "hours-by-day": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                /** @description Only the caller's own time, rather than everyone's they may see. */
+                mine?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Hours-by-dayResponse"];
+                };
             };
             /** @description Error */
             default: {

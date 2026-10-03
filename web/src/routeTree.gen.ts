@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TeamRouteImport } from './routes/team'
@@ -19,6 +20,11 @@ import { Route as TimesheetRouteImport } from './routes/timesheet'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OverviewRoute = OverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -49,6 +55,7 @@ const TimesheetRoute = TimesheetRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
@@ -75,12 +84,26 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/reports' | '/settings' | '/team' | '/time-off' | '/timesheet'
+    | '/'
+    | '/overview'
+    | '/reports'
+    | '/settings'
+    | '/team'
+    | '/time-off'
+    | '/timesheet'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reports' | '/settings' | '/team' | '/time-off' | '/timesheet'
+  to:
+    | '/'
+    | '/overview'
+    | '/reports'
+    | '/settings'
+    | '/team'
+    | '/time-off'
+    | '/timesheet'
   id:
     | '__root__'
     | '/'
+    | '/overview'
     | '/reports'
     | '/settings'
     | '/team'
@@ -90,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OverviewRoute: typeof OverviewRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
@@ -104,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/overview': {
+      id: '/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof OverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -146,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OverviewRoute: OverviewRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,

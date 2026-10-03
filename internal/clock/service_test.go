@@ -227,7 +227,7 @@ func TestProjectRules(t *testing.T) {
 	_, err = f.SaveCustomer(ctx, f.admin, [16]byte{}, "Acme", false)
 	wantProblem(t, err, "name_taken")
 
-	proj, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{CustomerID: acme.ID, Name: "Portal", Code: "C-1", Billable: true})
+	proj, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{CustomerID: &acme.ID, Name: "Portal", Code: "C-1", Billable: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,34 +258,91 @@ func TestProjectRules(t *testing.T) {
 	}
 }
 
-func TestEntriesCannotOverlapOrBeInTheFuture(t *testing.T) {
+func TestOverlappingTimeCountsOnce(t *testing.T) {
 	f := newFixture(t)
 	f.settings(func(s *Settings) { s.RequireProject = false })
 	ctx := t.Context()
 
-	first := f.work(f.ada, "2026-10-01 09:00", "2026-10-01 12:00")
-	for _, tc := range [][2]string{
-		{"2026-10-01 11:00", "2026-10-01 13:00"}, // tail
-		{"2026-10-01 08:00", "2026-10-01 09:01"}, // head
-		{"2026-10-01 10:00", "2026-10-01 10:30"}, // inside
-		{"2026-10-01 08:00", "2026-10-01 13:00"}, // around
-	} {
-		end := f.time(tc[1])
-		_, err := f.CreateEntry(ctx, f.ada, EntryInput{StartedAt: f.time(tc[0]), EndedAt: &end})
-		wantProblem(t, err, "entry_overlaps")
+	// A morning of work with a meeting recorded inside it and another that
+	// runs past its end: 09:00–13:00 passed, so four hours were worked.
+	f.work(f.ada, "2026-10-01 09:00", "2026-10-01 12:00")
+	f.work(f.ada, "2026-10-01 10:00", "2026-10-01 10:30")
+	f.work(f.ada, "2026-10-01 11:00", "2026-10-01 13:00")
+
+	sum, err := f.Summary(ctx, f.ada, "", day(t, "2026-10-01"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	// Back to back is fine, and so is someone else's same time.
-	f.work(f.ada, "2026-10-01 12:00", "2026-10-01 13:00")
-	f.work(f.bob, "2026-10-01 09:00", "2026-10-01 12:00")
+	if sum.Regular != 4 {
+		t.Errorf("worked hours with overlapping entries = %v, want 4", sum.Regular)
+	}
+
+	// Each project still shows all the time recorded on it.
+	rows, err := f.HoursByDayAndProject(ctx, f.ada, day(t, "2026-10-01"), day(t, "2026-10-01"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Hours != 5.5 {
+		t.Errorf("recorded hours = %+v, want one row of 5.5", rows)
+	}
+}
+
+func TestEntriesCannotBeInTheFuture(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
 
 	end := f.time("2026-10-03 10:00")
 	_, err := f.CreateEntry(ctx, f.ada, EntryInput{StartedAt: f.time("2026-10-03 09:00"), EndedAt: &end})
 	wantProblem(t, err, "in_the_future")
+}
 
-	// Moving an entry onto itself isn't an overlap.
-	newEnd := f.time("2026-10-01 11:30")
-	if _, err := f.UpdateEntry(ctx, f.ada, first.ID, EntryInput{StartedAt: first.StartedAt, EndedAt: &newEnd}); err != nil {
-		t.Fatalf("shortening an entry: %v", err)
+func TestActivity(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	f.work(f.ada, "2026-10-01 09:00", "2026-10-01 12:00")
+	f.at("2026-10-02 09:00")
+	if _, err := f.ClockIn(ctx, f.ada, nil, "build"); err != nil {
+		t.Fatal(err)
+	}
+	f.at("2026-10-02 10:30")
+
+	all, err := f.Activity(ctx, f.admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) < 2 || all[0].Person.ID != "ada" || all[0].Running == nil || all[0].Today != 1.5 || all[0].Week != 4.5 {
+		t.Errorf("activity for the admin = %+v", all)
+	}
+	// Bob sees only himself.
+	own, err := f.Activity(ctx, f.bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(own) != 1 || own[0].Person.ID != "bob" || own[0].Running != nil {
+		t.Errorf("activity for bob = %+v", own)
+	}
+}
+
+func TestInternalProject(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+
+	p, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{Name: "Administration"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.CustomerID != nil || p.CustomerName != "" {
+		t.Errorf("internal project = %+v", p)
+	}
+	_, err = f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{Name: "Administration"})
+	wantProblem(t, err, "name_taken")
+
+	f.at("2026-10-02 09:00")
+	if _, err := f.ClockIn(ctx, f.ada, &p.ID, ""); err != nil {
+		t.Fatalf("clocking in on an internal project: %v", err)
 	}
 }
 
@@ -587,7 +644,7 @@ func TestProjectReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	portal, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{CustomerID: acme.ID, Name: "Portal", Code: "C-1", Billable: true})
+	portal, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{CustomerID: &acme.ID, Name: "Portal", Code: "C-1", Billable: true})
 	if err != nil {
 		t.Fatal(err)
 	}

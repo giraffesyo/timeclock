@@ -1,0 +1,20 @@
+{
+  "title": "Timer",
+  "today": "Today",
+  "weekTotal": "Week total",
+  "empty": "Nothing recorded this week. Start the clock, or add time by hand.",
+  "loadFailed": "Couldn’t load this week’s time.",
+  "view": {
+    "label": "View",
+    "calendar": "Calendar",
+    "list": "List"
+  },
+  "period": {
+    "title": "Pay period",
+    "worked": "worked",
+    "overtime": "overtime",
+    "timeOff": "time off",
+    "open": "Open timesheet",
+    "loadFailed": "Couldn’t load this pay period."
+  }
+}

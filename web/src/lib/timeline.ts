@@ -39,23 +39,49 @@ export function rulerWindow(day: Span, spans: Span[], earlier: number, later: nu
   return { start: Math.max(day.start, start - earlier * HOUR), end: Math.min(day.end, end + later * HOUR) };
 }
 
-/** The free stretch around an instant: from the span that ends before it to the one that starts after. */
-export function gapAround(at: number, spans: Span[], bounds: Span): Span | null {
-  let lo = bounds.start;
-  let hi = bounds.end;
-  for (const s of spans) {
-    if (at > s.start && at < s.end) return null;
-    if (s.end <= at) lo = Math.max(lo, s.end);
-    if (s.start >= at) hi = Math.min(hi, s.start);
-  }
-  return hi > lo ? { start: lo, end: hi } : null;
+/**
+ * Where overlapping spans sit side by side: each gets a lane, and the number
+ * of lanes its group of overlapping spans needs. Spans must be sorted by start.
+ */
+export function lanes(spans: Span[]): { lane: number; of: number }[] {
+  const out: { lane: number; of: number }[] = [];
+  let group: number[] = [];
+  let ends: number[] = []; // per lane, when it frees up
+  let groupEnd = Number.NEGATIVE_INFINITY;
+  const close = () => {
+    for (const i of group) (out[i] as { of: number }).of = ends.length;
+    group = [];
+    ends = [];
+  };
+  spans.forEach((s, i) => {
+    if (s.start >= groupEnd) close();
+    let lane = ends.findIndex((end) => end <= s.start);
+    if (lane < 0) lane = ends.length;
+    ends[lane] = s.end;
+    groupEnd = Math.max(groupEnd, s.end);
+    out[i] = { lane, of: 1 };
+    group.push(i);
+  });
+  close();
+  return out;
 }
 
-const HUES = [274, 205, 152, 88, 42, 338, 305, 232];
+/** The time spans cover, counting overlapping time once, as worked hours do. */
+export function covered(spans: Span[]): number {
+  let total = 0;
+  let end = Number.NEGATIVE_INFINITY;
+  for (const s of [...spans].sort((a, b) => a.start - b.start)) {
+    if (s.end <= end) continue;
+    total += s.end - Math.max(s.start, end);
+    end = s.end;
+  }
+  return total;
+}
 
-/** A project's hue, the same every time, so its blocks are recognizable at a glance. */
+/** A project's hue, the same every time, so its time is recognizable at a glance. */
 export function projectHue(projectId: string): number {
   let h = 0;
   for (let i = 0; i < projectId.length; i++) h = (h * 31 + projectId.charCodeAt(i)) >>> 0;
-  return HUES[h % HUES.length] ?? 274;
+  // Steps of the golden angle keep any two projects' hues apart.
+  return Math.round((h % 997) * 137.508) % 360;
 }

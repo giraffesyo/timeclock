@@ -20,6 +20,8 @@ export type ProjectHours = Schemas['ProjectHours'];
 export type ProjectInput = Schemas['ProjectInput'];
 export type PersonUpdate = Schemas['PersonUpdate'];
 export type AuditEntry = Schemas['AuditEntry'];
+export type Activity = Schemas['Activity'];
+export type DayProjectHours = Schemas['DayProjectHours'];
 
 // --- Reads ---
 
@@ -117,6 +119,24 @@ export function useProjectReport(from: Day, to: Day) {
     queryKey: ['project-report', from, to],
     queryFn: async () =>
       unwrap(await api.GET('/api/v1/reports/projects', { params: { query: { from, to } } })).rows ?? [],
+  });
+}
+
+/** Hours by day and project on a range of days: the caller's own, or everyone's they may see. */
+export function useHoursByDay(from: Day, to: Day, mine: boolean) {
+  return useQuery({
+    queryKey: ['hours-by-day', from, to, mine],
+    queryFn: async () =>
+      unwrap(await api.GET('/api/v1/reports/days', { params: { query: { from, to, mine } } })).rows ?? [],
+  });
+}
+
+/** What people are on now, and their hours today and this week. */
+export function useActivity() {
+  return useQuery({
+    queryKey: ['activity'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/activity')).people ?? [],
+    refetchInterval: 60_000,
   });
 }
 

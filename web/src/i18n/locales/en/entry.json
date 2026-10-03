@@ -18,5 +18,6 @@
   "edit": "Edit time",
   "locked": "In a submitted timesheet",
   "range": "{start} – {end}",
-  "rangeRunning": "{start} – now"
+  "rangeRunning": "{start} – now",
+  "continue": "Start the clock on this again"
 }

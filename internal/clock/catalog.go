@@ -99,19 +99,24 @@ func (s *Service) DeleteCustomer(ctx context.Context, actor Actor, id uuid.UUID)
 
 const projectSelect = `SELECT p.id, p.customer_id, c.name, p.name, p.code, p.billable,
 	p.archived_at IS NOT NULL, c.archived_at IS NOT NULL
-	FROM projects p JOIN customers c ON c.id = p.customer_id`
+	FROM projects p LEFT JOIN customers c ON c.id = p.customer_id`
 
 func scanProject(row pgx.Row) (Project, error) {
 	var p Project
-	err := row.Scan(&p.ID, &p.CustomerID, &p.CustomerName, &p.Name, &p.Code, &p.Billable, &p.Archived, &p.CustomerArchived)
+	var customer *string
+	var customerArchived *bool
+	err := row.Scan(&p.ID, &p.CustomerID, &customer, &p.Name, &p.Code, &p.Billable, &p.Archived, &customerArchived)
+	if customer != nil {
+		p.CustomerName, p.CustomerArchived = *customer, *customerArchived
+	}
 	return p, err
 }
 
-// Projects lists projects by customer then name, with archived ones when
-// asked: its own, and those of archived customers.
+// Projects lists internal projects, then the rest by customer, each by name,
+// with archived ones when asked: its own, and those of archived customers.
 func (s *Service) Projects(ctx context.Context, archived bool) ([]Project, error) {
 	rows, err := s.pool.Query(ctx, projectSelect+`
-		WHERE $1 OR (p.archived_at IS NULL AND c.archived_at IS NULL) ORDER BY lower(c.name), lower(p.name)`, archived)
+		WHERE $1 OR (p.archived_at IS NULL AND c.archived_at IS NULL) ORDER BY lower(coalesce(c.name, '')), lower(p.name)`, archived)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -124,11 +129,11 @@ func (s *Service) Projects(ctx context.Context, archived bool) ([]Project, error
 
 // ProjectInput is what an admin sets on a project.
 type ProjectInput struct {
-	CustomerID uuid.UUID `json:"customerId"`
-	Name       string    `json:"name" minLength:"1" maxLength:"120"`
-	Code       string    `json:"code,omitempty" maxLength:"64" doc:"A charge code or contract number."`
-	Billable   bool      `json:"billable"`
-	Archived   bool      `json:"archived,omitempty"`
+	CustomerID *uuid.UUID `json:"customerId,omitempty" doc:"Absent for internal work."`
+	Name       string     `json:"name" minLength:"1" maxLength:"120"`
+	Code       string     `json:"code,omitempty" maxLength:"64" doc:"A charge code or contract number."`
+	Billable   bool       `json:"billable"`
+	Archived   bool       `json:"archived,omitempty"`
 }
 
 // SaveProject creates a project, or with an id changes one.
@@ -158,7 +163,7 @@ func (s *Service) SaveProject(ctx context.Context, actor Actor, id uuid.UUID, in
 		}
 		switch {
 		case isUniqueViolation(err):
-			return ErrNameTaken.New("the customer already has a project with this name")
+			return ErrNameTaken.New("there is already a project with this name")
 		case isForeignKeyViolation(err):
 			return invalidField("customerId", "no such customer")
 		case err != nil:

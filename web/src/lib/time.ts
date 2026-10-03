@@ -75,3 +75,9 @@ export function decimalHours(hours: number): string {
 export function msToHours(ms: number): number {
   return Math.round((ms / 3600000) * 100) / 100;
 }
+
+/** The first day of the workweek a day falls in; weekStart is 0 for Sunday. */
+export function weekStartOf(day: Day, weekStart: number): Day {
+  const weekday = DateTime.fromISO(day).weekday % 7;
+  return addDays(day, -((weekday - weekStart + 7) % 7));
+}

@@ -74,6 +74,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const links = [
     { to: '/', label: t('nav.today'), show: true, exact: true },
+    { to: '/overview', label: t('nav.overview'), show: true },
     { to: '/timesheet', label: t('nav.timesheet'), show: true },
     { to: '/time-off', label: t('nav.timeOff'), show: true },
     { to: '/team', label: t('nav.team'), show: me.admin || me.manager },

@@ -87,8 +87,6 @@
     "archiveTitle": "Archive {name}?",
     "deleteTitle": "Delete {name}?",
     "archiveNote": "Archiving stops new time from being recorded and keeps everything already recorded in reports. Only customers with no projects, and projects with no time, can be deleted.",
-    "empty": "No customers yet. Add a customer, then the projects people record time on.",
-    "emptyAllArchived": "Every customer is archived. Show archived to bring one back, or add a customer.",
     "loadFailed": "Couldn’t load customers and projects.",
     "changeFailed": "Couldn’t change {name}.",
     "deleteFailed": "Couldn’t delete it.",
@@ -119,13 +117,15 @@
       "notBillable": "Not billable",
       "billableOn": "Time on this project is reported as billable to the customer.",
       "billableOff": "Time on this project is reported as not billable.",
-      "none": "No projects yet. Add one so people can record time for this customer.",
+      "none": "No projects yet. Add one so people can record time here.",
       "noneArchived": "No projects.",
       "saveFailed": "Couldn’t save the project.",
       "archiveDescription": "No new time can be recorded on it. Time already recorded stays in reports. You can unarchive it later.",
       "deleteDescription": "A project can be deleted only when no time was ever recorded on it. This can’t be undone.",
-      "inUse": "This project has time recorded on it, so it can’t be deleted. Archive it to stop new time instead."
-    }
+      "inUse": "This project has time recorded on it, so it can’t be deleted. Archive it to stop new time instead.",
+      "noCustomer": "No customer (internal work)"
+    },
+    "internal": "Internal"
   },
   "people": {
     "title": "People",

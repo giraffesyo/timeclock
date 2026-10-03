@@ -1,246 +1,195 @@
-import { AddIcon, StartIcon, StopSolidIcon } from '@parallelworks/ui/icons';
+import { AddIcon, CalendarIcon, SchedulerIcon } from '@parallelworks/ui/icons';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
-import { DayTimeline } from '@/components/day-timeline';
+import { ClockBar } from '@/components/clock-bar';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
-import { controlClass } from '@/components/field';
 import { Hours } from '@/components/hours';
-import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
+import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
-import { ProjectSelect, useProjectName } from '@/components/project-select';
+import { Segmented } from '@/components/segmented';
 import { SheetStatus } from '@/components/status';
-import { useClockIn, useClockOut, useEntries, useSaveEntry, useSwitchClock, useTimesheet } from '@/lib/queries';
+import { WeekCalendar } from '@/components/week-calendar';
+import { useWeek, WeekNav } from '@/components/week-nav';
+import { type Entry, useEntries, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { dayToDate, elapsed, msToHours, stopwatch } from '@/lib/time';
+import { type Day, dayOf, dayToDate, hoursMinutes } from '@/lib/time';
+import { covered } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
 
-export const Route = createFileRoute('/')({ component: TodayPage });
+type View = 'calendar' | 'list';
 
-/** The clock: the one thing most people come here to do. */
-function Clock({ locked }: { locked: boolean }) {
-  const t = useTranslations('today.clock');
-  const { running, settings } = useSession();
-  const clockIn = useClockIn();
-  const [projectId, setProjectId] = useState('');
-  const [note, setNote] = useState('');
-
-  if (running) {
-    return <Running locked={locked} />;
-  }
-
-  return (
-    <Panel>
-      <form
-        className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          clockIn.mutate({ projectId: projectId || undefined, note }, { onSuccess: () => setNote('') });
-        }}
-      >
-        <ProjectSelect
-          value={projectId}
-          onChange={setProjectId}
-          required={settings.requireProject}
-          disabled={locked}
-          className="h-10 w-full sm:w-64"
-        />
-        <input
-          className={`${controlClass} h-10 min-w-40 flex-1`}
-          value={note}
-          placeholder={t('notePlaceholder')}
-          aria-label={t('notePlaceholder')}
-          disabled={locked}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <button
-          type="submit"
-          className={buttonClass('primary', 'md', 'h-10 px-5 text-base')}
-          disabled={locked || clockIn.isPending}
-        >
-          <StartIcon aria-hidden />
-          {t('in')}
-        </button>
-      </form>
-      {locked && <p className="mt-3 text-sm text-muted-foreground">{t('locked')}</p>}
-      {clockIn.isError && <ErrorNote className="mt-3" context={t('inFailed')} error={clockIn.error} />}
-    </Panel>
-  );
+interface Search {
+  /** Any day in the week to show; absent is this week. */
+  day?: string;
+  view?: View;
 }
 
-/**
- * The running clock. Choosing another project moves the clock to it without
- * stopping: the time so far stays on the project it was on. The note is the
- * running stretch's own, and saves when it is left.
- */
-function Running({ locked }: { locked: boolean }) {
-  const t = useTranslations('today.clock');
+const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+export const Route = createFileRoute('/')({
+  component: TimerPage,
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    day: isDay(search.day) ? search.day : undefined,
+    view: search.view === 'list' ? 'list' : undefined,
+  }),
+});
+
+/** The week's entries a day at a time, newest day first. */
+function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; locked: boolean }) {
+  const t = useTranslations('timer');
+  const tc = useTranslations('common');
   const format = useFormatter();
-  const { running, settings } = useSession();
-  const projectName = useProjectName();
-  const clockOut = useClockOut();
-  const switchTo = useSwitchClock();
-  const save = useSaveEntry();
-  const now = useNow(1000);
-  const [note, setNote] = useState(running?.note ?? '');
-  if (!running) return null;
-
-  const time = (iso: string) =>
-    format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: settings.timezone });
-  const change = (projectId: string) =>
-    switchTo.mutate(
-      { projectId: projectId || undefined },
-      {
-        onSuccess: (entry) => {
-          setNote(entry.note);
-          toast.success(t('switched', { project: projectName(entry.projectId), time: time(entry.startedAt) }));
-        },
-      },
-    );
-  const saveNote = () => {
-    if (note.trim() === running.note) return;
-    save.mutate({ id: running.id, projectId: running.projectId, startedAt: running.startedAt, note });
-  };
-
+  const { today, settings } = useSession();
+  const days = [...week]
+    .reverse()
+    .map((day) => ({ day, entries: entries.filter((e) => dayOf(e.startedAt, settings.timezone) === day) }))
+    .filter((d) => d.entries.length > 0);
+  if (days.length === 0) return <Empty>{t('empty')}</Empty>;
   return (
-    <Panel>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <div>
-          <div className="tabular text-4xl font-semibold tracking-tight" role="timer">
-            {stopwatch(Math.max(0, now - Date.parse(running.startedAt)))}
+    <div className="divide-y divide-border">
+      {days.map((d) => (
+        <section key={d.day}>
+          <div className="flex items-baseline justify-between gap-3 bg-muted/60 px-4 py-2">
+            <h3 className="text-sm font-semibold">
+              {d.day === today
+                ? t('today')
+                : format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'short', day: 'numeric' })}
+            </h3>
+            <span className="tabular text-sm font-medium">
+              {tc(
+                'duration',
+                hoursMinutes(
+                  covered(
+                    d.entries.map((e) => ({
+                      start: Date.parse(e.startedAt),
+                      end: e.endedAt ? Date.parse(e.endedAt) : Date.now(),
+                    })),
+                  ),
+                ),
+              )}
+            </span>
           </div>
-          <div className="mt-0.5 text-sm text-muted-foreground">{t('since', { time: time(running.startedAt) })}</div>
-        </div>
-        <div className="order-last flex min-w-0 basis-full flex-wrap gap-2 sm:order-none sm:flex-1 sm:basis-auto">
-          <ProjectSelect
-            key={running.id}
-            value={running.projectId ?? ''}
-            onChange={change}
-            required={settings.requireProject}
-            disabled={locked || switchTo.isPending}
-            label={t('switchLabel')}
-            className="h-10 w-full sm:w-64"
-          />
-          <input
-            className={`${controlClass} h-10 min-w-40 flex-1`}
-            value={note}
-            placeholder={t('notePlaceholder')}
-            aria-label={t('noteLabel')}
-            disabled={locked}
-            onChange={(e) => setNote(e.target.value)}
-            onBlur={saveNote}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-          />
-        </div>
-        <Button
-          variant="primary"
-          className="ml-auto h-10 px-5 text-base"
-          loading={clockOut.isPending}
-          icon={<StopSolidIcon aria-hidden />}
-          onClick={() => clockOut.mutate()}
-        >
-          {t('out')}
-        </Button>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">{t('switchHint')}</p>
-      {switchTo.isError && <ErrorNote className="mt-3" context={t('switchFailed')} error={switchTo.error} />}
-      {save.isError && <ErrorNote className="mt-3" context={t('noteFailed')} error={save.error} />}
-      {clockOut.isError && <ErrorNote className="mt-3" context={t('outFailed')} error={clockOut.error} />}
-    </Panel>
-  );
-}
-
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-24">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-lg">{children}</div>
+          <EntryList entries={d.entries} readOnly={locked} />
+        </section>
+      ))}
     </div>
   );
 }
 
-function TodayPage() {
-  const t = useTranslations('today');
+function TimerPage() {
+  const t = useTranslations('timer');
   const te = useTranslations('entry');
-  const format = useFormatter();
+  const tc = useTranslations('common');
   const periodLabel = usePeriodLabel();
   const { today, running } = useSession();
-  const entries = useEntries(today, today);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const week = useWeek(search.day);
+  const first = week[0] ?? today;
+  const last = week[6] ?? today;
+  const view: View = search.view ?? 'calendar';
+  const entries = useEntries(first, last);
   const sheet = useTimesheet();
   const [adding, setAdding] = useState(false);
-  useNow(30_000, !!running); // keeps today's total current while the clock runs
+  const now = useNow(30_000, !!running); // keeps the week's total current while the clock runs
 
-  const locked = sheet.data?.timesheet?.status === 'submitted' || sheet.data?.timesheet?.status === 'approved';
-  // Today's total counts the running clock; the period's figures don't until it stops.
-  const todayHours = msToHours((entries.data ?? []).reduce((sum, e) => sum + elapsed(e.startedAt, e.endedAt), 0));
+  // The clock, and this period's days, are off while its timesheet is in.
+  const period = sheet.data?.period;
+  const submitted = sheet.data?.timesheet?.status === 'submitted' || sheet.data?.timesheet?.status === 'approved';
+  const lockedDay = (day: Day) => submitted && !!period && day >= period.start && day <= period.end;
+  const worked = covered(
+    (entries.data ?? []).map((e) => ({
+      start: Date.parse(e.startedAt),
+      end: e.endedAt ? Date.parse(e.endedAt) : now,
+    })),
+  );
 
   return (
-    <Page
-      title={t('title')}
-      description={format.dateTime(dayToDate(today), { weekday: 'long', month: 'long', day: 'numeric' })}
-    >
+    <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
+      <h1 className="sr-only">{t('title')}</h1>
       <div className="space-y-4">
-        <Clock locked={locked} />
+        <ClockBar locked={submitted} />
 
-        <Panel>
-          {sheet.isError ? (
-            <ErrorNote context={t('summary.loadFailed')} error={sheet.error} />
-          ) : (
-            <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-              <Stat label={t('summary.today')}>
-                <Hours value={todayHours} strong />
-              </Stat>
-              <Stat label={t('summary.period')}>
-                <Hours value={(sheet.data?.regular ?? 0) + (sheet.data?.overtime ?? 0)} strong />
-              </Stat>
-              <Stat label={t('summary.overtime')}>
-                <Hours value={sheet.data?.overtime ?? 0} strong />
-              </Stat>
-              <Stat label={t('summary.timeOff')}>
-                <Hours value={(sheet.data?.vacation ?? 0) + (sheet.data?.sick ?? 0)} strong />
-              </Stat>
-              <div className="ml-auto flex items-center gap-3">
-                {sheet.data && <span className="text-sm text-muted-foreground">{periodLabel(sheet.data.period)}</span>}
-                <SheetStatus timesheet={sheet.data?.timesheet} />
-                <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
-                  {t('summary.open')}
-                </Link>
-              </div>
-            </div>
-          )}
-        </Panel>
-
-        <Panel
-          flush
-          title={t('entries.title')}
-          actions={
-            <Button size="sm" icon={<AddIcon aria-hidden />} disabled={locked} onClick={() => setAdding(true)}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
+            <span className="tabular text-lg font-semibold">{tc('duration', hoursMinutes(worked))}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Segmented<View>
+              label={t('view.label')}
+              value={view}
+              onChange={(v) =>
+                navigate({ search: (s) => ({ ...s, view: v === 'list' ? v : undefined }), replace: true })
+              }
+              options={[
+                { value: 'calendar', label: t('view.calendar'), icon: <CalendarIcon aria-hidden /> },
+                { value: 'list', label: t('view.list'), icon: <SchedulerIcon aria-hidden /> },
+              ]}
+            />
+            <Button
+              size="sm"
+              className="h-8"
+              icon={<AddIcon aria-hidden />}
+              disabled={lockedDay(today)}
+              onClick={() => setAdding(true)}
+            >
               {te('add')}
             </Button>
-          }
-        >
+          </div>
+        </div>
+
+        <Panel flush>
           {entries.isError ? (
-            <ErrorNote className="m-4" context={t('entries.loadFailed')} error={entries.error} />
+            <ErrorNote className="m-4" context={t('loadFailed')} error={entries.error} />
           ) : entries.isPending ? (
             <Loading />
+          ) : view === 'calendar' ? (
+            <WeekCalendar week={week} entries={entries.data} readOnly={lockedDay} />
           ) : (
-            <>
-              <div className="p-4">
-                <DayTimeline day={today} entries={entries.data} readOnly={locked} />
-              </div>
-              <div className="border-t border-border">
-                {entries.data.length === 0 ? <Empty>{t('entries.empty')}</Empty> : <EntryList entries={entries.data} />}
-              </div>
-            </>
+            <WeekList week={week} entries={entries.data} locked={lockedDay(first) && lockedDay(last)} />
           )}
         </Panel>
+
+        {/* Where this stands for payroll. */}
+        {sheet.isError ? (
+          <ErrorNote context={t('period.loadFailed')} error={sheet.error} />
+        ) : (
+          sheet.data && (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
+              <span className="font-medium">{t('period.title')}</span>
+              <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
+              <span className="flex items-baseline gap-1.5">
+                <Hours value={sheet.data.regular + sheet.data.overtime} strong />
+                <span className="text-xs text-muted-foreground">{t('period.worked')}</span>
+              </span>
+              {sheet.data.overtime > 0 && (
+                <span className="flex items-baseline gap-1.5">
+                  <Hours value={sheet.data.overtime} strong />
+                  <span className="text-xs text-muted-foreground">{t('period.overtime')}</span>
+                </span>
+              )}
+              {sheet.data.vacation + sheet.data.sick > 0 && (
+                <span className="flex items-baseline gap-1.5">
+                  <Hours value={sheet.data.vacation + sheet.data.sick} strong />
+                  <span className="text-xs text-muted-foreground">{t('period.timeOff')}</span>
+                </span>
+              )}
+              <span className="ml-auto flex items-center gap-3">
+                <SheetStatus timesheet={sheet.data.timesheet} />
+                <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
+                  {t('period.open')}
+                </Link>
+              </span>
+            </div>
+          )
+        )}
       </div>
       <EntryDialog open={adding} onClose={() => setAdding(false)} day={today} />
-    </Page>
+    </main>
   );
 }
