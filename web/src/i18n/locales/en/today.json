@@ -1,0 +1,27 @@
+{
+  "title": "Today",
+  "date": "{date}",
+  "clock": {
+    "in": "Clock in",
+    "out": "Clock out",
+    "since": "Clocked in at {time}",
+    "notePlaceholder": "What are you working on? (optional)",
+    "inFailed": "Couldn’t clock in.",
+    "outFailed": "Couldn’t clock out.",
+    "locked": "This pay period’s timesheet is submitted, so the clock is off until it’s sent back or the next period starts."
+  },
+  "entries": {
+    "title": "Today’s time",
+    "empty": "Nothing recorded today. Clock in, or add time by hand.",
+    "loadFailed": "Couldn’t load today’s time."
+  },
+  "summary": {
+    "today": "Today",
+    "period": "This pay period",
+    "overtime": "Overtime",
+    "timeOff": "Time off",
+    "sheet": "Timesheet",
+    "open": "Open timesheet",
+    "loadFailed": "Couldn’t load this pay period."
+  }
+}

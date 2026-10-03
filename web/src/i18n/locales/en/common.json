@@ -1,0 +1,43 @@
+{
+  "hours": "{hours} h",
+  "duration": "{hours}h {minutes}m",
+  "period": {
+    "previous": "Previous pay period",
+    "next": "Next pay period",
+    "current": "Current period",
+    "range": "{start} – {end}"
+  },
+  "sheet": {
+    "open": "Not submitted",
+    "submitted": "Waiting for approval",
+    "approved": "Approved",
+    "rejected": "Sent back"
+  },
+  "timeOffStatus": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "kind": {
+    "vacation": "Vacation",
+    "sick": "Sick"
+  },
+  "project": {
+    "label": "Project",
+    "none": "No project",
+    "choose": "Choose a project",
+    "empty": "No projects yet. An admin adds them in Settings."
+  },
+  "columns": {
+    "regular": "Regular",
+    "overtime": "Overtime",
+    "vacation": "Vacation",
+    "sick": "Sick",
+    "total": "Total"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "note": "Note"
+}

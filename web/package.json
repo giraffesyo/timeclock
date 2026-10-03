@@ -1,0 +1,48 @@
+{
+  "name": "@timeclock/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.3",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc6 -b && vite build",
+    "typecheck": "tsc6 -b",
+    "lint": "biome check --error-on-warnings . && parallelworks-i18n check --dir src/i18n/locales && parallelworks-i18n unused --dir src/i18n/locales --src src --keep apiErrors",
+    "format": "biome check --write .",
+    "gen:api": "go -C .. run ./cmd/timeclock-server openapi > src/api/openapi.json && openapi-typescript src/api/openapi.json -o src/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@parallelworks/i18n": "^0.2.0",
+    "@parallelworks/problem": "^0.2.0",
+    "@parallelworks/ui": "^0.20.0",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
+    "clsx": "^2.1.1",
+    "luxon": "^3.7.2",
+    "openapi-fetch": "^0.17.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-tooltip": "^6.0.8",
+    "sonner": "^2.0.7",
+    "use-intl": "^4.14.9"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@parallelworks/lint": "^0.4.0",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/router-plugin": "^1.168.42",
+    "@types/luxon": "^3.7.1",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "openapi-typescript": "^7.13.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.2"
+  }
+}

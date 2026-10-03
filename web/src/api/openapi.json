@@ -1,0 +1,3065 @@
+{
+  "components": {
+    "schemas": {
+      "AuditEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "personId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "actor",
+          "action",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "Clock-inRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Clock-inRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Customer": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Customer.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "archived"
+        ],
+        "type": "object"
+      },
+      "CustomerInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/CustomerInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "DaySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "overtime": {
+            "format": "double",
+            "type": "number"
+          },
+          "regular": {
+            "format": "double",
+            "type": "number"
+          },
+          "sick": {
+            "format": "double",
+            "type": "number"
+          },
+          "vacation": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "day",
+          "regular",
+          "overtime",
+          "vacation",
+          "sick"
+        ],
+        "type": "object"
+      },
+      "Decision": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Decision.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "approve": {
+            "description": "False sends it back.",
+            "type": "boolean"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "approve"
+        ],
+        "type": "object"
+      },
+      "Entry": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Entry.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endedAt": {
+            "description": "Absent while the clock is running.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "locked": {
+            "description": "In a submitted or approved timesheet, so it can't change.",
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "clock",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "startedAt",
+          "note",
+          "source",
+          "locked"
+        ],
+        "type": "object"
+      },
+      "EntryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/EntryInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endedAt": {
+            "description": "Absent leaves a running clock running.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "personId": {
+            "description": "Whose time it is. Defaults to the caller; a manager or admin can record time for someone else.",
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startedAt"
+        ],
+        "type": "object"
+      },
+      "Exception": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "entryId": {
+            "type": "string"
+          },
+          "hours": {
+            "description": "The hours the exception is about: the entry's length, the overtime, or the pending time off.",
+            "format": "double",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "clock_running",
+              "long_entry",
+              "not_submitted",
+              "awaiting_approval",
+              "rejected",
+              "time_off_pending",
+              "overtime",
+              "no_time"
+            ],
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "personId",
+          "personName"
+        ],
+        "type": "object"
+      },
+      "FieldError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "Stable name of the rule, for clients to show a localized message. New codes can appear: fall back to a generic message for one you don't know.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Explanation, in the language the Content-Language header names; English without it.",
+            "type": "string"
+          },
+          "in": {
+            "description": "Where parameter is.",
+            "enum": [
+              "query",
+              "path",
+              "header",
+              "cookie"
+            ],
+            "type": "string"
+          },
+          "parameter": {
+            "description": "Name of the invalid request parameter.",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {},
+            "description": "Values the rule's localized message shows.",
+            "type": "object"
+          },
+          "pointer": {
+            "description": "JSON Pointer to the invalid body field, as a URI fragment such as #/items/0/name.",
+            "type": "string"
+          },
+          "type": {
+            "description": "The rule's problem type.",
+            "format": "uri-reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "code"
+        ],
+        "type": "object"
+      },
+      "Info": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Info.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "homeLabel": {
+            "type": "string"
+          },
+          "homeUrl": {
+            "type": "string"
+          },
+          "signInUrl": {
+            "type": "string"
+          },
+          "signOutUrl": {
+            "type": "string"
+          },
+          "themeStorageKey": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "List-auditResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-auditResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "type": "object"
+      },
+      "List-customersResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-customersResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "customers": {
+            "items": {
+              "$ref": "#/components/schemas/Customer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "customers"
+        ],
+        "type": "object"
+      },
+      "List-entriesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-entriesResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "type": "object"
+      },
+      "List-exceptionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-exceptionsResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/Exception"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "exceptions"
+        ],
+        "type": "object"
+      },
+      "List-projectsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-projectsResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "projects"
+        ],
+        "type": "object"
+      },
+      "MeBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/MeBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "admin": {
+            "description": "Runs payroll: sees everyone, approves anything, changes settings, exports reports.",
+            "type": "boolean"
+          },
+          "info": {
+            "$ref": "#/components/schemas/Info"
+          },
+          "manager": {
+            "description": "Has people whose time they approve.",
+            "type": "boolean"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period",
+            "description": "The current pay period."
+          },
+          "person": {
+            "$ref": "#/components/schemas/Person"
+          },
+          "running": {
+            "$ref": "#/components/schemas/Entry",
+            "description": "The caller's running clock."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
+          },
+          "today": {
+            "description": "Today in the organization's time zone.",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "admin",
+          "manager",
+          "settings",
+          "today",
+          "period",
+          "info"
+        ],
+        "type": "object"
+      },
+      "PayrollBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PayrollBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "notReady": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PayrollRow"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "period",
+          "rows",
+          "notReady"
+        ],
+        "type": "object"
+      },
+      "PayrollRow": {
+        "additionalProperties": false,
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DaySummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "overtime": {
+            "format": "double",
+            "type": "number"
+          },
+          "pendingTimeOff": {
+            "format": "double",
+            "type": "number"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "person": {
+            "$ref": "#/components/schemas/Person"
+          },
+          "ready": {
+            "description": "The person's time is settled for this period: approved, or submitted when timesheets need no approval. Only ready people are in the export.",
+            "type": "boolean"
+          },
+          "regular": {
+            "format": "double",
+            "type": "number"
+          },
+          "running": {
+            "description": "A clock is running; its time isn't counted until it stops.",
+            "type": "boolean"
+          },
+          "sick": {
+            "description": "Approved sick hours.",
+            "format": "double",
+            "type": "number"
+          },
+          "timesheet": {
+            "$ref": "#/components/schemas/Timesheet",
+            "description": "Absent until the person submits."
+          },
+          "vacation": {
+            "description": "Approved vacation hours.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ready",
+          "person",
+          "period",
+          "days",
+          "regular",
+          "overtime",
+          "vacation",
+          "sick",
+          "pendingTimeOff",
+          "running"
+        ],
+        "type": "object"
+      },
+      "PeopleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PeopleBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/Person"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "people"
+        ],
+        "type": "object"
+      },
+      "Period": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "date",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "PeriodSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PeriodSummary.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DaySummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "overtime": {
+            "format": "double",
+            "type": "number"
+          },
+          "pendingTimeOff": {
+            "format": "double",
+            "type": "number"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "person": {
+            "$ref": "#/components/schemas/Person"
+          },
+          "regular": {
+            "format": "double",
+            "type": "number"
+          },
+          "running": {
+            "description": "A clock is running; its time isn't counted until it stops.",
+            "type": "boolean"
+          },
+          "sick": {
+            "description": "Approved sick hours.",
+            "format": "double",
+            "type": "number"
+          },
+          "timesheet": {
+            "$ref": "#/components/schemas/Timesheet",
+            "description": "Absent until the person submits."
+          },
+          "vacation": {
+            "description": "Approved vacation hours.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "person",
+          "period",
+          "days",
+          "regular",
+          "overtime",
+          "vacation",
+          "sick",
+          "pendingTimeOff",
+          "running"
+        ],
+        "type": "object"
+      },
+      "Person": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Person.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "managerId": {
+            "description": "Who approves this person's time; empty when no one is assigned.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "overtimeExempt": {
+            "type": "boolean"
+          },
+          "payrollId": {
+            "description": "The person's id in the payroll system, for the export.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "managerId",
+          "overtimeExempt",
+          "payrollId",
+          "active"
+        ],
+        "type": "object"
+      },
+      "PersonUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/PersonUpdate.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "active": {
+            "description": "Inactive people are left out of payroll reports and exceptions.",
+            "type": "boolean"
+          },
+          "managerId": {
+            "description": "Who approves this person's time. Empty defers to the host's directory.",
+            "type": "string"
+          },
+          "overtimeExempt": {
+            "type": "boolean"
+          },
+          "payrollId": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "managerId",
+          "overtimeExempt",
+          "payrollId",
+          "active"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Problem.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "description": "Stable name of the problem type, for clients to show a localized message. New codes can appear: fall back to the status for one you don't know. Absent for about:blank: derive it from the status.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Explanation of this occurrence, in the language the Content-Language header names. Without that header it is English, for developers and logs: show your own message for code instead.",
+            "type": "string"
+          },
+          "errors": {
+            "description": "For a validation problem, each invalid field and the rule it failed.",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "instance": {
+            "description": "Identifies this occurrence of the problem.",
+            "format": "uri-reference",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {},
+            "description": "Values the code's localized message shows.",
+            "type": "object"
+          },
+          "status": {
+            "description": "The HTTP status code.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short English summary of the problem type, for developers.",
+            "type": "string"
+          },
+          "type": {
+            "description": "Identifies the problem type and resolves to its documentation. about:blank means nothing beyond the status.",
+            "format": "uri-reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "Project": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Project.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "billable": {
+            "type": "boolean"
+          },
+          "code": {
+            "description": "A charge code or contract number.",
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customerId",
+          "customerName",
+          "name",
+          "code",
+          "billable",
+          "archived"
+        ],
+        "type": "object"
+      },
+      "ProjectHours": {
+        "additionalProperties": false,
+        "properties": {
+          "billable": {
+            "type": "boolean"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "hours": {
+            "format": "double",
+            "type": "number"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "projectCode": {
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Empty for time with no project.",
+            "type": "string"
+          },
+          "projectName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerName",
+          "projectId",
+          "projectName",
+          "projectCode",
+          "billable",
+          "personId",
+          "personName",
+          "hours"
+        ],
+        "type": "object"
+      },
+      "ProjectInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ProjectInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "billable": {
+            "type": "boolean"
+          },
+          "code": {
+            "description": "A charge code or contract number.",
+            "maxLength": 64,
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerId",
+          "name",
+          "billable"
+        ],
+        "type": "object"
+      },
+      "ProjectsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/ProjectsBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectHours"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "Reopen-timesheetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Reopen-timesheetRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Settings": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Settings.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "approveTimeOff": {
+            "description": "Time off waits for the person's manager or an admin.",
+            "type": "boolean"
+          },
+          "approveTimesheets": {
+            "description": "A submitted timesheet waits for the person's manager or an admin.",
+            "type": "boolean"
+          },
+          "cycleAnchor": {
+            "description": "The first day of some weekly or biweekly pay period.",
+            "format": "date",
+            "type": "string"
+          },
+          "longEntryHours": {
+            "description": "An entry or a running clock longer than this is an exception.",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 24,
+            "type": "number"
+          },
+          "overtimeWeeklyHours": {
+            "description": "Hours in a workweek beyond which time is overtime. 0 turns overtime off.",
+            "format": "double",
+            "maximum": 168,
+            "minimum": 0,
+            "type": "number"
+          },
+          "payCycle": {
+            "enum": [
+              "weekly",
+              "biweekly",
+              "semimonthly",
+              "monthly"
+            ],
+            "type": "string"
+          },
+          "requireProject": {
+            "description": "Every time entry names a project.",
+            "type": "boolean"
+          },
+          "timezone": {
+            "description": "IANA time zone that days, workweeks and pay periods are cut in.",
+            "examples": [
+              "America/Chicago"
+            ],
+            "type": "string"
+          },
+          "weekStart": {
+            "description": "The day the workweek starts, for overtime: 0 is Sunday.",
+            "format": "int64",
+            "maximum": 6,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "timezone",
+          "payCycle",
+          "cycleAnchor",
+          "weekStart",
+          "overtimeWeeklyHours",
+          "approveTimesheets",
+          "approveTimeOff",
+          "requireProject",
+          "longEntryHours"
+        ],
+        "type": "object"
+      },
+      "Submit-timesheetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Submit-timesheetRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "day": {
+            "description": "Any day in the pay period.",
+            "format": "date",
+            "type": "string"
+          },
+          "personId": {
+            "description": "Whose. Defaults to the caller.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day"
+        ],
+        "type": "object"
+      },
+      "TeamBodyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TeamBodyBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          }
+        },
+        "required": [
+          "period",
+          "members"
+        ],
+        "type": "object"
+      },
+      "TimeOff": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOff.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedBy": {
+            "type": "string"
+          },
+          "decisionNote": {
+            "type": "string"
+          },
+          "hours": {
+            "format": "double",
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "vacation",
+              "sick"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "kind",
+          "day",
+          "hours",
+          "note",
+          "status"
+        ],
+        "type": "object"
+      },
+      "TimeOffInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOffInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "hours": {
+            "description": "Hours off on each day.",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 24,
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "vacation",
+              "sick"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "personId": {
+            "description": "Whose time off. Defaults to the caller; a manager or admin can record it for someone else.",
+            "type": "string"
+          },
+          "to": {
+            "description": "The last day off; the same as from for one day.",
+            "format": "date",
+            "type": "string"
+          },
+          "weekends": {
+            "description": "Include Saturdays and Sundays in the run.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "from",
+          "to",
+          "hours"
+        ],
+        "type": "object"
+      },
+      "TimeOffListBodyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOffListBodyBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "timeOff": {
+            "items": {
+              "$ref": "#/components/schemas/TimeOff"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "timeOff"
+        ],
+        "type": "object"
+      },
+      "Timesheet": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Timesheet.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedBy": {
+            "type": "string"
+          },
+          "decisionNote": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "submitted",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "period",
+          "status",
+          "submittedAt"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Time tracking for payroll: clock in and out, time by project and customer, time off, timesheets, approvals and reports.",
+    "title": "Timeclock API",
+    "version": "1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "list-audit",
+        "parameters": [
+          {
+            "description": "Only changes to this person's time.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Only changes to this person's time.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "format": "int64",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-auditResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Recent changes to payroll data",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/clock/in": {
+      "post": {
+        "operationId": "clock-in",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Clock-inRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Start the caller's clock",
+        "tags": [
+          "Clock"
+        ]
+      }
+    },
+    "/api/v1/clock/out": {
+      "post": {
+        "operationId": "clock-out",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Stop the caller's clock",
+        "tags": [
+          "Clock"
+        ]
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "operationId": "list-customers",
+        "parameters": [
+          {
+            "description": "Include archived ones.",
+            "explode": false,
+            "in": "query",
+            "name": "archived",
+            "schema": {
+              "description": "Include archived ones.",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-customersResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Customers",
+        "tags": [
+          "Projects"
+        ]
+      },
+      "post": {
+        "operationId": "create-customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Add a customer",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}": {
+      "delete": {
+        "operationId": "delete-customer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a customer with no projects",
+        "tags": [
+          "Projects"
+        ]
+      },
+      "put": {
+        "operationId": "update-customer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rename or archive a customer",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/entries": {
+      "get": {
+        "operationId": "list-entries",
+        "parameters": [
+          {
+            "description": "Whose. Defaults to the caller.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Whose. Defaults to the caller.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-entriesResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "A person's time on a range of days",
+        "tags": [
+          "Entries"
+        ]
+      },
+      "post": {
+        "operationId": "create-entry",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Record finished time by hand",
+        "tags": [
+          "Entries"
+        ]
+      }
+    },
+    "/api/v1/entries/{id}": {
+      "delete": {
+        "operationId": "delete-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete an entry",
+        "tags": [
+          "Entries"
+        ]
+      },
+      "put": {
+        "operationId": "update-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Change an entry",
+        "tags": [
+          "Entries"
+        ]
+      }
+    },
+    "/api/v1/exceptions": {
+      "get": {
+        "operationId": "list-exceptions",
+        "parameters": [
+          {
+            "description": "Any day in the pay period. Defaults to today.",
+            "explode": false,
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "description": "Any day in the pay period. Defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-exceptionsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What payroll should look at in a pay period",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/info": {
+      "get": {
+        "operationId": "get-info",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Info"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Where Timeclock runs and how to sign in",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "get-me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Who is calling, and how payroll runs",
+        "tags": [
+          "Me"
+        ]
+      }
+    },
+    "/api/v1/people": {
+      "get": {
+        "operationId": "list-people",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeopleBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The people whose time the caller may see",
+        "tags": [
+          "People"
+        ]
+      }
+    },
+    "/api/v1/people/sync": {
+      "post": {
+        "operationId": "sync-people",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeopleBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Bring in everyone from the directory",
+        "tags": [
+          "People"
+        ]
+      }
+    },
+    "/api/v1/people/{id}": {
+      "put": {
+        "operationId": "update-person",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set a person's manager and payroll details",
+        "tags": [
+          "People"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "list-projects",
+        "parameters": [
+          {
+            "description": "Include archived ones.",
+            "explode": false,
+            "in": "query",
+            "name": "archived",
+            "schema": {
+              "description": "Include archived ones.",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-projectsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Projects, by customer",
+        "tags": [
+          "Projects"
+        ]
+      },
+      "post": {
+        "operationId": "create-project",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Add a project",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "delete": {
+        "operationId": "delete-project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a project with no time on it",
+        "tags": [
+          "Projects"
+        ]
+      },
+      "put": {
+        "operationId": "update-project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Change or archive a project",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/reports/payroll": {
+      "get": {
+        "operationId": "payroll-report",
+        "parameters": [
+          {
+            "description": "Any day in the pay period. Defaults to today.",
+            "explode": false,
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "description": "Any day in the pay period. Defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Everyone's hours for a pay period",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/payroll.csv": {
+      "get": {
+        "operationId": "payroll-export",
+        "parameters": [
+          {
+            "description": "Any day in the pay period. Defaults to today.",
+            "explode": false,
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "description": "Any day in the pay period. Defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Include people whose time isn't settled.",
+            "explode": false,
+            "in": "query",
+            "name": "all",
+            "schema": {
+              "description": "Include people whose time isn't settled.",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "contentEncoding": "base64",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "A pay period's hours as a file for the payroll system",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/projects": {
+      "get": {
+        "operationId": "project-report",
+        "parameters": [
+          {
+            "description": "Whose. Defaults to the caller.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Whose. Defaults to the caller.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectsBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Hours by customer, project and person",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/projects.csv": {
+      "get": {
+        "operationId": "project-export",
+        "parameters": [
+          {
+            "description": "Whose. Defaults to the caller.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Whose. Defaults to the caller.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "contentEncoding": "base64",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Hours by customer, project and person, as a file",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/settings": {
+      "put": {
+        "operationId": "update-settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Change how payroll runs",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/team": {
+      "get": {
+        "operationId": "get-team",
+        "parameters": [
+          {
+            "description": "Any day in the pay period. Defaults to today.",
+            "explode": false,
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "description": "Any day in the pay period. Defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The pay period of everyone whose time the caller may see",
+        "tags": [
+          "Timesheets"
+        ]
+      }
+    },
+    "/api/v1/time-off": {
+      "get": {
+        "operationId": "list-time-off",
+        "parameters": [
+          {
+            "description": "Whose. Defaults to the caller.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Whose. Defaults to the caller.",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffListBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "A person's time off on a range of days",
+        "tags": [
+          "Time off"
+        ]
+      },
+      "post": {
+        "operationId": "request-time-off",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeOffInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffListBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Record vacation or sick time on a run of days",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/time-off/pending": {
+      "get": {
+        "operationId": "list-pending-time-off",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffListBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Time off waiting for the caller's decision",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/time-off/{id}": {
+      "delete": {
+        "operationId": "cancel-time-off",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove a day of time off",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/time-off/{id}/decision": {
+      "post": {
+        "operationId": "decide-time-off",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOff"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Approve or reject time off",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/timesheet": {
+      "get": {
+        "operationId": "get-timesheet",
+        "parameters": [
+          {
+            "description": "Whose. Defaults to the caller.",
+            "explode": false,
+            "in": "query",
+            "name": "person",
+            "schema": {
+              "description": "Whose. Defaults to the caller.",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Any day in the pay period. Defaults to today.",
+            "explode": false,
+            "in": "query",
+            "name": "day",
+            "schema": {
+              "description": "Any day in the pay period. Defaults to today.",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "A person's pay period: hours by day and its timesheet",
+        "tags": [
+          "Timesheets"
+        ]
+      }
+    },
+    "/api/v1/timesheet/submit": {
+      "post": {
+        "operationId": "submit-timesheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Submit-timesheetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "State that a pay period's time is complete",
+        "tags": [
+          "Timesheets"
+        ]
+      }
+    },
+    "/api/v1/timesheets/{id}/decision": {
+      "post": {
+        "operationId": "decide-timesheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timesheet"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Approve a timesheet or send it back",
+        "tags": [
+          "Timesheets"
+        ]
+      }
+    },
+    "/api/v1/timesheets/{id}/reopen": {
+      "post": {
+        "operationId": "reopen-timesheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reopen-timesheetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timesheet"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Unlock a timesheet so its time can be corrected",
+        "tags": [
+          "Timesheets"
+        ]
+      }
+    }
+  }
+}

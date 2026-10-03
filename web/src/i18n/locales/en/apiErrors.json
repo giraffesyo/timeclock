@@ -1,0 +1,16 @@
+{
+  "clock_running": "You’re already clocked in. Clock out first.",
+  "clock_not_running": "You’re not clocked in.",
+  "entry_overlaps": "That overlaps time already recorded.",
+  "period_locked": "That day is in a submitted timesheet, so its time can’t change. Ask a manager or admin to send the timesheet back.",
+  "project_required": "Choose a project.",
+  "project_archived": "That project is archived. Choose another.",
+  "in_the_future": "Worked time can’t be in the future.",
+  "clock_still_running": "Clock out before submitting this timesheet.",
+  "already_submitted": "This timesheet was already submitted.",
+  "not_awaiting_decision": "It’s no longer waiting for a decision. Refresh to see where it stands.",
+  "own_approval": "You can’t approve your own time. Your manager or an admin does.",
+  "in_use": "It has time recorded against it, so it can’t be deleted. Archive it instead.",
+  "name_taken": "That name is already used.",
+  "manager_loop": "That would make someone their own manager."
+}

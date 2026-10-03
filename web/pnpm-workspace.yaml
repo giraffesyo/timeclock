@@ -1,0 +1,3 @@
+minimumReleaseAgeExclude:
+  - '@parallelworks/problem@0.2.0'
+  - '@parallelworks/ui@0.20.0'

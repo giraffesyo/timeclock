@@ -1,0 +1,91 @@
+@import "tailwindcss";
+/* @parallelworks/ui's theme contract (the --theme-* tokens and their theme-*
+ * utilities), its page defaults and Geist. The token values come from
+ * virtual:timeclock-theme.css, imported by main.tsx (see vite-theme.ts). */
+@import "@parallelworks/ui/theme.css";
+@import "@parallelworks/ui/base.css";
+@import "@parallelworks/ui/fonts.css";
+
+/* The utility classes @parallelworks/ui's components use. */
+@source "../node_modules/@parallelworks/ui/dist";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Timeclock's names for the contract's tokens, so its classes read plainly
+ * and follow whatever theme is live. */
+@theme inline {
+  --color-background: var(--theme-app-bg);
+  --color-foreground: var(--theme-app);
+  --color-card: var(--theme-panel-bg);
+  --color-card-foreground: var(--theme-panel);
+  --color-muted: var(--theme-hover);
+  --color-muted-foreground: var(--theme-muted-text-color);
+  --color-border: var(--theme-border);
+  --color-primary: var(--theme-accent);
+  --color-primary-foreground: var(--theme-accent-text);
+  --color-ring: var(--theme-accent);
+
+  /* States, tuned to hold AA as text, which the contract's status hues
+   * don't promise: a strong color for text and icons, a subtle tint behind. */
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+}
+
+:root {
+  --success: oklch(0.52 0.14 152);
+  --success-subtle: oklch(0.955 0.035 152);
+  --warning: oklch(0.52 0.108 78);
+  --warning-subtle: oklch(0.958 0.05 88);
+  --danger: oklch(0.55 0.216 27);
+  --danger-subtle: oklch(0.955 0.035 27);
+  --info: oklch(0.52 0.17 255);
+  --info-subtle: oklch(0.955 0.03 255);
+}
+
+.dark {
+  --success: oklch(0.8 0.15 155);
+  --success-subtle: oklch(0.3 0.06 155);
+  --warning: oklch(0.83 0.13 88);
+  --warning-subtle: oklch(0.31 0.05 78);
+  --danger: oklch(0.72 0.17 25);
+  --danger-subtle: oklch(0.31 0.08 22);
+  --info: oklch(0.76 0.12 250);
+  --info-subtle: oklch(0.31 0.07 255);
+}
+
+/* The bordered panel @parallelworks/ui's SettingsCard wraps its rows in; the
+ * library leaves its look to the host. */
+@layer components {
+  .panel {
+    border: 1px solid var(--theme-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--theme-panel-bg);
+    color: var(--theme-panel);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  /* Hours line up in columns. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

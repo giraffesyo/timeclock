@@ -1,0 +1,26 @@
+{
+  "loading": "Loading…",
+  "modal": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "create": "Create",
+    "creating": "Creating…",
+    "filter": "Filter",
+    "noOptions": "No options"
+  },
+  "common": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Couldn’t copy",
+    "add": "Add",
+    "create": "Create",
+    "remove": "Remove",
+    "sort": "Sort",
+    "userAvatar": "User avatar"
+  },
+  "dropdown": {
+    "select": "Select {type}",
+    "noOptionsFound": "No options found",
+    "showOptions": "Show options"
+  }
+}
