@@ -94,3 +94,11 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 ## The payroll export
 
 `GET /api/v1/reports/payroll.csv?day=<any day in the period>` has one row per person whose time is settled (their timesheet is approved, or submitted when timesheets need no approval), with the columns `last_name, first_name, gusto_employee_id, regular_hours, overtime_hours, double_overtime_hours, pto_hours, sick_hours`. `?all=true` includes everyone. Check the columns against the template Gusto gives your company before the first import; the column names are in `internal/api/reports.go`.
+
+## Releasing
+
+`make release VERSION=v0.2.0` builds the web app, commits `web/dist` on top of the current commit, and tags that commit, so a tagged version carries the app while `main` stays free of build output. Push the tag with `git push origin v0.2.0`. A host depends on a tag, never on `main`, which embeds no app.
+
+## License
+
+[Apache License 2.0](LICENSE).

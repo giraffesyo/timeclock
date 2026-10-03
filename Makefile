@@ -1,4 +1,4 @@
-.PHONY: dev server web install build check lint test test-db api
+.PHONY: dev server web install build check lint test test-db api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
@@ -52,3 +52,18 @@ test-db: db
 # Regenerate the web app's API types from the server's OpenAPI document.
 api:
 	@cd web && pnpm gen:api
+
+# Tag a version that carries the web build: a commit on top of HEAD that adds
+# web/dist, reachable only from the tag, so main never holds build output.
+# Then push it: git push origin $(VERSION)
+release:
+	@test -n "$(VERSION)" || (echo "usage: make release VERSION=v0.1.0" && exit 1)
+	@test -z "$$(git status --porcelain)" || (echo "commit or stash your changes first" && exit 1)
+	@cd web && pnpm install --frozen-lockfile && pnpm build
+	@test -f web/dist/index.html
+	git checkout --detach
+	git add -f web/dist
+	git commit -q -m "release $(VERSION)"
+	git tag $(VERSION)
+	git checkout -
+	@echo "tagged $(VERSION); push it with: git push origin $(VERSION)"
