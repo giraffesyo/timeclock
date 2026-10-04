@@ -1,19 +1,17 @@
 // Package standalone gives a Timeclock that runs on its own what a host
-// would: accounts, sign-in with an OpenID Connect provider, a session
-// cookie, and a directory of the people who signed in.
+// would: accounts with a password, the workspaces each belongs to, sessions,
+// invitations and password resets by email, optional sign-in with an OpenID
+// Connect provider, and a directory of each workspace's people.
 package standalone
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,74 +19,95 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 
 	"github.com/giraffesyo/timeclock/host"
+	"github.com/giraffesyo/timeclock/internal/clock"
 )
 
 // Config configures Auth.
 type Config struct {
-	// Issuer, ClientID and ClientSecret are the OpenID Connect provider,
-	// such as https://accounts.google.com. Empty leaves only DevUser.
+	// PublicURL is where people reach Timeclock: the links in its emails
+	// start with it, and an OpenID Connect provider redirects back to it.
+	PublicURL string
+	// Mailer sends invitations and password resets. Without one they go to
+	// the log, for whoever runs the server to pass on.
+	Mailer host.Mailer
+	// AdminEmails run payroll in every workspace they belong to, and are
+	// invited to the default workspace when the server first starts.
+	AdminEmails []string
+	// BreachCheck refuses passwords found in a public list of breached
+	// ones. The lookup sends five characters of a hash, never the password.
+	BreachCheck bool
+
+	// Issuer, ClientID and ClientSecret are an OpenID Connect provider
+	// people can sign in with besides a password, such as
+	// https://accounts.google.com. Empty offers passwords only.
 	Issuer       string
 	ClientID     string
 	ClientSecret string
-	// PublicURL is where people reach Timeclock, for the provider's
-	// redirect back to /auth/callback.
-	PublicURL string
-	// SessionSecret signs session cookies; at least 32 bytes.
-	SessionSecret string
-	// AllowedDomain, if set, is the only email domain that may sign in.
+	// AllowedDomain, if set, is the only email domain the provider may sign in.
 	AllowedDomain string
-	// AdminEmails run payroll.
-	AdminEmails []string
+
 	// DevUser, if set, is an email every request is signed in as, with no
-	// provider. For development only.
+	// sign-in at all. For development only.
 	DevUser string
 	Logger  *slog.Logger
 }
 
 const (
 	cookieName = "timeclock_session"
-	sessionTTL = 14 * 24 * time.Hour
-	attemptTTL = 10 * time.Minute
+	// A session ends after this long unused, and this long in all.
+	sessionIdle = 14 * 24 * time.Hour
+	sessionMax  = 30 * 24 * time.Hour
+	inviteTTL   = 7 * 24 * time.Hour
+	resetTTL    = time.Hour
+	attemptTTL  = 10 * time.Minute
 )
 
-// Auth is a standalone Timeclock's sign-in and directory.
+// Auth is a standalone Timeclock's accounts, sign-in and directory.
 type Auth struct {
 	pool     *pgxpool.Pool
 	cfg      Config
 	admins   map[string]bool
+	mailer   host.Mailer
+	breaches breaches
 	verifier *oidc.IDTokenVerifier
 	oauth    *oauth2.Config
 	devID    string
 	devIDs   sync.Map // email → account id, for DevUserHeader
+	now      func() time.Time
 }
 
-// New discovers the provider, when one is configured, and in development
-// makes sure DevUser has an account.
+// New sets up sign-in. In development it makes sure DevUser has an account;
+// otherwise it invites each admin who has none yet.
 func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	a := &Auth{pool: pool, cfg: cfg, admins: map[string]bool{}}
+	a := &Auth{pool: pool, cfg: cfg, admins: map[string]bool{}, mailer: cfg.Mailer, now: time.Now}
+	if a.mailer == nil {
+		a.mailer = logMailer{cfg.Logger}
+	}
+	if cfg.BreachCheck {
+		a.breaches = pwned{client: &http.Client{Timeout: 5 * time.Second}}
+	}
 	for _, e := range cfg.AdminEmails {
 		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
 			a.admins[e] = true
 		}
 	}
-	switch {
-	case cfg.DevUser != "":
-		id, err := a.upsert(ctx, "dev", cfg.DevUser, cfg.DevUser, strings.Split(cfg.DevUser, "@")[0])
-		if err != nil {
-			return nil, err
+	if cfg.DevUser != "" {
+		id, ok := a.devAccount(ctx, strings.ToLower(cfg.DevUser))
+		if !ok {
+			return nil, errors.New("make the development account")
 		}
 		a.devID = id
-	case cfg.Issuer != "":
-		if len(cfg.SessionSecret) < 32 {
-			return nil, errors.New("the session secret must be at least 32 characters")
-		}
+		return a, nil
+	}
+	if cfg.Issuer != "" {
 		provider, err := oidc.NewProvider(ctx, cfg.Issuer)
 		if err != nil {
 			return nil, fmt.Errorf("discover OIDC provider %s: %w", cfg.Issuer, err)
@@ -101,60 +120,149 @@ func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 			RedirectURL:  strings.TrimRight(cfg.PublicURL, "/") + "/auth/callback",
 			Scopes:       []string{oidc.ScopeOpenID, "email", "profile"},
 		}
-	default:
-		return nil, errors.New("no sign-in configured: set an OIDC issuer, or a dev user for local work")
 	}
-	return a, nil
+	return a, a.inviteAdmins(ctx)
 }
 
-func (a *Auth) upsert(ctx context.Context, issuer, subject, email, name string) (string, error) {
-	var id uuid.UUID
-	err := a.pool.QueryRow(ctx, `INSERT INTO accounts (id, issuer, subject, email, name) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (issuer, subject) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name RETURNING id`,
-		uuid.Must(uuid.NewV7()), issuer, subject, email, name).Scan(&id)
-	if err != nil {
-		return "", fmt.Errorf("save account: %w", err)
+// inviteAdmins invites, to the default workspace, each admin who has no
+// account and no invitation waiting: how the first person gets in.
+func (a *Auth) inviteAdmins(ctx context.Context) error {
+	for email := range a.admins {
+		var known bool
+		err := a.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM accounts WHERE lower(email) = $1)
+			OR EXISTS (SELECT 1 FROM invites WHERE lower(email) = $1 AND accepted_at IS NULL AND expires_at > now())`, email).Scan(&known)
+		if err != nil {
+			return fmt.Errorf("check admin %s: %w", email, err)
+		}
+		if known {
+			continue
+		}
+		if _, err := a.Invite(ctx, clock.DefaultWorkspace, email, true, uuid.Nil); err != nil {
+			return err
+		}
 	}
-	return id.String(), nil
+	return nil
+}
+
+func newToken() (token string, hash []byte) {
+	token = rand.Text() + rand.Text()
+	sum := sha256.Sum256([]byte(token))
+	return token, sum[:]
+}
+
+func hashOf(token string) []byte {
+	sum := sha256.Sum256([]byte(token))
+	return sum[:]
+}
+
+// --- Accounts ---
+
+// Account is someone who can sign in.
+type Account struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Name  string    `json:"name"`
+}
+
+// Membership is a workspace an account belongs to.
+type Membership struct {
+	ID    uuid.UUID `json:"id"`
+	Key   string    `json:"key"`
+	Name  string    `json:"name"`
+	Admin bool      `json:"admin"`
+}
+
+func (a *Auth) memberships(ctx context.Context, account uuid.UUID, email string) ([]Membership, error) {
+	rows, err := a.pool.Query(ctx, `SELECT w.id, w.key, w.name, m.admin FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+		WHERE m.account_id = $1 ORDER BY lower(w.name), w.key`, account)
+	if err != nil {
+		return nil, fmt.Errorf("list workspaces: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Membership, error) {
+		var m Membership
+		err := row.Scan(&m.ID, &m.Key, &m.Name, &m.Admin)
+		m.Admin = m.Admin || a.admins[strings.ToLower(email)]
+		return m, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list workspaces: %w", err)
+	}
+	return out, nil
+}
+
+// join puts an account in a workspace, raising it to admin if asked.
+func join(ctx context.Context, q interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}, workspace, account uuid.UUID, admin bool) error {
+	_, err := q.Exec(ctx, `INSERT INTO memberships (workspace_id, account_id, admin) VALUES ($1, $2, $3)
+		ON CONFLICT (workspace_id, account_id) DO UPDATE SET admin = memberships.admin OR EXCLUDED.admin`, workspace, account, admin)
+	return err
+}
+
+// devAccount is the account of a development user, made on first use and
+// put in the default workspace.
+func (a *Auth) devAccount(ctx context.Context, email string) (string, bool) {
+	if id, ok := a.devIDs.Load(email); ok {
+		return id.(string), true
+	}
+	var id uuid.UUID
+	err := pgx.BeginFunc(ctx, a.pool, func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx, `INSERT INTO accounts (id, issuer, subject, email, name) VALUES ($1, 'dev', $2, $2, $3)
+			ON CONFLICT (lower(email)) DO UPDATE SET name = accounts.name RETURNING id`,
+			uuid.Must(uuid.NewV7()), email, strings.Split(email, "@")[0]).Scan(&id)
+		if err != nil {
+			return err
+		}
+		var ws uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT id FROM workspaces WHERE key = $1`, clock.DefaultWorkspace).Scan(&ws); err != nil {
+			return err
+		}
+		return join(ctx, tx, ws, id, false)
+	})
+	if err != nil {
+		a.cfg.Logger.ErrorContext(ctx, "make development account", "email", email, "error", err)
+		return "", false
+	}
+	a.devIDs.Store(email, id.String())
+	return id.String(), true
 }
 
 // --- host.Directory ---
 
-func (a *Auth) person(id uuid.UUID, email, name string) host.Person {
-	if name == "" {
-		name = email
-	}
-	return host.Person{ID: id.String(), Name: name, Email: email, Admin: a.admins[strings.ToLower(email)]}
-}
-
-// Person returns the account with the given id.
+// Person returns a member of the request's workspace.
 func (a *Auth) Person(ctx context.Context, id string) (host.Person, error) {
 	parsed, err := uuid.Parse(id)
 	if err != nil {
 		return host.Person{}, host.ErrNotFound
 	}
 	var email, name string
-	err = a.pool.QueryRow(ctx, `SELECT email, name FROM accounts WHERE id = $1`, parsed).Scan(&email, &name)
+	var admin bool
+	err = a.pool.QueryRow(ctx, `SELECT acc.email, acc.name, m.admin FROM accounts acc
+		JOIN memberships m ON m.account_id = acc.id JOIN workspaces w ON w.id = m.workspace_id
+		WHERE acc.id = $1 AND w.key = $2 AND acc.disabled_at IS NULL`, parsed, workspaceOf(ctx)).Scan(&email, &name, &admin)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return host.Person{}, host.ErrNotFound
 	}
 	if err != nil {
 		return host.Person{}, fmt.Errorf("read account: %w", err)
 	}
-	return a.person(parsed, email, name), nil
+	return a.person(parsed, email, name, admin), nil
 }
 
-// People lists every account.
+// People lists the members of the request's workspace.
 func (a *Auth) People(ctx context.Context) ([]host.Person, error) {
-	rows, err := a.pool.Query(ctx, `SELECT id, email, name FROM accounts ORDER BY lower(name)`)
+	rows, err := a.pool.Query(ctx, `SELECT acc.id, acc.email, acc.name, m.admin FROM accounts acc
+		JOIN memberships m ON m.account_id = acc.id JOIN workspaces w ON w.id = m.workspace_id
+		WHERE w.key = $1 AND acc.disabled_at IS NULL ORDER BY lower(acc.name)`, workspaceOf(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("list accounts: %w", err)
 	}
 	var out []host.Person
 	var id uuid.UUID
 	var email, name string
-	if _, err := pgx.ForEachRow(rows, []any{&id, &email, &name}, func() error {
-		out = append(out, a.person(id, email, name))
+	var admin bool
+	if _, err := pgx.ForEachRow(rows, []any{&id, &email, &name, &admin}, func() error {
+		out = append(out, a.person(id, email, name, admin))
 		return nil
 	}); err != nil {
 		return nil, fmt.Errorf("list accounts: %w", err)
@@ -162,33 +270,58 @@ func (a *Auth) People(ctx context.Context) ([]host.Person, error) {
 	return out, nil
 }
 
-// --- Sessions ---
-
-// sign returns the session cookie value for an account: its id, when it
-// expires, and an HMAC over both.
-func (a *Auth) sign(id string, expires time.Time) string {
-	payload := id + "." + strconv.FormatInt(expires.Unix(), 10)
-	mac := hmac.New(sha256.New, []byte(a.cfg.SessionSecret))
-	mac.Write([]byte(payload))
-	return payload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+func workspaceOf(ctx context.Context) string {
+	if key := host.Workspace(ctx); key != "" {
+		return key
+	}
+	return clock.DefaultWorkspace
 }
+
+func (a *Auth) person(id uuid.UUID, email, name string, admin bool) host.Person {
+	if name == "" {
+		name = email
+	}
+	return host.Person{ID: id.String(), Name: name, Email: email, Admin: admin || a.admins[strings.ToLower(email)]}
+}
+
+// --- Sessions ---
 
 // DevUserHeader names, in development only (Config.DevUser set), the email a
 // request is signed in as instead of DevUser.
 const DevUserHeader = "X-Timeclock-Dev-User"
 
-// devAccount is the account of a development user, made on first use.
-func (a *Auth) devAccount(ctx context.Context, email string) (string, bool) {
-	if id, ok := a.devIDs.Load(email); ok {
-		return id.(string), true
+type session struct {
+	hash      []byte
+	account   uuid.UUID
+	workspace string // key; empty when the account is in none
+}
+
+// session reads the request's session, if it has a live one.
+func (a *Auth) session(r *http.Request) (session, bool) {
+	c, err := r.Cookie(cookieName)
+	if err != nil || c.Value == "" {
+		return session{}, false
 	}
-	id, err := a.upsert(ctx, "dev", email, email, strings.Split(email, "@")[0])
+	s := session{hash: hashOf(c.Value)}
+	now := a.now()
+	var key *string
+	var seen time.Time
+	err = a.pool.QueryRow(r.Context(), `SELECT s.account_id, w.key, s.last_seen_at FROM sessions s
+		JOIN accounts acc ON acc.id = s.account_id AND acc.disabled_at IS NULL
+		LEFT JOIN workspaces w ON w.id = s.workspace_id
+		WHERE s.token_hash = $1 AND s.expires_at > $2 AND s.last_seen_at > $3`,
+		s.hash, now, now.Add(-sessionIdle)).Scan(&s.account, &key, &seen)
 	if err != nil {
-		a.cfg.Logger.ErrorContext(ctx, "make development account", "email", email, "error", err)
-		return "", false
+		return session{}, false
 	}
-	a.devIDs.Store(email, id)
-	return id, true
+	if key != nil {
+		s.workspace = *key
+	}
+	// Using it keeps it alive; noted at most every few minutes.
+	if now.Sub(seen) > 5*time.Minute {
+		_, _ = a.pool.Exec(r.Context(), `UPDATE sessions SET last_seen_at = $2 WHERE token_hash = $1`, s.hash, now)
+	}
+	return s, true
 }
 
 // Caller returns the signed-in account of a request.
@@ -201,22 +334,56 @@ func (a *Auth) Caller(r *http.Request) (string, bool) {
 		}
 		return a.devID, true
 	}
-	c, err := r.Cookie(cookieName)
-	if err != nil {
+	s, ok := a.session(r)
+	if !ok {
 		return "", false
 	}
-	parts := strings.Split(c.Value, ".")
-	if len(parts) != 3 {
+	return s.account.String(), true
+}
+
+// Workspace returns the workspace the request's session is looking at.
+func (a *Auth) Workspace(r *http.Request) (string, bool) {
+	if a.devID != "" {
 		return "", false
 	}
-	expires, err := strconv.ParseInt(parts[1], 10, 64)
-	if err != nil || time.Now().Unix() > expires {
-		return "", false
+	s, ok := a.session(r)
+	return s.workspace, ok && s.workspace != ""
+}
+
+// start begins a session for an account, looking at the given workspace or
+// else the first one it belongs to, and sets the cookie.
+func (a *Auth) start(w http.ResponseWriter, r *http.Request, account uuid.UUID, workspace uuid.UUID) error {
+	ctx := r.Context()
+	token, hash := newToken()
+	now := a.now()
+	var ws *uuid.UUID
+	if workspace != uuid.Nil {
+		ws = &workspace
+	} else {
+		var first uuid.UUID
+		err := a.pool.QueryRow(ctx, `SELECT m.workspace_id FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+			WHERE m.account_id = $1 ORDER BY lower(w.name), w.key LIMIT 1`, account).Scan(&first)
+		if err == nil {
+			ws = &first
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("find workspace: %w", err)
+		}
 	}
-	if !hmac.Equal([]byte(a.sign(parts[0], time.Unix(expires, 0))), []byte(c.Value)) {
-		return "", false
+	if _, err := a.pool.Exec(ctx, `INSERT INTO sessions (token_hash, account_id, workspace_id, created_at, last_seen_at, expires_at)
+		VALUES ($1, $2, $3, $4, $4, $5)`, hash, account, ws, now, now.Add(sessionMax)); err != nil {
+		return fmt.Errorf("start session: %w", err)
 	}
-	return parts[0], true
+	// Old sessions are cleared as new ones begin.
+	_, _ = a.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < $1 OR last_seen_at < $2`, now, now.Add(-sessionIdle))
+	http.SetCookie(w, &http.Cookie{
+		Name: cookieName, Value: token, Path: "/", Expires: now.Add(sessionMax),
+		HttpOnly: true, Secure: secure(r), SameSite: http.SameSiteLaxMode,
+	})
+	return nil
+}
+
+func (a *Auth) clearCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1, HttpOnly: true, Secure: secure(r), SameSite: http.SameSiteLaxMode})
 }
 
 func secure(r *http.Request) bool {
@@ -231,96 +398,73 @@ func safeNext(next string) string {
 	return next
 }
 
-// Routes registers /auth/login, /auth/callback and /auth/logout.
-func (a *Auth) Routes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /auth/login", a.login)
-	mux.HandleFunc("GET /auth/callback", a.callback)
-	mux.HandleFunc("POST /auth/logout", a.logout)
+// --- Invitations ---
+
+// Invited is an invitation that was just made.
+type Invited struct {
+	ID    uuid.UUID
+	Email string
+	// Link is where the person accepts it.
+	Link string
 }
 
-func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
-	next := safeNext(r.URL.Query().Get("next"))
-	if a.oauth == nil { // development: already signed in
-		http.Redirect(w, r, next, http.StatusFound)
-		return
+// Invite invites an email address to a workspace and emails the link.
+// invitedBy is the account that asked, or uuid.Nil for whoever runs the server.
+func (a *Auth) Invite(ctx context.Context, workspaceKey, email string, admin bool, invitedBy uuid.UUID) (Invited, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !strings.Contains(email, "@") || strings.ContainsAny(email, " \r\n") {
+		return Invited{}, fmt.Errorf("%q is not an email address", email)
 	}
-	ctx := r.Context()
-	state, verifier, nonce := rand.Text(), oauth2.GenerateVerifier(), rand.Text()
-	if _, err := a.pool.Exec(ctx, `DELETE FROM login_attempts WHERE created_at < $1`, time.Now().Add(-attemptTTL)); err != nil {
-		a.fail(w, r, "clear old sign-ins", err)
-		return
+	var ws uuid.UUID
+	var name string
+	if err := a.pool.QueryRow(ctx, `SELECT id, name FROM workspaces WHERE key = $1`, workspaceKey).Scan(&ws, &name); err != nil {
+		return Invited{}, fmt.Errorf("find workspace %q: %w", workspaceKey, err)
 	}
-	if _, err := a.pool.Exec(ctx, `INSERT INTO login_attempts (state, code_verifier, nonce, next) VALUES ($1, $2, $3, $4)`,
-		state, verifier, nonce, next); err != nil {
-		a.fail(w, r, "record sign-in", err)
-		return
+	token, hash := newToken()
+	out := Invited{ID: uuid.Must(uuid.NewV7()), Email: email, Link: strings.TrimRight(a.cfg.PublicURL, "/") + "/invite?token=" + token}
+	var by *uuid.UUID
+	if invitedBy != uuid.Nil {
+		by = &invitedBy
 	}
-	http.Redirect(w, r, a.oauth.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)), http.StatusFound)
-}
-
-func (a *Auth) callback(w http.ResponseWriter, r *http.Request) {
-	if a.oauth == nil {
-		http.NotFound(w, r)
-		return
-	}
-	ctx := r.Context()
-	var verifier, nonce, next string
-	err := a.pool.QueryRow(ctx, `DELETE FROM login_attempts WHERE state = $1 AND created_at > $2 RETURNING code_verifier, nonce, next`,
-		r.URL.Query().Get("state"), time.Now().Add(-attemptTTL)).Scan(&verifier, &nonce, &next)
-	if err != nil {
-		a.fail(w, r, "unknown or expired sign-in", err)
-		return
-	}
-	token, err := a.oauth.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(verifier))
-	if err != nil {
-		a.fail(w, r, "exchange code", err)
-		return
-	}
-	raw, ok := token.Extra("id_token").(string)
-	if !ok {
-		a.fail(w, r, "no id_token in the provider's response", nil)
-		return
-	}
-	idToken, err := a.verifier.Verify(ctx, raw)
-	if err != nil || idToken.Nonce != nonce {
-		a.fail(w, r, "verify id_token", err)
-		return
-	}
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified *bool  `json:"email_verified"`
-		Name          string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil || claims.Email == "" || (claims.EmailVerified != nil && !*claims.EmailVerified) {
-		a.fail(w, r, "the provider gave no verified email", err)
-		return
-	}
-	if d := a.cfg.AllowedDomain; d != "" && !strings.HasSuffix(strings.ToLower(claims.Email), "@"+strings.ToLower(d)) {
-		a.fail(w, r, "email outside the allowed domain", nil)
-		return
-	}
-	id, err := a.upsert(ctx, idToken.Issuer, idToken.Subject, claims.Email, claims.Name)
-	if err != nil {
-		a.fail(w, r, "save account", err)
-		return
-	}
-	expires := time.Now().Add(sessionTTL)
-	http.SetCookie(w, &http.Cookie{
-		Name: cookieName, Value: a.sign(id, expires), Path: "/", Expires: expires,
-		HttpOnly: true, Secure: secure(r), SameSite: http.SameSiteLaxMode,
+	err := pgx.BeginFunc(ctx, a.pool, func(tx pgx.Tx) error {
+		// A new invitation to the same address replaces the one before.
+		if _, err := tx.Exec(ctx, `DELETE FROM invites WHERE workspace_id = $1 AND lower(email) = $2 AND accepted_at IS NULL`, ws, email); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO invites (id, token_hash, workspace_id, email, admin, invited_by, expires_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`, out.ID, hash, ws, email, admin, by, a.now().Add(inviteTTL))
+		return err
 	})
-	http.Redirect(w, r, next, http.StatusFound)
+	if err != nil {
+		return Invited{}, fmt.Errorf("invite %s: %w", email, err)
+	}
+	if name == "" {
+		name = "Timeclock"
+	}
+	err = a.mailer.Send(ctx, host.Message{
+		To:      email,
+		Subject: "You're invited to " + name,
+		Text: "You've been invited to track time in " + name + ".\n\n" +
+			"Set up your account here:\n" + out.Link + "\n\n" +
+			"The link works for 7 days. If you weren't expecting this, you can ignore it.\n",
+	})
+	if err != nil {
+		// The invitation stands: an admin can copy its link, or send it again.
+		a.cfg.Logger.ErrorContext(ctx, "timeclock: invitation email not sent", "to", email, "error", err)
+	}
+	return out, nil
 }
 
-func (a *Auth) logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1, HttpOnly: true, Secure: secure(r), SameSite: http.SameSiteLaxMode})
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"redirectUrl":"/"}`))
-}
-
-// fail logs why a sign-in didn't complete and shows the person a plain
-// page; the reason stays in the log.
-func (a *Auth) fail(w http.ResponseWriter, r *http.Request, what string, err error) {
-	a.cfg.Logger.WarnContext(r.Context(), "timeclock: sign-in failed", "reason", what, "error", err)
-	http.Error(w, "Sign-in didn't complete. Go back and try again.", http.StatusBadRequest)
+// CreateWorkspace makes a workspace, or renames one that exists.
+func (a *Auth) CreateWorkspace(ctx context.Context, svc *clock.Service, key, name string) error {
+	ws, err := svc.EnsureWorkspace(ctx, key)
+	if err != nil {
+		return err
+	}
+	if name != "" {
+		if _, err := a.pool.Exec(ctx, `UPDATE workspaces SET name = $2 WHERE id = $1`, ws.ID, name); err != nil {
+			return fmt.Errorf("name workspace: %w", err)
+		}
+	}
+	return nil
 }

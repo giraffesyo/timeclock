@@ -188,6 +188,18 @@
   }
 }
 
+/* The ground a sign-in page sits on (components/auth-page.tsx). */
+@layer components {
+  .auth-ground {
+    display: flex;
+    min-height: 100dvh;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    background-color: var(--theme-bg);
+  }
+}
+
 /* The theme editor (components/settings/appearance.tsx). */
 @layer components {
   .theme-swatch {

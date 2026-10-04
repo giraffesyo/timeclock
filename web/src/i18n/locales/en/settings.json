@@ -239,5 +239,23 @@
     "pasteFailed": "There is no theme on the clipboard.",
     "reset": "Go back to the default",
     "wasReset": "The workspace is back to the default look."
+  },
+  "invites": {
+    "title": "Invite people",
+    "email": "Email address to invite",
+    "placeholder": "name@example.com",
+    "asAdmin": "Runs payroll (admin)",
+    "send": "Invite",
+    "failed": "Couldn’t invite them.",
+    "sent": "{email} is invited. The link below is in their email; you can also pass it on yourself. It works for 7 days.",
+    "link": "Invitation link",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "copyFailed": "Couldn’t copy the link.",
+    "loadFailed": "Couldn’t load who is invited.",
+    "admin": "Admin",
+    "expires": "until {date}",
+    "withdraw": "Withdraw",
+    "withdrawFor": "Withdraw the invitation to {email}"
   }
 }

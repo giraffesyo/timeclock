@@ -34,5 +34,18 @@
     "light": "Light",
     "dark": "Dark",
     "system": "Match the system"
+  },
+  "workspace": {
+    "switch": "{name}: switch workspace",
+    "failed": "Couldn’t switch workspace."
+  },
+  "password": {
+    "open": "Change your password",
+    "title": "Change your password",
+    "description": "You stay signed in here, and are signed out everywhere else.",
+    "current": "Current password",
+    "next": "New password",
+    "rule": "At least 10 characters. A few words work well.",
+    "save": "Change password"
   }
 }

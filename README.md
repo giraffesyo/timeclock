@@ -72,18 +72,25 @@ import '@giraffesyo/timeclock/styles.css';
 
 ## Standalone
 
+`timeclock-server` is Timeclock with its own accounts. Nobody is signed in until they accept an invitation and set a password.
+
 ```sh
 TIMECLOCK_DATABASE_URL=postgres://... \
 TIMECLOCK_PUBLIC_URL=https://time.example.com \
-TIMECLOCK_OIDC_ISSUER=https://accounts.google.com \
-TIMECLOCK_OIDC_CLIENT_ID=... TIMECLOCK_OIDC_CLIENT_SECRET=... \
-TIMECLOCK_SESSION_SECRET=<32+ random characters> \
-TIMECLOCK_ALLOWED_DOMAIN=example.com \
 TIMECLOCK_ADMIN_EMAILS=payroll@example.com \
+TIMECLOCK_SMTP_HOST=smtp.example.com TIMECLOCK_SMTP_FROM='Timeclock <time@example.com>' \
+TIMECLOCK_SMTP_USERNAME=... TIMECLOCK_SMTP_PASSWORD=... \
 timeclock-server
 ```
 
-The OIDC provider's redirect URL is `<public URL>/auth/callback`. See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
+- **Getting in.** Each address in `TIMECLOCK_ADMIN_EMAILS` is invited when the server first starts. After that, a workspace's admins invite people from Settings → People, and whoever runs the server can too: `timeclock-server invite KEY EMAIL [--admin]`. There is no open sign-up.
+- **Workspaces.** `timeclock-server workspace KEY "Name" --admin EMAIL` makes another organization on the same server and invites its first admin. Someone in more than one switches between them from the top of the sidebar.
+- **Passwords.** At least 10 characters, with no rules about what they contain; ones known from a data breach are refused (the check sends five characters of a hash, never the password; `TIMECLOCK_BREACH_CHECK=off` turns it off). They are stored as Argon2id hashes. Repeated wrong guesses pause sign-in for the account and for the address they come from.
+- **Sessions.** A random token in an `HttpOnly`, `SameSite=Lax` cookie, kept only as a hash. Signing out, resetting or changing a password ends sessions at the server.
+- **Email.** Invitations and password resets go by SMTP. Without a mail server, they are written to the log, and an invitation's link is shown to the admin who made it.
+- **Single sign-on.** `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add an OpenID Connect provider beside passwords, for the whole server; its redirect URL is `<public URL>/auth/callback`.
+
+See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
 
 ## Development
 
@@ -107,7 +114,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | `host/` | `Directory` and `Notifier`: what a host implements |
 | `internal/clock/` | The payroll rules and their storage. Every statement names its workspace as `$W`; one that doesn't is refused (`workspace.go`) |
 | `internal/api/` | The HTTP API (huma); `timeclock-server openapi` prints its document |
-| `internal/standalone/` | Accounts, OIDC sign-in and sessions for running alone |
+| `internal/standalone/` | A standalone server's accounts: passwords, sessions, invitations, workspaces to switch between, email, and OIDC |
 | `migrations/` | goose migrations, `NNNNN_name.sql` |
 | `web/` | The Vite app, embedded in the binary |
 | `web/packages/timeclock/` | `@giraffesyo/timeclock`, the clock for a host application; the app is built on its source |

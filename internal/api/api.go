@@ -32,6 +32,10 @@ type Info struct {
 	// SignOutURL is the same-origin endpoint that ends the session; the web
 	// app POSTs to it. Empty offers no sign-out.
 	SignOutURL string `json:"signOutUrl,omitempty"`
+	// AccountsURL is where a standalone server manages its own accounts:
+	// the workspaces to switch between, invitations and passwords. Empty
+	// when a host application has its own users.
+	AccountsURL string `json:"accountsUrl,omitempty"`
 	// ThemeStorageKey is the localStorage key holding the host's light,
 	// dark or system choice, so Timeclock matches it.
 	ThemeStorageKey string `json:"themeStorageKey,omitempty"`
