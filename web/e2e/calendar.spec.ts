@@ -111,7 +111,7 @@ test('a click on a block opens it too', async ({ me }) => {
 test('overlapping entries sit side by side and count once', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();
-  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '17:00'), 'tandem');
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '17:00'), 'Long build');
   await api.entry('Meetings', week.at(0, '10:00'), week.at(0, '11:00'), 'Review triage');
   await page.goto(`/?day=${week.day(0)}`);
 
