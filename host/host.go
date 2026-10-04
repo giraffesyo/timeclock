@@ -50,3 +50,29 @@ type Notification struct {
 type Notifier interface {
 	Notify(ctx context.Context, personID string, n Notification) error
 }
+
+// ThemeSeed is the few values a whole color scheme is derived from.
+type ThemeSeed struct {
+	// Accent is the color of what stands out, such as "#4b50d9".
+	Accent string `json:"accent" example:"#4b50d9"`
+	// Background is the color everything sits on, such as "#ffffff".
+	Background string `json:"background" example:"#ffffff"`
+	// Contrast is how far text and borders sit from the background: 1 is
+	// normal, and 0.5 to 1.5 the range. Zero means 1.
+	Contrast float64 `json:"contrast,omitempty"`
+}
+
+// Scheme is a look in one mode: the page's seed, and the sidebar's when it
+// has a look of its own.
+type Scheme struct {
+	Interface ThemeSeed  `json:"interface"`
+	Sidebar   *ThemeSeed `json:"sidebar,omitempty"`
+}
+
+// Theme is a look for light and for dark. A nil scheme leaves that mode to
+// whatever comes next: the host's theme under a workspace's, and Timeclock's
+// own under the host's.
+type Theme struct {
+	Light *Scheme `json:"light,omitempty"`
+	Dark  *Scheme `json:"dark,omitempty"`
+}

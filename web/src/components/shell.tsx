@@ -1,16 +1,20 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
+import { TOOLTIP_ID } from '@parallelworks/ui';
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
+  MoonIcon,
   OverviewIcon,
   ReportsIcon,
   SettingsIcon,
   SignOutIcon,
+  SunIcon,
+  SystemIcon,
   TeamIcon,
   TimeOffIcon,
   TimerIcon,
@@ -18,10 +22,42 @@ import {
 } from '@/components/nav-icons';
 import { ZoneButton } from '@/components/zone';
 import { useSession } from '@/lib/session';
+import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
 
 const item =
   'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground md:h-7';
 const itemActive = '!bg-foreground/[0.07] !font-medium !text-foreground';
+
+const MODES = [
+  { value: 'light', icon: <SunIcon /> },
+  { value: 'dark', icon: <MoonIcon /> },
+  { value: 'system', icon: <SystemIcon /> },
+] as const;
+
+/** Light, dark, or whatever the system is in. Inside a host this is the host's own choice, kept in step. */
+function ModeSwitch({ compact }: { compact?: boolean }) {
+  const t = useTranslations('shell.mode');
+  const preference = useSyncExternalStore(onThemeChange, readPreference);
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a fieldset would bring a legend the sidebar has no room for
+    <div role="group" aria-label={t('label')} className={compact ? 'flex gap-px' : 'flex gap-px px-1 pt-1'}>
+      {MODES.map((m) => (
+        <button
+          key={m.value}
+          type="button"
+          className="shell-icon-button"
+          aria-label={t(m.value)}
+          aria-pressed={preference === m.value}
+          data-tooltip-id={TOOLTIP_ID}
+          data-tooltip-content={t(m.value)}
+          onClick={() => setPreference(m.value)}
+        >
+          {m.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * The frame every page sits in: the sections down the side, and the page on
@@ -114,6 +150,7 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
             )}
           </div>
+          <ModeSwitch />
         </div>
       </aside>
 
@@ -125,6 +162,7 @@ export function Shell({ children }: { children: ReactNode }) {
             {t('name')}
           </Link>
           <span className="ml-auto" />
+          <ModeSwitch compact />
           <ZoneButton className="shell-zone tabular" />
           {info.signOutUrl && (
             <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>

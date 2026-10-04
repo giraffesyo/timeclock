@@ -506,10 +506,20 @@
           "signOutUrl": {
             "type": "string"
           },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
           "themeStorageKey": {
             "type": "string"
+          },
+          "workspaceTheme": {
+            "$ref": "#/components/schemas/Theme"
           }
         },
+        "required": [
+          "theme",
+          "workspaceTheme"
+        ],
         "type": "object"
       },
       "List-activityResponse": {
@@ -1255,6 +1265,21 @@
         },
         "type": "object"
       },
+      "Scheme": {
+        "additionalProperties": false,
+        "properties": {
+          "interface": {
+            "$ref": "#/components/schemas/ThemeSeed"
+          },
+          "sidebar": {
+            "$ref": "#/components/schemas/ThemeSeed"
+          }
+        },
+        "required": [
+          "interface"
+        ],
+        "type": "object"
+      },
       "Set-own-timezoneRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1415,6 +1440,53 @@
         "required": [
           "period",
           "members"
+        ],
+        "type": "object"
+      },
+      "Theme": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Theme.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "dark": {
+            "$ref": "#/components/schemas/Scheme"
+          },
+          "light": {
+            "$ref": "#/components/schemas/Scheme"
+          }
+        },
+        "type": "object"
+      },
+      "ThemeSeed": {
+        "additionalProperties": false,
+        "properties": {
+          "accent": {
+            "examples": [
+              "#4b50d9"
+            ],
+            "type": "string"
+          },
+          "background": {
+            "examples": [
+              "#ffffff"
+            ],
+            "type": "string"
+          },
+          "contrast": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "accent",
+          "background"
         ],
         "type": "object"
       },
@@ -3010,6 +3082,47 @@
         "summary": "The pay period of everyone whose time the caller may see",
         "tags": [
           "Timesheets"
+        ]
+      }
+    },
+    "/api/v1/theme": {
+      "put": {
+        "operationId": "set-theme",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Theme"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Info"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set the workspace's look; an empty theme goes back to the host's or Timeclock's own",
+        "tags": [
+          "Settings"
         ]
       }
     },

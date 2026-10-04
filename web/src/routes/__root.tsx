@@ -8,7 +8,7 @@ import { Toaster } from '@/components/toaster';
 import { AppUIProvider } from '@/components/ui-provider';
 import { useMe } from '@/lib/queries';
 import { SessionProvider } from '@/lib/session';
-import { adoptHostTheme } from '@/lib/theme';
+import { adoptHostTheme, setTheme } from '@/lib/theme';
 
 export const Route = createRootRoute({
   component: Root,
@@ -32,6 +32,10 @@ function Session() {
   useEffect(() => {
     if (me.data) adoptHostTheme(themeKey);
   }, [me.data, themeKey]);
+  const theme = me.data?.info.theme;
+  useEffect(() => {
+    if (me.data) setTheme(theme);
+  }, [me.data, theme]);
 
   if (me.data) {
     return (

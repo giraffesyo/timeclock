@@ -106,7 +106,17 @@
     display: flex;
     min-height: 100dvh;
     flex-direction: column;
-    background-color: var(--color-background);
+    background-color: var(--theme-bg);
+  }
+  /* The sidebar and the phone's top strip sit on the sidebar's own colors:
+   * inside them, the usual color names mean the sidebar's. */
+  .shell-side,
+  .shell-top {
+    --color-foreground: var(--theme-sidebar-text);
+    --color-muted-foreground: color-mix(in oklab, var(--theme-sidebar-text) 66%, var(--theme-bg));
+    --color-border: color-mix(in oklab, var(--theme-sidebar-text) 14%, var(--theme-bg));
+    --color-primary: var(--theme-sidebar-text);
+    color: var(--theme-sidebar-text);
   }
   .shell-side {
     display: none;
@@ -119,8 +129,8 @@
     min-width: 0;
     flex: 1;
     flex-direction: column;
-    background-color: var(--color-card);
-    color: var(--color-card-foreground);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
   .shell-icon-button {
     display: flex;
@@ -132,6 +142,10 @@
     justify-content: center;
     border-radius: var(--radius-md);
     color: var(--color-muted-foreground);
+  }
+  .shell-icon-button[aria-pressed="true"] {
+    background-color: color-mix(in oklab, var(--color-foreground) 9%, transparent);
+    color: var(--color-foreground);
   }
   .shell-icon-button:hover {
     background-color: color-mix(in oklab, var(--color-foreground) 6%, transparent);
@@ -171,6 +185,54 @@
       border-radius: 0.625rem;
       box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
     }
+  }
+}
+
+/* The theme editor (components/settings/appearance.tsx). */
+@layer components {
+  .theme-swatch {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: none;
+    padding: 2px;
+  }
+  .theme-swatch::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+  .theme-swatch::-webkit-color-swatch,
+  .theme-swatch::-moz-color-swatch {
+    border: 0;
+    border-radius: 0.3125rem;
+  }
+  .theme-range {
+    accent-color: var(--color-primary);
+  }
+  .theme-preset {
+    display: inline-flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.3125rem 0.625rem 0.3125rem 0.3125rem;
+    font-size: 0.8125rem;
+  }
+  .theme-preset:hover {
+    background-color: var(--color-muted);
+  }
+  /* A little picture of the look: sidebar, page, accent. */
+  .theme-preset-swatch {
+    width: 2.25rem;
+    height: 1.5rem;
+    border-radius: 0.25rem;
+    box-shadow: inset 0 0 0 1px rgb(128 128 128 / 0.35);
+    background:
+      radial-gradient(circle at 72% 50%, var(--a) 0 0.25rem, transparent 0.3rem),
+      linear-gradient(90deg, var(--s) 0 32%, var(--b) 32%);
   }
 }
 

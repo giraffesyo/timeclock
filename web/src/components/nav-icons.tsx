@@ -79,3 +79,20 @@ export const BrandIcon = (p: Props) => (
     <path d="M8 4.500V8l2.500 1.500" />
   </Icon>
 );
+export const SunIcon = (p: Props) => (
+  <Icon {...p}>
+    <circle cx="8" cy="8" r="2.75" />
+    <path d="M8 1.500v1.250M8 13.250v1.250M1.500 8h1.250M13.250 8h1.250M3.400 3.400l.900.900M11.700 11.700l.900.900M3.400 12.600l.900-.900M11.700 4.300l.900-.900" />
+  </Icon>
+);
+export const MoonIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M13.500 9.500A5.750 5.750 0 0 1 6.500 2.500a5.750 5.750 0 1 0 7 7Z" />
+  </Icon>
+);
+export const SystemIcon = (p: Props) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="8" rx="1.500" />
+    <path d="M6 13.500h4M8 11v2.500" />
+  </Icon>
+);

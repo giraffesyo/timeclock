@@ -13,5 +13,5 @@
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "vite-theme.ts", "vite-csp.ts"]
+  "include": ["vite.config.ts", "vite-theme.ts", "vite-csp.ts", "src/lib/theme-seeds.ts"]
 }

@@ -1,35 +1,18 @@
-import { contrastRatio, deriveTheme, type ThemeSeed, type ThemeVariables } from '@parallelworks/ui/theme';
+import { deriveTheme } from '@parallelworks/ui/theme';
 import type { Plugin } from 'vite';
-
-// Timeclock's theme on @parallelworks/ui's contract: an indigo accent over
-// near-white and near-black.
-const seeds: Record<'light' | 'dark', ThemeSeed> = {
-  light: { accent: '#474fd4', background: '#f9fafc' },
-  dark: { accent: '#727cf7', background: '#111218' },
-};
+import { contrastFailures, DEFAULT_THEME, type Mode, surfaces } from './src/lib/theme-seeds.ts';
 
 const id = 'virtual:timeclock-theme.css';
 const resolved = `\0${id}`;
 
-// Text pairs that must stay WCAG AA. A seed change that breaks one fails the build.
-const textPairs: [keyof ThemeVariables, keyof ThemeVariables][] = [
-  ['--theme-app', '--theme-app-bg'],
-  ['--theme-panel', '--theme-panel-bg'],
-  ['--theme-muted-text-color', '--theme-app-bg'],
-  ['--theme-muted-text-color', '--theme-panel-bg'],
-  ['--theme-muted-text-color', '--theme-hover'],
-  ['--theme-accent-text', '--theme-accent'],
-  ['--theme-element-text', '--theme-element'],
-  ['--theme-link', '--theme-panel-bg'],
-];
-
-function block(scheme: keyof typeof seeds): string {
-  const vars = deriveTheme(seeds[scheme]);
-  for (const [fg, bg] of textPairs) {
-    const ratio = contrastRatio(vars[fg], vars[bg]);
-    if (ratio < 4.5) {
-      throw new Error(`timeclock theme (${scheme}): ${fg} on ${bg} is ${ratio.toFixed(2)}:1, below 4.5:1`);
-    }
+// Timeclock's own theme, as CSS, so the page is right before any script
+// runs. A workspace's or a host's theme is applied over it at runtime
+// (src/lib/theme.ts). A default that isn't WCAG AA fails the build.
+function block(mode: Mode): string {
+  const vars = deriveTheme(surfaces(DEFAULT_THEME[mode], mode));
+  const failures = contrastFailures(vars);
+  if (failures.length > 0) {
+    throw new Error(`timeclock theme (${mode}) is below 4.5:1: ${failures.join(', ')}`);
   }
   return Object.entries(vars)
     .map(([token, value]) => `  ${token}: ${value};`)
