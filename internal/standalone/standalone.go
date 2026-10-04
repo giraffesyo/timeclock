@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -38,6 +39,10 @@ type Config struct {
 	// AdminEmails run payroll in every workspace they belong to, and are
 	// invited to the default workspace when the server first starts.
 	AdminEmails []string
+	// SecretKey seals what the server must read back but shouldn't sit in
+	// the database in the clear: authenticator secrets and providers' client
+	// secrets. At least 32 characters; keep it out of the database's backups.
+	SecretKey string
 	// BreachCheck refuses passwords found in a public list of breached
 	// ones. The lookup sends five characters of a hash, never the password.
 	BreachCheck bool
@@ -74,11 +79,15 @@ type Auth struct {
 	admins   map[string]bool
 	mailer   host.Mailer
 	breaches breaches
+	box      *box
+	webauthn *webauthn.WebAuthn
 	verifier *oidc.IDTokenVerifier
 	oauth    *oauth2.Config
 	devID    string
 	devIDs   sync.Map // email → account id, for DevUserHeader
-	now      func() time.Time
+	// providers are the OpenID Connect providers discovered so far, by issuer.
+	providers sync.Map
+	now       func() time.Time
 }
 
 // New sets up sign-in. In development it makes sure DevUser has an account;
@@ -97,6 +106,15 @@ func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 	for _, e := range cfg.AdminEmails {
 		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
 			a.admins[e] = true
+		}
+	}
+	if cfg.DevUser == "" || cfg.SecretKey != "" {
+		var err error
+		if a.box, err = newBox(cfg.SecretKey); err != nil {
+			return nil, err
+		}
+		if a.webauthn, err = newWebAuthn(cfg.PublicURL); err != nil {
+			return nil, err
 		}
 	}
 	if cfg.DevUser != "" {
@@ -170,17 +188,21 @@ type Membership struct {
 	Key   string    `json:"key"`
 	Name  string    `json:"name"`
 	Admin bool      `json:"admin"`
+	// SSORequired means it is entered only through its own provider.
+	SSORequired bool `json:"ssoRequired"`
 }
 
 func (a *Auth) memberships(ctx context.Context, account uuid.UUID, email string) ([]Membership, error) {
-	rows, err := a.pool.Query(ctx, `SELECT w.id, w.key, w.name, m.admin FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+	rows, err := a.pool.Query(ctx, `SELECT w.id, w.key, w.name, m.admin,
+			EXISTS (SELECT 1 FROM workspace_sso o WHERE o.workspace_id = w.id AND o.required)
+		FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
 		WHERE m.account_id = $1 ORDER BY lower(w.name), w.key`, account)
 	if err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
 	}
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Membership, error) {
 		var m Membership
-		err := row.Scan(&m.ID, &m.Key, &m.Name, &m.Admin)
+		err := row.Scan(&m.ID, &m.Key, &m.Name, &m.Admin, &m.SSORequired)
 		m.Admin = m.Admin || a.admins[strings.ToLower(email)]
 		return m, err
 	})
@@ -294,6 +316,9 @@ type session struct {
 	hash      []byte
 	account   uuid.UUID
 	workspace string // key; empty when the account is in none
+	// sso is the workspace whose provider the session came in through, if
+	// it did: such a session sees that workspace only.
+	sso uuid.UUID
 }
 
 // session reads the request's session, if it has a live one.
@@ -305,17 +330,21 @@ func (a *Auth) session(r *http.Request) (session, bool) {
 	s := session{hash: hashOf(c.Value)}
 	now := a.now()
 	var key *string
+	var sso *uuid.UUID
 	var seen time.Time
-	err = a.pool.QueryRow(r.Context(), `SELECT s.account_id, w.key, s.last_seen_at FROM sessions s
+	err = a.pool.QueryRow(r.Context(), `SELECT s.account_id, w.key, s.last_seen_at, s.sso_workspace_id FROM sessions s
 		JOIN accounts acc ON acc.id = s.account_id AND acc.disabled_at IS NULL
 		LEFT JOIN workspaces w ON w.id = s.workspace_id
 		WHERE s.token_hash = $1 AND s.expires_at > $2 AND s.last_seen_at > $3`,
-		s.hash, now, now.Add(-sessionIdle)).Scan(&s.account, &key, &seen)
+		s.hash, now, now.Add(-sessionIdle)).Scan(&s.account, &key, &seen, &sso)
 	if err != nil {
 		return session{}, false
 	}
 	if key != nil {
 		s.workspace = *key
+	}
+	if sso != nil {
+		s.sso = *sso
 	}
 	// Using it keeps it alive; noted at most every few minutes.
 	if now.Sub(seen) > 5*time.Minute {
@@ -351,26 +380,43 @@ func (a *Auth) Workspace(r *http.Request) (string, bool) {
 }
 
 // start begins a session for an account, looking at the given workspace or
-// else the first one it belongs to, and sets the cookie.
-func (a *Auth) start(w http.ResponseWriter, r *http.Request, account uuid.UUID, workspace uuid.UUID) error {
+// else the first one it may enter, and sets the cookie. sso is the workspace
+// whose provider signed the account in, when one did.
+func (a *Auth) start(w http.ResponseWriter, r *http.Request, account, workspace, sso uuid.UUID) error {
 	ctx := r.Context()
 	token, hash := newToken()
 	now := a.now()
 	var ws *uuid.UUID
+	if workspace != uuid.Nil && workspace != sso {
+		// A workspace that requires its provider isn't entered any other way.
+		var required bool
+		if err := a.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM workspace_sso WHERE workspace_id = $1 AND required)`, workspace).Scan(&required); err != nil {
+			return fmt.Errorf("check workspace: %w", err)
+		}
+		if required {
+			workspace = uuid.Nil
+		}
+	}
 	if workspace != uuid.Nil {
 		ws = &workspace
 	} else {
 		var first uuid.UUID
+		// A workspace that requires its provider isn't entered with a password.
 		err := a.pool.QueryRow(ctx, `SELECT m.workspace_id FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
-			WHERE m.account_id = $1 ORDER BY lower(w.name), w.key LIMIT 1`, account).Scan(&first)
+			WHERE m.account_id = $1 AND NOT EXISTS (SELECT 1 FROM workspace_sso o WHERE o.workspace_id = w.id AND o.required)
+			ORDER BY lower(w.name), w.key LIMIT 1`, account).Scan(&first)
 		if err == nil {
 			ws = &first
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("find workspace: %w", err)
 		}
 	}
-	if _, err := a.pool.Exec(ctx, `INSERT INTO sessions (token_hash, account_id, workspace_id, created_at, last_seen_at, expires_at)
-		VALUES ($1, $2, $3, $4, $4, $5)`, hash, account, ws, now, now.Add(sessionMax)); err != nil {
+	var through *uuid.UUID
+	if sso != uuid.Nil {
+		through = &sso
+	}
+	if _, err := a.pool.Exec(ctx, `INSERT INTO sessions (token_hash, account_id, workspace_id, sso_workspace_id, created_at, last_seen_at, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $5, $6)`, hash, account, ws, through, now, now.Add(sessionMax)); err != nil {
 		return fmt.Errorf("start session: %w", err)
 	}
 	// Old sessions are cleared as new ones begin.

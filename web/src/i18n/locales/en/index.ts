@@ -1,3 +1,4 @@
+import account from './account.json'
 import apiErrors from './apiErrors.json'
 import auth from './auth.json'
 import clock from './clock.json'
@@ -16,6 +17,7 @@ import ui from './ui.json'
 import zone from './zone.json'
 
 export default {
+  account,
   apiErrors,
   auth,
   clock,

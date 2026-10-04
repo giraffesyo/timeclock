@@ -2,9 +2,12 @@ package standalone
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -13,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
 	"github.com/parallelworks/foundation/pgdb"
 	"github.com/parallelworks/foundation/pgdb/pgdbtest"
@@ -74,7 +78,10 @@ func newFixture(t *testing.T) *fixture {
 	}
 	pool := pgdbtest.Migrated(t, dbEnv, pgdb.Migrations{FS: migrations.FS})
 	mail := &outbox{}
-	auth, err := New(t.Context(), pool, Config{PublicURL: "https://time.example.com", Mailer: mail, AdminEmails: []string{"Pat@Example.com"}})
+	auth, err := New(t.Context(), pool, Config{
+		PublicURL: "https://time.example.com", Mailer: mail, AdminEmails: []string{"Pat@Example.com"},
+		SecretKey: "a key for tests that is long enough to use",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +95,10 @@ func newFixture(t *testing.T) *fixture {
 type browser struct {
 	f      *fixture
 	cookie *http.Cookie
-	ip     string
+	// held is the cookie of a sign-in that still owes its second step.
+	held    *http.Cookie
+	pending bool
+	ip      string
 }
 
 func (f *fixture) browser() *browser { return &browser{f: f, ip: "203.0.113.7"} }
@@ -100,9 +110,18 @@ func (b *browser) do(method, path, body string) (*httptest.ResponseRecorder, map
 	if b.cookie != nil {
 		req.AddCookie(b.cookie)
 	}
+	if b.held != nil {
+		req.AddCookie(b.held)
+	}
 	rec := httptest.NewRecorder()
 	b.f.mux.ServeHTTP(rec, req)
 	for _, c := range rec.Result().Cookies() {
+		if c.Name == pendingCookie {
+			b.held = c
+			if c.MaxAge < 0 {
+				b.held = nil
+			}
+		}
 		if c.Name == cookieName {
 			b.cookie = c
 			if c.MaxAge < 0 {
@@ -376,5 +395,306 @@ func TestPasswordHashing(t *testing.T) {
 	again, _ := hashPassword(goodPassword)
 	if again == hash {
 		t.Error("two hashes of one password are the same: no salt")
+	}
+}
+
+// code is the authenticator's current code for a secret, as an app would show.
+func code(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	raw, err := b32.DecodeString(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return totpCode(raw, at.Unix()/30)
+}
+
+func TestAnAuthenticatorIsAskedForAfterThePassword(t *testing.T) {
+	f := newFixture(t)
+	ada := f.member("ada@example.com", false)
+	now := time.Now()
+	f.auth.now = func() time.Time { return now }
+
+	// Setting one up asks for the password again, and changes nothing until a code confirms it.
+	if rec, _ := ada.do(http.MethodPost, "/auth/totp/setup", `{"password":"wrong"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("setup with the wrong password: %d", rec.Code)
+	}
+	setup := ada.want(http.StatusOK, http.MethodPost, "/auth/totp/setup", `{"password":"`+goodPassword+`"}`)
+	secret := setup["secret"].(string)
+	if !strings.HasPrefix(setup["uri"].(string), "otpauth://totp/Timeclock:ada@example.com?") {
+		t.Errorf("uri = %v", setup["uri"])
+	}
+	plain := f.browser()
+	plain.want(http.StatusNoContent, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"`+goodPassword+`"}`)
+
+	if rec, out := ada.do(http.MethodPost, "/auth/totp/confirm", `{"code":"000000"}`); rec.Code != http.StatusUnauthorized || out["code"] != "invalid_code" {
+		t.Fatalf("confirming with a wrong code: %d %v", rec.Code, out)
+	}
+	confirmed := ada.want(http.StatusOK, http.MethodPost, "/auth/totp/confirm", `{"code":"`+code(t, secret, now)+`"}`)
+	recovery := confirmed["recoveryCodes"].([]any)
+	if len(recovery) != recoveryCodes {
+		t.Fatalf("recovery codes = %v", recovery)
+	}
+	if got := ada.want(http.StatusOK, http.MethodGet, "/auth/security", ""); got["totp"] != true || got["recoveryCodes"] != float64(recoveryCodes) {
+		t.Errorf("security = %v", got)
+	}
+
+	// Now the password alone doesn't sign in.
+	b := f.browser()
+	out := b.want(http.StatusOK, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"`+goodPassword+`"}`)
+	if out["secondStep"] != true || b.cookie != nil {
+		t.Fatalf("after the password = %v, session cookie %v", out, b.cookie)
+	}
+	if rec, _ := b.do(http.MethodPost, "/auth/login/second", `{"code":"000000"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("a wrong code: %d", rec.Code)
+	}
+	// The code that confirmed setup was used; the next one works, once.
+	if rec, _ := b.do(http.MethodPost, "/auth/login/second", `{"code":"`+code(t, secret, now)+`"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("a code used before: %d", rec.Code)
+	}
+	now = now.Add(30 * time.Second)
+	b.want(http.StatusNoContent, http.MethodPost, "/auth/login/second", `{"code":"`+code(t, secret, now)+`"}`)
+	if got := b.want(http.StatusOK, http.MethodGet, "/auth/session", ""); got["account"] == nil {
+		t.Fatalf("after the second step = %v", got)
+	}
+
+	// A recovery code stands in for the app, once.
+	c := f.browser()
+	c.pending = true
+	c.want(http.StatusOK, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"`+goodPassword+`"}`)
+	one := recovery[0].(string)
+	c.want(http.StatusNoContent, http.MethodPost, "/auth/login/second", `{"recovery":"`+strings.ToUpper(one)+`"}`)
+	d := f.browser()
+	d.want(http.StatusOK, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"`+goodPassword+`"}`)
+	if rec, _ := d.do(http.MethodPost, "/auth/login/second", `{"recovery":"`+one+`"}`); rec.Code != http.StatusUnauthorized {
+		t.Errorf("a recovery code used twice: %d", rec.Code)
+	}
+
+	// A reset link doesn't get around it either.
+	e := f.browser()
+	e.ip = "198.51.100.77"
+	e.want(http.StatusNoContent, http.MethodPost, "/auth/password/forgot", `{"email":"ada@example.com"}`)
+	got := e.want(http.StatusOK, http.MethodPost, "/auth/password/reset", `{"token":"`+f.mail.token(t, "ada@example.com")+`","password":"another long passphrase"}`)
+	if got["secondStep"] != true || e.cookie != nil {
+		t.Errorf("after a reset = %v, session cookie %v", got, e.cookie)
+	}
+
+	// Guessing codes is slowed like guessing passwords.
+	g := f.browser()
+	g.want(http.StatusOK, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"another long passphrase"}`)
+	for range freeFailures + 2 {
+		g.do(http.MethodPost, "/auth/login/second", `{"code":"123456"}`)
+	}
+	if rec, out := g.do(http.MethodPost, "/auth/login/second", `{"code":"123456"}`); rec.Code != http.StatusTooManyRequests || out["code"] != "too_many_attempts" {
+		t.Errorf("after many wrong codes: %d %v", rec.Code, out)
+	}
+
+	// Turning it off needs the password; then the password is enough again.
+	// (The reset ended the earlier sessions, so this is a new one.)
+	now = now.Add(maxPause + time.Minute)
+	h := f.browser()
+	h.want(http.StatusOK, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"another long passphrase"}`)
+	h.want(http.StatusNoContent, http.MethodPost, "/auth/login/second", `{"code":"`+code(t, secret, now)+`"}`)
+	h.want(http.StatusNoContent, http.MethodPost, "/auth/totp/disable", `{"password":"another long passphrase"}`)
+	f.browser().want(http.StatusNoContent, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"another long passphrase"}`)
+
+	// The secret was never in the database in the clear.
+	var sealed []byte
+	ada2 := f.member("eve@example.com", false)
+	s2 := ada2.want(http.StatusOK, http.MethodPost, "/auth/totp/setup", `{"password":"`+goodPassword+`"}`)
+	if err := f.auth.pool.QueryRow(t.Context(), `SELECT totp_secret FROM accounts WHERE email = 'eve@example.com'`).Scan(&sealed); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := b32.DecodeString(s2["secret"].(string))
+	if strings.Contains(string(sealed), string(raw)) || len(sealed) <= len(raw) {
+		t.Error("the authenticator secret is stored unsealed")
+	}
+}
+
+func TestTOTPMatchesTheStandard(t *testing.T) {
+	// RFC 6238's test secret and times, at six digits.
+	secret := []byte("12345678901234567890")
+	for at, want := range map[int64]string{59: "287082", 1111111109: "081804", 1234567890: "005924", 2000000000: "279037"} {
+		if got := totpCode(secret, at/30); got != want {
+			t.Errorf("code at %d = %s, want %s", at, got, want)
+		}
+	}
+	now := time.Unix(1111111109, 0)
+	if totpStep(secret, "081804", now) == 0 || totpStep(secret, "081 804", now.Add(29*time.Second)) == 0 || totpStep(secret, "081804", now.Add(90*time.Second)) != 0 {
+		t.Error("the window of accepted codes is wrong")
+	}
+}
+
+// idp is a pretend OpenID Connect provider: it signs in whoever the test says.
+type idp struct {
+	*httptest.Server
+	key      *rsa.PrivateKey
+	clientID string
+	// What the next token will say.
+	email    string
+	verified bool
+	nonce    string
+}
+
+func newIDP(t *testing.T) *idp {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &idp{key: key, clientID: "timeclock-client", verified: true}
+	mux := http.NewServeMux()
+	p.Server = httptest.NewServer(mux)
+	t.Cleanup(p.Close)
+	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"issuer": p.URL, "authorization_endpoint": p.URL + "/authorize", "token_endpoint": p.URL + "/token",
+			"jwks_uri": p.URL + "/keys", "id_token_signing_alg_values_supported": []string{"RS256"},
+		})
+	})
+	mux.HandleFunc("GET /keys", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &key.PublicKey, KeyID: "k1", Algorithm: "RS256", Use: "sig"}}})
+	})
+	mux.HandleFunc("POST /token", func(w http.ResponseWriter, _ *http.Request) {
+		signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, (&jose.SignerOptions{}).WithType("JWT").WithHeader("kid", "k1"))
+		if err != nil {
+			t.Error(err)
+		}
+		claims, _ := json.Marshal(map[string]any{
+			"iss": p.URL, "sub": "sub-" + p.email, "aud": p.clientID, "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(),
+			"nonce": p.nonce, "email": p.email, "email_verified": p.verified, "name": "From The Provider",
+		})
+		sig, err := signer.Sign(claims)
+		if err != nil {
+			t.Error(err)
+		}
+		token, _ := sig.CompactSerialize()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "x", "token_type": "Bearer", "id_token": token})
+	})
+	return p
+}
+
+// through signs a browser in through a workspace's provider as an address,
+// and returns where it was sent afterwards.
+func (b *browser) through(p *idp, workspace, email string) string {
+	b.f.t.Helper()
+	rec, _ := b.do(http.MethodGet, "/auth/sso/login?workspace="+workspace+"&next=/timesheet", "")
+	out, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil || rec.Code != http.StatusFound || !strings.HasPrefix(out.String(), p.URL+"/authorize") {
+		b.f.t.Fatalf("sso login for %s: %d to %q", workspace, rec.Code, rec.Header().Get("Location"))
+	}
+	p.email, p.nonce = email, out.Query().Get("nonce")
+	rec, _ = b.do(http.MethodGet, "/auth/callback?code=c&state="+url.QueryEscape(out.Query().Get("state")), "")
+	return rec.Header().Get("Location")
+}
+
+func TestAWorkspacesOwnProviderSignsInToThatWorkspaceOnly(t *testing.T) {
+	f := newFixture(t)
+	p := newIDP(t)
+	f.auth.cfg.PublicURL = "https://time.example.com"
+	if err := f.auth.CreateWorkspace(t.Context(), f.svc, "north", "North Office"); err != nil {
+		t.Fatal(err)
+	}
+	// Ada is in both workspaces, with a password; she runs north.
+	ada := f.member("ada@example.com", false)
+	if _, err := f.auth.Invite(t.Context(), "north", "ada@example.com", true, uuid.Nil); err != nil {
+		t.Fatal(err)
+	}
+	ada.want(http.StatusNoContent, http.MethodPost, "/auth/invite/accept", `{"token":"`+f.mail.token(t, "ada@example.com")+`","password":"`+goodPassword+`"}`)
+
+	// Only an admin sets the provider, and it must really be one.
+	settings := `{"issuer":"` + p.URL + `","clientId":"timeclock-client","clientSecret":"s3cret","required":false,"autoJoin":false}`
+	bob := f.member("bob@example.com", false)
+	if rec, _ := bob.do(http.MethodPut, "/auth/sso", settings); rec.Code != http.StatusForbidden {
+		t.Fatalf("a member setting the provider: %d", rec.Code)
+	}
+	if rec, _ := ada.do(http.MethodPut, "/auth/sso", `{"issuer":"http://127.0.0.1:1","clientId":"x","clientSecret":"y"}`); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("an address that is no provider: %d", rec.Code)
+	}
+	ada.want(http.StatusNoContent, http.MethodPut, "/auth/sso", settings)
+	got := ada.want(http.StatusOK, http.MethodGet, "/auth/sso", "")
+	if got["configured"] != true || got["issuer"] != p.URL || got["clientSecret"] != nil || got["redirectUrl"] != "https://time.example.com/auth/callback" {
+		t.Fatalf("sso settings = %v", got)
+	}
+	var sealed []byte
+	if err := f.auth.pool.QueryRow(t.Context(), `SELECT client_secret FROM workspace_sso`).Scan(&sealed); err != nil || strings.Contains(string(sealed), "s3cret") {
+		t.Errorf("the client secret is stored unsealed (%v)", err)
+	}
+
+	// Her address is offered the workspace's provider, and a password still works.
+	start := f.browser().want(http.StatusOK, http.MethodPost, "/auth/login/start", `{"email":"ada@example.com"}`)
+	if list := start["sso"].([]any); len(list) != 1 || list[0].(map[string]any)["workspace"] != "north" || start["password"] != true {
+		t.Fatalf("how ada signs in = %v", start)
+	}
+	if other := f.browser().want(http.StatusOK, http.MethodPost, "/auth/login/start", `{"email":"nobody@example.com"}`); len(other["sso"].([]any)) != 0 || other["password"] != true {
+		t.Errorf("how a stranger signs in = %v", other)
+	}
+
+	// Through the provider she is in north, and only north.
+	b := f.browser()
+	if to := b.through(p, "north", "ada@example.com"); to != "/timesheet" {
+		t.Fatalf("after the provider, sent to %q", to)
+	}
+	session := b.want(http.StatusOK, http.MethodGet, "/auth/session", "")
+	if session["workspace"] != "north" || session["limited"] != true {
+		t.Fatalf("session through the provider = %v", session)
+	}
+	if rec, out := b.do(http.MethodPost, "/auth/workspace", `{"workspace":"default"}`); rec.Code != http.StatusForbidden || out["code"] != "sso_required" {
+		t.Errorf("leaving the provider's workspace: %d %v", rec.Code, out)
+	}
+	// Nor can that session add a way into the account.
+	for _, path := range []string{"/auth/totp/setup", "/auth/passkeys/register/begin", "/auth/password/change"} {
+		if rec, _ := b.do(http.MethodPost, path, `{"password":"`+goodPassword+`","current":"`+goodPassword+`"}`); rec.Code != http.StatusForbidden {
+			t.Errorf("%s from a provider's session: %d", path, rec.Code)
+		}
+	}
+
+	// Someone the provider signs in who isn't in the workspace is turned away,
+	// and so is an address the provider hasn't verified.
+	stranger := f.browser()
+	if to := stranger.through(p, "north", "mallory@example.com"); !strings.HasPrefix(to, "/login?error=sso") || stranger.cookie != nil {
+		t.Errorf("a stranger through the provider: sent to %q, cookie %v", to, stranger.cookie)
+	}
+	p.verified = false
+	unverified := f.browser()
+	if to := unverified.through(p, "north", "ada@example.com"); !strings.HasPrefix(to, "/login?error=sso") || unverified.cookie != nil {
+		t.Errorf("an unverified address: sent to %q", to)
+	}
+	p.verified = true
+
+	// An invitation is taken up by signing in through the provider.
+	if _, err := f.auth.Invite(t.Context(), "north", "carol@example.com", false, uuid.Nil); err != nil {
+		t.Fatal(err)
+	}
+	carol := f.browser()
+	if to := carol.through(p, "north", "carol@example.com"); to != "/timesheet" || carol.cookie == nil {
+		t.Fatalf("an invited address through the provider: sent to %q", to)
+	}
+
+	// Required: a password no longer gets into north.
+	ada.want(http.StatusNoContent, http.MethodPut, "/auth/sso", `{"issuer":"`+p.URL+`","clientId":"timeclock-client","required":true}`)
+	pw := f.browser()
+	pw.ip = "198.51.100.90"
+	pw.want(http.StatusNoContent, http.MethodPost, "/auth/login", `{"email":"ada@example.com","password":"`+goodPassword+`"}`)
+	if s := pw.want(http.StatusOK, http.MethodGet, "/auth/session", ""); s["workspace"] != clock.DefaultWorkspace {
+		t.Errorf("a password session's workspace = %v", s["workspace"])
+	}
+	if rec, out := pw.do(http.MethodPost, "/auth/workspace", `{"workspace":"north"}`); rec.Code != http.StatusForbidden || out["code"] != "sso_required" {
+		t.Errorf("entering a provider-only workspace with a password: %d %v", rec.Code, out)
+	}
+	// Carol is only in north, so a password is no use to her at all.
+	if how := f.browser().want(http.StatusOK, http.MethodPost, "/auth/login/start", `{"email":"carol@example.com"}`); how["password"] != false {
+		t.Errorf("how carol signs in = %v", how)
+	}
+
+	// Anyone the provider signs in joins, when the workspace says so.
+	ada.want(http.StatusNoContent, http.MethodPut, "/auth/sso", `{"issuer":"`+p.URL+`","clientId":"timeclock-client","required":true,"autoJoin":true}`)
+	dave := f.browser()
+	if to := dave.through(p, "north", "dave@example.com"); to != "/timesheet" || dave.cookie == nil {
+		t.Fatalf("auto-join through the provider: sent to %q", to)
+	}
+	id, _ := f.auth.Caller(withCookie(t, dave.cookie))
+	if person, err := f.auth.Person(host.WithWorkspace(t.Context(), "north"), id); err != nil || person.Admin || person.Name != "From The Provider" {
+		t.Errorf("the person who joined = %+v, %v", person, err)
 	}
 }

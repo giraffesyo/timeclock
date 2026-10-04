@@ -27,8 +27,9 @@ function ResetPage() {
     setBusy(true);
     setError(null);
     try {
-      await accounts.resetPassword(token, password);
-      window.location.assign(`${basePath}/`);
+      const out = await accounts.resetPassword(token, password);
+      // A new password doesn't stand in for the authenticator.
+      window.location.assign(out.secondStep ? `${basePath}/login?step=second` : `${basePath}/`);
     } catch (err) {
       setError(err);
       setBusy(false);

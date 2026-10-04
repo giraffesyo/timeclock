@@ -6,10 +6,11 @@ import { Catalog } from '@/components/settings/catalog';
 import { History } from '@/components/settings/history';
 import { PayrollSettings } from '@/components/settings/payroll';
 import { People } from '@/components/settings/people';
+import { SignIn } from '@/components/settings/sso';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 
-const TABS = ['payroll', 'projects', 'people', 'appearance', 'history'] as const;
+const TABS = ['payroll', 'projects', 'people', 'appearance', 'signin', 'history'] as const;
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
@@ -58,6 +59,7 @@ function SettingsPage() {
       {tab === 'projects' && <Catalog />}
       {tab === 'people' && <People />}
       {tab === 'appearance' && <Appearance />}
+      {tab === 'signin' && <SignIn />}
       {tab === 'history' && <History />}
     </Page>
   );

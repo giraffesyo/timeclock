@@ -11,6 +11,8 @@
 //	TIMECLOCK_SCHEMA          schema to use (default "timeclock")
 //	PORT                      port to listen on (default 8080)
 //	TIMECLOCK_PUBLIC_URL      where people reach it, such as https://time.example.com
+//	TIMECLOCK_SECRET_KEY      seals authenticator secrets and providers' client secrets in the
+//	                          database; at least 32 characters, and required
 //	TIMECLOCK_ADMIN_EMAILS    comma-separated emails of the people who run payroll; each is
 //	                          invited to the default workspace when the server first starts
 //	TIMECLOCK_SMTP_HOST, TIMECLOCK_SMTP_PORT (default 587), TIMECLOCK_SMTP_USERNAME,
@@ -114,6 +116,7 @@ func open(ctx context.Context, logger *slog.Logger) (*pgxpool.Pool, *standalone.
 	auth, err := standalone.New(ctx, pool, standalone.Config{
 		PublicURL:     env("TIMECLOCK_PUBLIC_URL", "http://localhost:"+env("PORT", "8080")),
 		Mailer:        mailer,
+		SecretKey:     os.Getenv("TIMECLOCK_SECRET_KEY"),
 		AdminEmails:   strings.Split(os.Getenv("TIMECLOCK_ADMIN_EMAILS"), ","),
 		BreachCheck:   os.Getenv("TIMECLOCK_BREACH_CHECK") != "off",
 		Issuer:        os.Getenv("TIMECLOCK_OIDC_ISSUER"),

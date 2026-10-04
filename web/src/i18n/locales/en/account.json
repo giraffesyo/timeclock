@@ -1,0 +1,58 @@
+{
+  "title": "Account",
+  "hosted": "Sign-in is handled by the application Timeclock runs in.",
+  "loadFailed": "Couldn’t load your sign-in settings.",
+  "limited": "You came in through your workspace’s single sign-on, so how this account signs in can’t be changed from here. Sign in with your password to change it.",
+  "on": "On",
+  "off": "Off",
+  "continue": "Continue",
+  "confirmPassword": "Your password",
+  "password": {
+    "title": "Password",
+    "set": "You sign in with a password.",
+    "none": "This account has no password: it signs in through single sign-on.",
+    "change": "Change password",
+    "description": "You stay signed in here, and are signed out everywhere else.",
+    "current": "Current password",
+    "next": "New password",
+    "rule": "At least 10 characters. A few words work well.",
+    "changed": "Your password is changed."
+  },
+  "totp": {
+    "title": "Authenticator app",
+    "isOff": "After your password, sign-in also asks for a code from an app on your phone.",
+    "isOn": "Sign-in asks for a code from your authenticator app after your password.",
+    "setUp": "Set up",
+    "turnOff": "Turn off",
+    "turnOn": "Turn on",
+    "gate": "Confirm it’s you before adding a second step.",
+    "offDescription": "Sign-in will ask only for your password. Your recovery codes stop working.",
+    "qr": "QR code to scan with your authenticator app",
+    "scan": "Scan this with your authenticator app, then enter the code it shows.",
+    "manual": "Can’t scan? Enter this key:",
+    "code": "Code from the app"
+  },
+  "recovery": {
+    "title": "Save your recovery codes",
+    "description": "If you lose your phone, each of these signs you in once instead of a code. They are shown only now.",
+    "saved": "I’ve saved them",
+    "copy": "Copy codes",
+    "copied": "Codes copied.",
+    "copyFailed": "Couldn’t copy the codes.",
+    "left": "{count, plural, =0 {No recovery codes left.} one {# recovery code left.} other {# recovery codes left.}}",
+    "renew": "New recovery codes",
+    "renewDescription": "The old codes stop working."
+  },
+  "passkeys": {
+    "title": "Passkeys",
+    "about": "A passkey signs you in with your fingerprint, face or device PIN, with no password or code.",
+    "add": "Add a passkey",
+    "gate": "Confirm it’s you. Your browser will then ask where to keep the passkey.",
+    "name": "Name",
+    "nameHint": "So you can tell them apart, such as “Work laptop”.",
+    "added": "Added {date}",
+    "used": "Last used {date}",
+    "remove": "Remove",
+    "removeFor": "Remove the passkey {name}"
+  }
+}

@@ -34,8 +34,9 @@ function InvitePage() {
     setBusy(true);
     setError(null);
     try {
-      await accounts.acceptInvite(token, name, password);
-      window.location.assign(`${basePath}/`);
+      const out = await accounts.acceptInvite(token, name, password);
+      // An account with an authenticator still owes its code.
+      window.location.assign(out.secondStep ? `${basePath}/login?step=second` : `${basePath}/`);
     } catch (err) {
       setError(err);
       setBusy(false);
