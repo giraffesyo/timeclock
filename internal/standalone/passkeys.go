@@ -289,7 +289,7 @@ func (a *Auth) passkeyLoginBegin(w http.ResponseWriter, r *http.Request) {
 
 func (a *Auth) passkeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	byIP := "ip:" + clientIP(r)
+	byIP := "ip:" + a.clientIP(r)
 	if wait, err := a.paused(ctx, byIP); err == nil && wait > 0 {
 		a.tooMany(w, r, wait)
 		return

@@ -70,3 +70,34 @@ test('only an admin changes the look', async ({ me }) => {
   });
   expect(refused.status()).toBe(403);
 });
+
+test('a look is copied and pasted as a few values', async ({ adminPerson }) => {
+  const { page } = await adminPerson();
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/settings?tab=appearance');
+  const accent = page.getByRole('textbox', { name: 'Accent' }).first();
+  const plain = await accent.inputValue();
+
+  await page.getByRole('button', { name: 'Navy' }).click();
+  await expect.poll(() => ground(page)).toBe('rgb(6, 53, 79)');
+  await page.getByRole('button', { name: 'Copy theme' }).click();
+  await expect(page.getByText('Theme copied.')).toBeVisible();
+  const copied = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(copied.light.interface.accent).toMatch(/^#06354f$/i);
+
+  // Back to what was saved, then the copy brings the draft back.
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(accent).toHaveValue(plain);
+  await expect.poll(() => ground(page)).toBe('rgb(243, 244, 247)');
+  await page.getByRole('button', { name: 'Paste theme' }).click();
+  await expect(accent).toHaveValue(/^#06354f$/i);
+  await expect.poll(() => ground(page)).toBe('rgb(6, 53, 79)');
+
+  // Something that isn't a theme changes nothing.
+  await page.evaluate(() => navigator.clipboard.writeText('not a theme'));
+  await page.getByRole('button', { name: 'Paste theme' }).click();
+  await expect(page.getByText('There is no theme on the clipboard.')).toBeVisible();
+  await expect(accent).toHaveValue(/^#06354f$/i);
+  await page.getByRole('button', { name: 'Discard' }).click();
+});

@@ -4,6 +4,7 @@ web/dist/*
 *.tsbuildinfo
 .env
 /timeclock-server
+/example-host
 web/test-results
 web/playwright-report
 web/packages/*/dist

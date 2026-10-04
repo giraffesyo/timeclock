@@ -21,6 +21,8 @@
 //	                          the links are written to the log
 //	TIMECLOCK_SMTP_SECURITY   starttls (the default), tls, or none
 //	TIMECLOCK_BREACH_CHECK    "off" stops refusing passwords known from breaches
+//	TIMECLOCK_TRUST_PROXY     set when a reverse proxy in front sets X-Forwarded-For, so sign-in is
+//	                          slowed per client and not for everyone behind the proxy
 //	TIMECLOCK_OIDC_ISSUER     an OpenID Connect provider to sign in with besides a password,
 //	                          such as https://accounts.google.com
 //	TIMECLOCK_OIDC_CLIENT_ID, TIMECLOCK_OIDC_CLIENT_SECRET
@@ -119,6 +121,8 @@ func open(ctx context.Context, logger *slog.Logger) (*pgxpool.Pool, *standalone.
 		SecretKey:     os.Getenv("TIMECLOCK_SECRET_KEY"),
 		AdminEmails:   strings.Split(os.Getenv("TIMECLOCK_ADMIN_EMAILS"), ","),
 		BreachCheck:   os.Getenv("TIMECLOCK_BREACH_CHECK") != "off",
+		BreachURL:     os.Getenv("TIMECLOCK_BREACH_URL"),
+		TrustProxy:    os.Getenv("TIMECLOCK_TRUST_PROXY") != "",
 		Issuer:        os.Getenv("TIMECLOCK_OIDC_ISSUER"),
 		ClientID:      os.Getenv("TIMECLOCK_OIDC_CLIENT_ID"),
 		ClientSecret:  os.Getenv("TIMECLOCK_OIDC_CLIENT_SECRET"),

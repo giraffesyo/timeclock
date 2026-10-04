@@ -104,7 +104,17 @@ const (
 	maxPause      = 15 * time.Minute
 )
 
-func clientIP(r *http.Request) string {
+// clientIP is the network address a request came from. Behind a reverse
+// proxy that is the proxy's address for everyone, so with TrustProxy it is
+// the address the proxy says it took the request from: the last one in
+// X-Forwarded-For, which the proxy wrote and the client couldn't.
+func (a *Auth) clientIP(r *http.Request) string {
+	if a.cfg.TrustProxy {
+		list := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+		if last := strings.TrimSpace(list[len(list)-1]); last != "" {
+			return last
+		}
+	}
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
@@ -235,7 +245,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	email := strings.ToLower(strings.TrimSpace(in.Email))
-	byEmail, byIP := "email:"+email, "ip:"+clientIP(r)
+	byEmail, byIP := "email:"+email, "ip:"+a.clientIP(r)
 	wait, err := a.paused(ctx, byEmail, byIP)
 	if err != nil {
 		a.fail(w, r, err)
@@ -385,7 +395,7 @@ func (a *Auth) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		if !verifyPassword(hash, in.Password) {
-			a.failed(ctx, "email:"+i.email, "ip:"+clientIP(r))
+			a.failed(ctx, "email:"+i.email, "ip:"+a.clientIP(r))
 			a.fail(w, r, clock.ErrInvalidCredentials.New(""))
 			return
 		}
@@ -536,7 +546,7 @@ func (a *Auth) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 	email := strings.ToLower(strings.TrimSpace(in.Email))
-	byIP := "reset-ip:" + clientIP(r)
+	byIP := "reset-ip:" + a.clientIP(r)
 	if wait, err := a.paused(ctx, byIP, "reset:"+email); err == nil && wait > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
 		a.fail(w, r, clock.ErrTooManyAttempts.New(""))

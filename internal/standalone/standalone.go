@@ -43,6 +43,13 @@ type Config struct {
 	// the database in the clear: authenticator secrets and providers' client
 	// secrets. At least 32 characters; keep it out of the database's backups.
 	SecretKey string
+	// TrustProxy says the server is behind a reverse proxy that sets
+	// X-Forwarded-For, so sign-in is slowed per client rather than for
+	// everyone behind the proxy at once. Leave it off when clients connect
+	// directly: they could claim any address.
+	TrustProxy bool
+	// BreachURL is the range API the breach check asks; empty is the public one.
+	BreachURL string
 	// BreachCheck refuses passwords found in a public list of breached
 	// ones. The lookup sends five characters of a hash, never the password.
 	BreachCheck bool
@@ -101,7 +108,7 @@ func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 		a.mailer = logMailer{cfg.Logger}
 	}
 	if cfg.BreachCheck {
-		a.breaches = pwned{client: &http.Client{Timeout: 5 * time.Second}}
+		a.breaches = pwned{client: &http.Client{Timeout: 5 * time.Second}, url: cfg.BreachURL}
 	}
 	for _, e := range cfg.AdminEmails {
 		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {

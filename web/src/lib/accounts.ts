@@ -54,6 +54,8 @@ export interface Security {
 export interface SSOSettings {
   configured: boolean;
   redirectUrl: string;
+  /** Goes straight to the workspace's provider. */
+  loginUrl: string;
   issuer?: string;
   clientId?: string;
   required?: boolean;

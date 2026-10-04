@@ -83,7 +83,12 @@ func (a *Auth) getSSO(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	out := map[string]any{"configured": false, "redirectUrl": a.redirectURL()}
+	// The sign-in link is how someone the provider knows, but Timeclock
+	// doesn't yet, gets to the provider at all.
+	out := map[string]any{
+		"configured": false, "redirectUrl": a.redirectURL(),
+		"loginUrl": strings.TrimRight(a.cfg.PublicURL, "/") + "/auth/sso/login?workspace=" + url.QueryEscape(s.workspace),
+	}
 	c, err := a.ssoOf(r.Context(), s.workspace)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -200,7 +205,7 @@ func (a *Auth) loginStart(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(in.Email))
 	// Workspaces the address belongs to, or is invited to, that have a provider.
 	rows, err := a.pool.Query(ctx, `SELECT DISTINCT w.key, w.name, o.required FROM workspace_sso o JOIN workspaces w ON w.id = o.workspace_id
-		WHERE o.auto_join = false AND (
+		WHERE (
 			EXISTS (SELECT 1 FROM memberships m JOIN accounts acc ON acc.id = m.account_id WHERE m.workspace_id = w.id AND lower(acc.email) = $1)
 			OR EXISTS (SELECT 1 FROM invites i WHERE i.workspace_id = w.id AND lower(i.email) = $1 AND i.accepted_at IS NULL AND i.expires_at > $2))
 		ORDER BY w.name, w.key`, email, a.now())

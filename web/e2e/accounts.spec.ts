@@ -1,59 +1,11 @@
-import { execFileSync } from 'node:child_process';
-import { createHmac } from 'node:crypto';
-import { type Browser, expect, type Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { ACCOUNTS_ENV } from '../playwright.config';
+import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
 
 // A server with its own accounts: nobody is signed in until they accept an
 // invitation and set a password.
 
-const PASSWORD = 'correct horse battery staple';
-let serial = 0;
-const address = (name: string) => `${name}-${Date.now().toString(36)}${process.pid}${serial++}@accounts.test`;
-
-/** Runs the server's own command line, the way whoever runs it would, and returns the link it prints. */
-function manage(...args: string[]): string {
-  const out = execFileSync('../timeclock-server', args, {
-    env: { ...process.env, ...ACCOUNTS_ENV },
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  const link = out.match(/https?:\/\/\S+/)?.[0];
-  if (!link) throw new Error(`no link in: ${out}`);
-  return new URL(link).pathname + new URL(link).search;
-}
-
-/** Accepts an invitation as someone new, in a browser of their own. */
-async function join(browser: Browser, link: string, name: string): Promise<Page> {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto(link);
-  await page.getByLabel('Your name').fill(name);
-  await page.getByLabel('Choose a password').fill(PASSWORD);
-  await page.getByRole('button', { name: /^Join / }).click();
-  await expect(page.getByRole('navigation', { name: 'Sections' })).toBeVisible();
-  return page;
-}
-
-/** Signs in with an email and password, as far as the password goes. */
-async function signIn(page: Page, email: string, password: string) {
-  await page.getByLabel('Email').fill(email);
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-}
-
-/** The code an authenticator app shows for a key now (RFC 6238). */
-function authenticatorCode(key: string, at = Date.now()): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-  let bits = '';
-  for (const c of key) bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
-  const secret = Buffer.from(bits.match(/.{8}/g)?.map((b) => Number.parseInt(b, 2)) ?? []);
-  const step = Buffer.alloc(8);
-  step.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
-  const mac = createHmac('sha1', secret).update(step).digest();
-  const offset = (mac.at(-1) ?? 0) & 0xf;
-  return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
-}
+const manage = manager(ACCOUNTS_ENV);
 
 test('nobody gets in without signing in', async ({ page, request }) => {
   await page.goto('/timesheet');
@@ -130,7 +82,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
 test('someone in two workspaces switches between them, and each has its own time', async ({ browser }) => {
   const email = address('wren');
   const page = await join(browser, manage('invite', 'default', email, '--admin'), 'Wren');
-  const key = `north-${Date.now().toString(36)}${process.pid}`;
+  const key = workspaceKey('north');
   const invite = manage('workspace', key, 'North Office', '--admin', email);
 
   // A project in the first workspace.
@@ -200,8 +152,8 @@ test('an authenticator app is asked for after the password, and a recovery code 
   await page.getByRole('button', { name: 'Turn on' }).click();
 
   const saved = page.getByRole('dialog', { name: 'Save your recovery codes' });
+  await expect(saved.getByRole('listitem')).toHaveCount(10);
   const codes = await saved.getByRole('listitem').allInnerTexts();
-  expect(codes).toHaveLength(10);
   await saved.getByRole('button', { name: 'I’ve saved them' }).click();
   await expect(page.getByText('10 recovery codes left.')).toBeVisible();
 
