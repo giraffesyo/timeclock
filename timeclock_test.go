@@ -49,6 +49,10 @@ func mounted(t *testing.T) http.Handler {
 			id := r.Header.Get("X-Test-User")
 			return id, id != ""
 		},
+		Workspace: func(r *http.Request) (string, bool) {
+			key := r.Header.Get("X-Test-Workspace")
+			return key, key != ""
+		},
 		Directory: directory{
 			"pat": {ID: "pat", Name: "Pat Admin", Email: "pat@example.com", Admin: true},
 			"ada": {ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "pat"},
@@ -170,6 +174,58 @@ func TestMountedInAHost(t *testing.T) {
 
 // The web app's client is generated from this document, so every operation
 // must be in it, named, under the versioned prefix.
+func TestAHostsWorkspacesAreApart(t *testing.T) {
+	if os.Getenv("TIMECLOCK_TEST_DATABASE_URL") == "" {
+		t.Skip("TIMECLOCK_TEST_DATABASE_URL not set")
+	}
+	h := mounted(t)
+	const api = "/timeclock/api/v1"
+	in := func(workspace, user, method, path, body string) (*httptest.ResponseRecorder, map[string]any) {
+		t.Helper()
+		var reader *strings.Reader
+		if body != "" {
+			reader = strings.NewReader(body)
+		} else {
+			reader = strings.NewReader("")
+		}
+		req := httptest.NewRequestWithContext(t.Context(), method, path, reader)
+		req.Header.Set("X-Test-User", user)
+		req.Header.Set("X-Test-Workspace", workspace)
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		var out map[string]any
+		_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		return rec, out
+	}
+
+	// The same admin in two of the host's organizations.
+	rec, _ := in("north", "pat", http.MethodPost, api+"/customers", `{"name":"Acme"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("add a customer in north: %d %s", rec.Code, rec.Body)
+	}
+	_, north := in("north", "pat", http.MethodGet, api+"/customers", "")
+	_, south := in("south", "pat", http.MethodGet, api+"/customers", "")
+	if n, _ := north["customers"].([]any); len(n) != 1 {
+		t.Errorf("north's customers = %v", north)
+	}
+	if s, _ := south["customers"].([]any); len(s) != 0 {
+		t.Errorf("south sees north's customers: %v", south)
+	}
+	// The same name is free in the other one.
+	rec, _ = in("south", "pat", http.MethodPost, api+"/customers", `{"name":"Acme"}`)
+	if rec.Code != http.StatusOK {
+		t.Errorf("the same customer name in south: %d %s", rec.Code, rec.Body)
+	}
+	// With no workspace named, it is the default one, which has neither.
+	_, plain := call(t, h, "pat", http.MethodGet, api+"/customers", "")
+	if d, _ := plain["customers"].([]any); len(d) != 0 {
+		t.Errorf("the default workspace sees another's customers: %v", plain)
+	}
+}
+
 func TestThemeIsTheWorkspacesOverTheHosts(t *testing.T) {
 	if os.Getenv("TIMECLOCK_TEST_DATABASE_URL") == "" {
 		t.Skip("TIMECLOCK_TEST_DATABASE_URL not set")

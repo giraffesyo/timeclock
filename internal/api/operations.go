@@ -31,15 +31,15 @@ func registerMe(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			cfg, err := d.Clock.Settings(ctx)
+			cfg, err := d.clock(ctx).Settings(ctx)
 			if err != nil {
 				return nil, err
 			}
-			people, err := d.Clock.People(ctx, actor)
+			people, err := d.clock(ctx).People(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
-			running, err := d.Clock.Running(ctx, actor)
+			running, err := d.clock(ctx).Running(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -47,7 +47,7 @@ func registerMe(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			today := d.Clock.TodayFor(cfg, actor.Person)
+			today := d.clock(ctx).TodayFor(cfg, actor.Person)
 			out := meBody{
 				Person: actor.Person, Admin: actor.Admin, Settings: cfg, Today: today,
 				Period: cfg.PeriodOf(today), Running: running, Info: info,
@@ -71,7 +71,7 @@ func registerSettings(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			if _, err := d.Clock.SetTheme(ctx, actor, in.Body); err != nil {
+			if _, err := d.clock(ctx).SetTheme(ctx, actor, in.Body); err != nil {
 				return nil, err
 			}
 			info, err := d.info(ctx)
@@ -87,7 +87,7 @@ func registerSettings(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.UpdateSettings(ctx, actor, in.Body)
+			out, err := d.clock(ctx).UpdateSettings(ctx, actor, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -108,7 +108,7 @@ func registerPeople(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			people, err := d.Clock.People(ctx, actor)
+			people, err := d.clock(ctx).People(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -128,10 +128,10 @@ func registerPeople(a huma.API, d Deps) {
 			if err != nil {
 				return nil, problem.Status(http.StatusServiceUnavailable, "the directory is unavailable").WithCause(err)
 			}
-			if err := d.Clock.SyncAll(ctx, all); err != nil {
+			if err := d.clock(ctx).SyncAll(ctx, all); err != nil {
 				return nil, err
 			}
-			people, err := d.Clock.People(ctx, actor)
+			people, err := d.clock(ctx).People(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +148,7 @@ func registerPeople(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.SetOwnTimezone(ctx, actor, in.Body.Timezone)
+			out, err := d.clock(ctx).SetOwnTimezone(ctx, actor, in.Body.Timezone)
 			if err != nil {
 				return nil, err
 			}
@@ -164,7 +164,7 @@ func registerPeople(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.UpdatePerson(ctx, actor, in.ID, in.Body)
+			out, err := d.clock(ctx).UpdatePerson(ctx, actor, in.ID, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -193,7 +193,7 @@ func registerCatalog(a huma.API, d Deps) {
 			if _, err := d.actor(ctx); err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Customers(ctx, in.Archived)
+			list, err := d.clock(ctx).Customers(ctx, in.Archived)
 			if err != nil {
 				return nil, err
 			}
@@ -211,7 +211,7 @@ func registerCatalog(a huma.API, d Deps) {
 		if err != nil {
 			return nil, err
 		}
-		out, err := d.Clock.SaveCustomer(ctx, actor, id, in.Name, in.Archived)
+		out, err := d.clock(ctx).SaveCustomer(ctx, actor, id, in.Name, in.Archived)
 		if err != nil {
 			return nil, err
 		}
@@ -236,7 +236,7 @@ func registerCatalog(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			return nil, d.Clock.DeleteCustomer(ctx, actor, in.ID)
+			return nil, d.clock(ctx).DeleteCustomer(ctx, actor, in.ID)
 		})
 
 	huma.Register(a, op(http.MethodGet, "/projects", "list-projects", "Projects, by customer", "Projects"),
@@ -248,7 +248,7 @@ func registerCatalog(a huma.API, d Deps) {
 			if _, err := d.actor(ctx); err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Projects(ctx, in.Archived)
+			list, err := d.clock(ctx).Projects(ctx, in.Archived)
 			if err != nil {
 				return nil, err
 			}
@@ -266,7 +266,7 @@ func registerCatalog(a huma.API, d Deps) {
 		if err != nil {
 			return nil, err
 		}
-		out, err := d.Clock.SaveProject(ctx, actor, id, in)
+		out, err := d.clock(ctx).SaveProject(ctx, actor, id, in)
 		if err != nil {
 			return nil, err
 		}
@@ -291,7 +291,7 @@ func registerCatalog(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			return nil, d.Clock.DeleteProject(ctx, actor, in.ID)
+			return nil, d.clock(ctx).DeleteProject(ctx, actor, in.ID)
 		})
 }
 
@@ -327,7 +327,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.ClockIn(ctx, actor, in.Body.ProjectID, in.Body.Note)
+			out, err := d.clock(ctx).ClockIn(ctx, actor, in.Body.ProjectID, in.Body.Note)
 			if err != nil {
 				return nil, err
 			}
@@ -345,7 +345,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.Switch(ctx, actor, in.Body.ProjectID, in.Body.Note)
+			out, err := d.clock(ctx).Switch(ctx, actor, in.Body.ProjectID, in.Body.Note)
 			if err != nil {
 				return nil, err
 			}
@@ -358,7 +358,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.ClockOut(ctx, actor)
+			out, err := d.clock(ctx).ClockOut(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -379,7 +379,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Entries(ctx, actor, in.Person, from, to)
+			list, err := d.clock(ctx).Entries(ctx, actor, in.Person, from, to)
 			if err != nil {
 				return nil, err
 			}
@@ -398,7 +398,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.CreateEntry(ctx, actor, in.Body)
+			out, err := d.clock(ctx).CreateEntry(ctx, actor, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -414,7 +414,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.UpdateEntry(ctx, actor, in.ID, in.Body)
+			out, err := d.clock(ctx).UpdateEntry(ctx, actor, in.ID, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -429,7 +429,7 @@ func registerEntries(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			return nil, d.Clock.DeleteEntry(ctx, actor, in.ID)
+			return nil, d.clock(ctx).DeleteEntry(ctx, actor, in.ID)
 		})
 }
 
@@ -457,7 +457,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.TimeOff(ctx, actor, in.Person, from, to)
+			list, err := d.clock(ctx).TimeOff(ctx, actor, in.Person, from, to)
 			if err != nil {
 				return nil, err
 			}
@@ -472,7 +472,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.PendingTimeOff(ctx, actor)
+			list, err := d.clock(ctx).PendingTimeOff(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -487,7 +487,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.RequestTimeOff(ctx, actor, in.Body)
+			list, err := d.clock(ctx).RequestTimeOff(ctx, actor, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -504,7 +504,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			return nil, d.Clock.CancelTimeOff(ctx, actor, in.ID)
+			return nil, d.clock(ctx).CancelTimeOff(ctx, actor, in.ID)
 		})
 
 	huma.Register(a, op(http.MethodPost, "/time-off/{id}/decision", "decide-time-off", "Approve or reject time off", "Time off"),
@@ -516,7 +516,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.DecideTimeOff(ctx, actor, in.ID, in.Body.Approve, in.Body.Note)
+			out, err := d.clock(ctx).DecideTimeOff(ctx, actor, in.ID, in.Body.Approve, in.Body.Note)
 			if err != nil {
 				return nil, err
 			}
@@ -551,7 +551,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.Summary(ctx, actor, in.Person, day)
+			out, err := d.clock(ctx).Summary(ctx, actor, in.Person, day)
 			if err != nil {
 				return nil, err
 			}
@@ -569,7 +569,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.Submit(ctx, actor, in.Body.PersonID, in.Body.Day)
+			out, err := d.clock(ctx).Submit(ctx, actor, in.Body.PersonID, in.Body.Day)
 			if err != nil {
 				return nil, err
 			}
@@ -585,7 +585,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.Decide(ctx, actor, in.ID, in.Body.Approve, in.Body.Note)
+			out, err := d.clock(ctx).Decide(ctx, actor, in.ID, in.Body.Approve, in.Body.Note)
 			if err != nil {
 				return nil, err
 			}
@@ -603,7 +603,7 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			out, err := d.Clock.Reopen(ctx, actor, in.ID, in.Body.Note)
+			out, err := d.clock(ctx).Reopen(ctx, actor, in.ID, in.Body.Note)
 			if err != nil {
 				return nil, err
 			}
@@ -622,11 +622,11 @@ func registerTimesheets(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			cfg, err := d.Clock.Settings(ctx)
+			cfg, err := d.clock(ctx).Settings(ctx)
 			if err != nil {
 				return nil, err
 			}
-			members, err := d.Clock.Team(ctx, actor, day)
+			members, err := d.clock(ctx).Team(ctx, actor, day)
 			if err != nil {
 				return nil, err
 			}

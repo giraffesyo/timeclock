@@ -22,6 +22,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Exceptions.** What payroll should look at before paying: a clock left running, a very long entry, a timesheet not submitted or not approved, pending time off, overtime, a period with nothing recorded.
 - **Reports.** Hours per person per pay period, exported as a CSV for Gusto's hours import, and hours by customer, project and person.
 - **Audit log.** Every change to payroll data, with who made it.
+- **Workspaces.** A workspace is one organization's Timeclock: its people, time, settings and look. Every table carries its workspace and every query names it, so one deployment can hold many. A host with several organizations says which one a request is in; without that there is one.
 - **Themes.** A look is a few values: for light and for dark, an accent, a background and a contrast, and optionally the same for the sidebar; every other color follows from them. A workspace admin sets the workspace's in Settings, with the page wearing the draft as it changes; a host application can hand Timeclock its own; and each person chooses light, dark or the system's.
 - **Reminders.** With a host notifier, people are told once about a clock left running and a timesheet that is due.
 
@@ -42,6 +43,7 @@ tc, err := timeclock.New(ctx, timeclock.Options{
 	SignOutURL:      "/api/auth/logout",
 	ThemeStorageKey: "portal-theme", // optional: follow the host's light/dark choice
 	Theme:           theme,          // optional: a host.Theme, so Timeclock matches the host's colors
+	Workspace:       workspaceOf,    // optional: func(*http.Request) (key string, ok bool), for a host with several organizations
 })
 if err != nil {
 	return err
@@ -103,7 +105,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | --- | --- |
 | `timeclock.go` | `New`, `Options`: the handler a host mounts |
 | `host/` | `Directory` and `Notifier`: what a host implements |
-| `internal/clock/` | The payroll rules and their storage |
+| `internal/clock/` | The payroll rules and their storage. Every statement names its workspace as `$W`; one that doesn't is refused (`workspace.go`) |
 | `internal/api/` | The HTTP API (huma); `timeclock-server openapi` prints its document |
 | `internal/standalone/` | Accounts, OIDC sign-in and sessions for running alone |
 | `migrations/` | goose migrations, `NNNNN_name.sql` |

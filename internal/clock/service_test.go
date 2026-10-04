@@ -38,7 +38,12 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &fixture{Service: New(pool), t: t, loc: loc}
+	root := New(pool)
+	ws, err := root.EnsureWorkspace(t.Context(), DefaultWorkspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &fixture{Service: root.In(ws.ID), t: t, loc: loc}
 	f.at("2026-10-02 17:00")
 	f.now = func() time.Time { return f.clock }
 	sync := func(p host.Person) Actor {
@@ -384,6 +389,121 @@ func TestTheme(t *testing.T) {
 	}
 	if got, _ := f.Theme(ctx); got.Light != nil {
 		t.Errorf("theme after clearing = %+v", got)
+	}
+}
+
+func TestWorkspacesAreApart(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	// The same host ids in a second workspace are other people.
+	other, err := f.EnsureWorkspace(ctx, "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := f.EnsureWorkspace(ctx, "other")
+	if err != nil || again.ID != other.ID {
+		t.Fatalf("asking for the workspace twice = %v, %v", again, err)
+	}
+	g := f.In(other.ID)
+	admin2, err := g.Sync(ctx, host.Person{ID: "admin", Name: "Other Admin", Email: "o@example.com", Admin: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ada2, err := g.Sync(ctx, host.Person{ID: "ada", Name: "Other Ada", Email: "ada@other.example"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A new workspace starts with default settings of its own.
+	cfg, err := g.Settings(ctx)
+	if err != nil || !cfg.RequireProject {
+		t.Fatalf("the new workspace's settings = %+v, %v", cfg, err)
+	}
+
+	entry := f.work(f.ada, "2026-10-01 09:00", "2026-10-01 12:00")
+	acme, err := f.SaveCustomer(ctx, f.admin, [16]byte{}, "Acme", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proj, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{CustomerID: &acme.ID, Name: "Portal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.RequestTimeOff(ctx, f.ada, TimeOffInput{Kind: Vacation, From: day(t, "2026-10-05"), To: day(t, "2026-10-05"), Hours: 8}); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := f.Submit(ctx, f.ada, "", day(t, "2026-09-21"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	from, to := day(t, "2026-09-01"), day(t, "2026-10-31")
+
+	// Nothing of the first workspace shows in the second, to its admin.
+	if list, err := g.Entries(ctx, admin2, "ada", from, to); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's ada has entries: %v, %v", list, err)
+	}
+	if list, err := g.People(ctx, admin2); err != nil || len(list) != 2 {
+		t.Errorf("the other workspace's people = %v, %v", list, err)
+	}
+	if list, err := g.Customers(ctx, true); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's customers = %v, %v", list, err)
+	}
+	if list, err := g.Projects(ctx, true); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's projects = %v, %v", list, err)
+	}
+	if list, err := g.TimeOff(ctx, admin2, "ada", from, to); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's time off = %v, %v", list, err)
+	}
+	if list, err := g.PendingTimeOff(ctx, admin2); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's pending time off = %v, %v", list, err)
+	}
+	if list, err := g.Audit(ctx, admin2, "", 100); err != nil || len(list) != 0 {
+		t.Errorf("the other workspace's audit log = %v, %v", list, err)
+	}
+	if rows, err := g.HoursByDayAndProject(ctx, admin2, from, to, false); err != nil || len(rows) != 0 {
+		t.Errorf("the other workspace's hours = %v, %v", rows, err)
+	}
+	if rows, err := g.ProjectReport(ctx, admin2, from, to); err != nil || len(rows) != 0 {
+		t.Errorf("the other workspace's project report = %v, %v", rows, err)
+	}
+	if got, err := g.Summary(ctx, ada2, "", day(t, "2026-10-01")); err != nil || got.Regular != 0 || got.Timesheet != nil {
+		t.Errorf("the other workspace's ada's period = %+v, %v", got, err)
+	}
+
+	// Nor can it be reached by its id.
+	end := f.time("2026-10-01 11:00")
+	_, err = g.UpdateEntry(ctx, admin2, entry.ID, EntryInput{StartedAt: entry.StartedAt, EndedAt: &end})
+	wantProblem(t, err, "not_found")
+	wantProblem(t, g.DeleteEntry(ctx, admin2, entry.ID), "not_found")
+	_, err = g.Decide(ctx, admin2, sum.Timesheet.ID, true, "")
+	wantProblem(t, err, "not_found")
+	wantProblem(t, g.DeleteProject(ctx, admin2, proj.ID), "not_found")
+	wantProblem(t, g.DeleteCustomer(ctx, admin2, acme.ID), "not_found")
+	_, err = g.SaveProject(ctx, admin2, [16]byte{}, ProjectInput{CustomerID: &acme.ID, Name: "Borrowed"})
+	wantProblem(t, err, "validation")
+	if _, err := g.ClockIn(ctx, ada2, &proj.ID, ""); err == nil {
+		t.Error("clocking in on another workspace's project succeeded")
+	}
+
+	// Settings and the look are each workspace's own.
+	f.settings(func(s *Settings) { s.LongEntryHours = 6 })
+	if cfg, _ := g.Settings(ctx); cfg.LongEntryHours == 6 {
+		t.Error("one workspace's settings changed the other's")
+	}
+
+	// And the first workspace still has what it had.
+	if list, err := f.Entries(ctx, f.admin, "ada", from, to); err != nil || len(list) != 1 {
+		t.Errorf("the first workspace's entries = %v, %v", list, err)
+	}
+
+	// A statement that names no workspace is refused outright.
+	if _, err := f.pool.Exec(ctx, `DELETE FROM time_entries`); !errors.Is(err, errUnscoped) {
+		t.Errorf("an unscoped statement = %v, want it refused", err)
+	}
+	if _, err := New(f.raw).Customers(ctx, true); err == nil {
+		t.Error("a service for no workspace answered")
 	}
 }
 

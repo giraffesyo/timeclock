@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/giraffesyo/timeclock/host"
 )
 
@@ -59,7 +57,7 @@ func checkTheme(t Theme) error {
 // where they set none.
 func (s *Service) Theme(ctx context.Context) (Theme, error) {
 	var raw []byte
-	if err := s.pool.QueryRow(ctx, `SELECT theme FROM settings`).Scan(&raw); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT theme FROM settings WHERE workspace_id = $W`).Scan(&raw); err != nil {
 		return Theme{}, fmt.Errorf("read theme: %w", err)
 	}
 	var t Theme
@@ -82,8 +80,8 @@ func (s *Service) SetTheme(ctx context.Context, actor Actor, t Theme) (Theme, er
 	if err != nil {
 		return Theme{}, fmt.Errorf("set theme: %w", err)
 	}
-	err = s.tx(ctx, "", func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE settings SET theme = $1, updated_at = now(), updated_by = $2`, raw, actor.ID); err != nil {
+	err = s.tx(ctx, "", func(tx querier) error {
+		if _, err := tx.Exec(ctx, `UPDATE settings SET theme = $1, updated_at = now(), updated_by = $2 WHERE workspace_id = $W`, raw, actor.ID); err != nil {
 			return fmt.Errorf("set theme: %w", err)
 		}
 		return audit(ctx, tx, actor, "theme.update", "", t)

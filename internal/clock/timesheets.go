@@ -33,7 +33,7 @@ func (s *Service) TodayFor(cfg Settings, p Person) Date { return DateOf(s.now(),
 func periodFor(ctx context.Context, q querier, cfg Settings, personID string, d Date) (Period, error) {
 	var start, end time.Time
 	err := q.QueryRow(ctx, `SELECT period_start, period_end FROM timesheets
-		WHERE person_id = $1 AND $2 BETWEEN period_start AND period_end ORDER BY submitted_at DESC LIMIT 1`,
+		WHERE workspace_id = $W AND person_id = $1 AND $2 BETWEEN period_start AND period_end ORDER BY submitted_at DESC LIMIT 1`,
 		personID, d.Time()).Scan(&start, &end)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return cfg.PeriodOf(d), nil
@@ -55,7 +55,7 @@ func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Pe
 	from := WeekStart(period.Start, rule.WeekStart).In(loc)
 	until := period.End.AddDays(1).In(loc)
 	rows, err := q.Query(ctx, `SELECT started_at, ended_at FROM time_entries
-		WHERE person_id = $1 AND started_at < $3 AND coalesce(ended_at, 'infinity'::timestamptz) > $2`, p.ID, from, until)
+		WHERE workspace_id = $W AND person_id = $1 AND started_at < $3 AND coalesce(ended_at, 'infinity'::timestamptz) > $2`, p.ID, from, until)
 	if err != nil {
 		return out, fmt.Errorf("read entries: %w", err)
 	}
@@ -106,7 +106,7 @@ func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Pe
 	// from the sum of rounded days.
 	out.Regular, out.Overtime = Hours(regular), Hours(overtime)
 
-	ts, err := scanTimesheet(q.QueryRow(ctx, `SELECT `+timesheetColumns+` FROM timesheets WHERE person_id = $1 AND period_start = $2`,
+	ts, err := scanTimesheet(q.QueryRow(ctx, `SELECT `+timesheetColumns+` FROM timesheets WHERE workspace_id = $W AND person_id = $1 AND period_start = $2`,
 		p.ID, period.Start.Time()))
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -178,7 +178,7 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 		return PeriodSummary{}, err
 	}
 	var out PeriodSummary
-	err = s.tx(ctx, p.ID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, p.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
@@ -191,7 +191,7 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 			return invalidField("day", "the pay period hasn't started")
 		}
 		var running bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE person_id = $1 AND ended_at IS NULL AND started_at < $2)`,
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE workspace_id = $W AND person_id = $1 AND ended_at IS NULL AND started_at < $2)`,
 			p.ID, period.End.AddDays(1).In(cfg.LocationOf(p))).Scan(&running); err != nil {
 			return fmt.Errorf("check running clock: %w", err)
 		}
@@ -203,9 +203,9 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 			now := s.now()
 			status, decidedAt = StatusApproved, &now
 		}
-		ts, err := scanTimesheet(tx.QueryRow(ctx, `INSERT INTO timesheets (id, person_id, period_start, period_end, status, decided_at)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (person_id, period_start) DO UPDATE SET status = EXCLUDED.status, submitted_at = now(),
+		ts, err := scanTimesheet(tx.QueryRow(ctx, `INSERT INTO timesheets (id, workspace_id, person_id, period_start, period_end, status, decided_at)
+			VALUES ($1, $W, $2, $3, $4, $5, $6)
+			ON CONFLICT (workspace_id, person_id, period_start) DO UPDATE SET status = EXCLUDED.status, submitted_at = now(),
 				decided_by = '', decided_at = EXCLUDED.decided_at, decision_note = ''
 			WHERE timesheets.status = 'rejected'
 			RETURNING `+timesheetColumns, newID(), p.ID, period.Start.Time(), period.End.Time(), status, decidedAt))
@@ -225,7 +225,7 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 }
 
 func timesheetByID(ctx context.Context, q querier, id uuid.UUID) (Timesheet, error) {
-	t, err := scanTimesheet(q.QueryRow(ctx, `SELECT `+timesheetColumns+` FROM timesheets WHERE id = $1`, id))
+	t, err := scanTimesheet(q.QueryRow(ctx, `SELECT `+timesheetColumns+` FROM timesheets WHERE id = $1 AND workspace_id = $W`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, notFound("timesheet")
 	}
@@ -249,9 +249,9 @@ func (s *Service) Decide(ctx context.Context, actor Actor, id uuid.UUID, approve
 	if approve {
 		status = StatusApproved
 	}
-	err = s.tx(ctx, t.PersonID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, t.PersonID, func(tx querier) error {
 		t, err = scanTimesheet(tx.QueryRow(ctx, `UPDATE timesheets SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4
-			WHERE id = $1 AND status = 'submitted' RETURNING `+timesheetColumns, id, status, actor.ID, strings.TrimSpace(note)))
+			WHERE id = $1 AND workspace_id = $W AND status = 'submitted' RETURNING `+timesheetColumns, id, status, actor.ID, strings.TrimSpace(note)))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotSubmitted.New("")
 		}
@@ -283,9 +283,9 @@ func (s *Service) Reopen(ctx context.Context, actor Actor, id uuid.UUID, note st
 			return t, err
 		}
 	}
-	err = s.tx(ctx, t.PersonID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, t.PersonID, func(tx querier) error {
 		t, err = scanTimesheet(tx.QueryRow(ctx, `UPDATE timesheets SET status = 'rejected', decided_by = $2, decided_at = now(), decision_note = $3
-			WHERE id = $1 AND status IN ('submitted', 'approved') RETURNING `+timesheetColumns, id, actor.ID, strings.TrimSpace(note)))
+			WHERE id = $1 AND workspace_id = $W AND status IN ('submitted', 'approved') RETURNING `+timesheetColumns, id, actor.ID, strings.TrimSpace(note)))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotSubmitted.New("")
 		}
