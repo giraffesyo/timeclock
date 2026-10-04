@@ -83,6 +83,11 @@ function Form({ saved }: { saved: SSOSettings }) {
           <Field label={t('redirect')} hint={t('redirectHint')}>
             <input className={`${controlClass} font-mono text-xs`} readOnly value={saved.redirectUrl} />
           </Field>
+          {saved.configured && (
+            <Field label={t('loginUrl')} hint={t('loginUrlHint')}>
+              <input className={`${controlClass} font-mono text-xs`} readOnly value={saved.loginUrl} />
+            </Field>
+          )}
         </div>
       </Panel>
       <Panel flush>

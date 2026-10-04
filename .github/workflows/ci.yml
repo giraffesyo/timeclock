@@ -83,7 +83,9 @@ jobs:
         working-directory: web/packages/timeclock
 
   # The built server, with the app embedded and its production CSP, driven by
-  # real browsers: Chromium, WebKit and a phone.
+  # real browsers: Chromium, WebKit and a phone. It runs on its own, with its
+  # own accounts (mail, identity providers and a breach list are pretend ones
+  # the tests start), and inside the example host.
   e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 20

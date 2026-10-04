@@ -698,3 +698,23 @@ func TestAWorkspacesOwnProviderSignsInToThatWorkspaceOnly(t *testing.T) {
 		t.Errorf("the person who joined = %+v, %v", person, err)
 	}
 }
+
+// Behind a proxy the client is the last address the proxy wrote; without
+// one, a client's own X-Forwarded-For is ignored.
+func TestClientIP(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
+	r.RemoteAddr = "192.0.2.10:4000"
+	r.Header.Set("X-Forwarded-For", "203.0.113.9, 198.51.100.7")
+	direct := &Auth{}
+	if got := direct.clientIP(r); got != "192.0.2.10" {
+		t.Errorf("direct: %q, want the connection's address", got)
+	}
+	proxied := &Auth{cfg: Config{TrustProxy: true}}
+	if got := proxied.clientIP(r); got != "198.51.100.7" {
+		t.Errorf("proxied: %q, want the address the proxy added", got)
+	}
+	r.Header.Del("X-Forwarded-For")
+	if got := proxied.clientIP(r); got != "192.0.2.10" {
+		t.Errorf("proxied, no header: %q, want the connection's address", got)
+	}
+}

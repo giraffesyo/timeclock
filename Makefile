@@ -29,6 +29,7 @@ install:
 build:
 	@cd web && pnpm build
 	go build -o timeclock-server ./cmd/timeclock-server
+	go build -o example-host ./examples/host
 
 check: lint test
 

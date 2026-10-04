@@ -81,14 +81,22 @@ type breaches interface {
 
 // pwned looks a password up by the first five characters of its SHA-1, so
 // the password never leaves the server (the range API of Have I Been Pwned).
-type pwned struct{ client *http.Client }
+type pwned struct {
+	client *http.Client
+	// url is the range API; empty is the public one.
+	url string
+}
 
 func (p pwned) Breached(ctx context.Context, password string) (bool, error) {
 	sum := sha1.Sum([]byte(password)) //nolint:gosec // see the import
 	digest := strings.ToUpper(hex.EncodeToString(sum[:]))
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.pwnedpasswords.com/range/"+digest[:5], nil)
+	base := p.url
+	if base == "" {
+		base = "https://api.pwnedpasswords.com/range/"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+digest[:5], nil)
 	if err != nil {
 		return false, err
 	}

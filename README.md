@@ -53,6 +53,8 @@ go tc.Run(ctx)                  // reminders, until ctx ends
 mux.Handle("/timeclock/", tc)   // requests arrive with the base path still on them
 ```
 
+[`examples/host`](examples/host) is a complete host in one file: its own people, several organizations, and its own colors.
+
 `host.Directory` is two methods: `Person(ctx, id)` and `People(ctx)`. A `host.Person` has an id, a name, an email, whether they are an admin (run payroll), and optionally their manager's id; an admin can set managers in Timeclock too, which takes precedence.
 
 Timeclock keeps its tables, and [hopper](https://github.com/parallelworks/hopper)'s job tables, in its own schema (`timeclock` by default) and migrates it at startup under an advisory lock, so replicas can start together and it can share the host's database. `Options.SkipMigrations` leaves migrating to the host.
@@ -86,11 +88,11 @@ timeclock-server
 
 - **Getting in.** Each address in `TIMECLOCK_ADMIN_EMAILS` is invited when the server first starts. After that, a workspace's admins invite people from Settings → People, and whoever runs the server can too: `timeclock-server invite KEY EMAIL [--admin]`. There is no open sign-up.
 - **Workspaces.** `timeclock-server workspace KEY "Name" --admin EMAIL` makes another organization on the same server and invites its first admin. Someone in more than one switches between them from the top of the sidebar.
-- **Passwords.** At least 10 characters, with no rules about what they contain; ones known from a data breach are refused (the check sends five characters of a hash, never the password; `TIMECLOCK_BREACH_CHECK=off` turns it off). They are stored as Argon2id hashes. Repeated wrong guesses pause sign-in for the account and for the address they come from.
+- **Passwords.** At least 10 characters, with no rules about what they contain; ones known from a data breach are refused (the check sends five characters of a hash, never the password; `TIMECLOCK_BREACH_CHECK=off` turns it off). They are stored as Argon2id hashes. Repeated wrong guesses pause sign-in for the account and for the address they come from; behind a reverse proxy, set `TIMECLOCK_TRUST_PROXY=1` so that address is the client's (from `X-Forwarded-For`) and not the proxy's.
 - **Sessions.** A random token in an `HttpOnly`, `SameSite=Lax` cookie, kept only as a hash. Signing out, resetting or changing a password ends sessions at the server.
 - **A second step.** Anyone can add an authenticator app to their account (with recovery codes for when the phone is gone); sign-in then asks for its code after the password, and a reset link doesn't get around it. A passkey signs in on its own, with a fingerprint, face or device PIN. Both are set up under Account.
 - **Email.** Invitations and password resets go by SMTP. Without a mail server, they are written to the log, and an invitation's link is shown to the admin who made it.
-- **Single sign-on.** A workspace's admins can give it its own OpenID Connect provider in Settings → Sign-in, require it, and let anyone it signs in join. What a workspace's provider says counts in that workspace only: a session that came in through it sees that workspace and can't change how the account signs in. `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add a provider for the whole server instead. Either way the redirect URL is `<public URL>/auth/callback`.
+- **Single sign-on.** A workspace's admins can give it its own OpenID Connect provider in Settings → Sign-in, require it, and let anyone it signs in join; Settings shows a sign-in link that goes straight to the provider. What a workspace's provider says counts in that workspace only: a session that came in through it sees that workspace and can't change how the account signs in. `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add a provider for the whole server instead. Either way the redirect URL is `<public URL>/auth/callback`.
 - **The secret key.** `TIMECLOCK_SECRET_KEY` seals authenticator secrets and providers' client secrets in the database (AES-256-GCM). Losing it means setting those up again; it isn't needed to read time or sign in with a password.
 
 See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
@@ -121,7 +123,8 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | `migrations/` | goose migrations, `NNNNN_name.sql` |
 | `web/` | The Vite app, embedded in the binary |
 | `web/packages/timeclock/` | `@giraffesyo/timeclock`, the clock for a host application; the app is built on its source |
-| `web/e2e/` | End-to-end tests (Playwright): each test is its own people, against a schema made for the run |
+| `examples/host/` | A small application with Timeclock mounted in it |
+| `web/e2e/` | End-to-end tests (Playwright): each test is its own people, against a schema made for the run. They drive four servers: one signed in as whoever a test says, one with its own accounts, one set up like a real deployment (mail by SMTP, identity providers, a breach list, a proxy; the pretend ones are `services.mjs`), and `examples/host` |
 
 ## The payroll export
 
