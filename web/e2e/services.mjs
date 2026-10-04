@@ -87,12 +87,12 @@ function idToken(claims) {
 /** Sign-ins the provider approved, by the code it handed back. */
 const codes = new Map();
 
-const escape = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+const attr = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** The provider's sign-in page: it believes whatever address it is given. */
 function authorizePage(query) {
   const keep = ['redirect_uri', 'state', 'nonce', 'client_id', 'code_challenge']
-    .map((k) => `<input type="hidden" name="${k}" value="${escape(query.get(k) ?? '')}">`)
+    .map((k) => `<input type="hidden" name="${k}" value="${attr(query.get(k) ?? '')}">`)
     .join('');
   return `<!doctype html><meta charset="utf-8"><title>Example Identity</title>
 <h1>Example Identity</h1>
