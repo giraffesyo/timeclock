@@ -25,8 +25,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/parallelworks/foundation/pgdb"
@@ -80,6 +82,10 @@ type Options struct {
 	// person's light, dark or system choice, so Timeclock matches it.
 	// Without it, Timeclock follows the system.
 	ThemeStorageKey string
+	// Workspace names the workspace a request is in, for a host with more
+	// than one organization: each key is its own people, time and settings,
+	// made the first time it is seen. Without it, everyone is in one.
+	Workspace func(r *http.Request) (key string, ok bool)
 	// Theme is the host's look, so Timeclock mounted in it matches: for
 	// light and for dark, an accent and a background. A workspace admin can
 	// still set the workspace's own in Timeclock's settings.
@@ -174,7 +180,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		DevServer: opts.DevServer,
 		BasePath:  base,
 		HSTS:      opts.HSTS,
-		Wrap:      authenticate(opts.Caller),
+		Wrap:      authenticate(opts.Caller, (&workspaces{svc: svc, key: opts.Workspace}).of),
 	})
 	if base != "/" {
 		h = http.StripPrefix(base, h)
@@ -201,16 +207,49 @@ func (t *Timeclock) Run(ctx context.Context) {
 // Close releases the database pool.
 func (t *Timeclock) Close() { t.pool.Close() }
 
-// authenticate attaches the host's caller to each request.
-func authenticate(callerOf func(*http.Request) (string, bool)) func(http.Handler) http.Handler {
+// authenticate attaches the host's caller, and the workspace they are in, to
+// each request.
+func authenticate(callerOf func(*http.Request) (string, bool), workspaceOf func(*http.Request) (uuid.UUID, error)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if id, ok := callerOf(r); ok {
-				r = r.WithContext(api.WithCaller(r.Context(), id))
+			ws, err := workspaceOf(r)
+			if err != nil {
+				problem.Write(w, problem.Status(http.StatusServiceUnavailable, "the workspace is unavailable").WithCause(err))
+				return
 			}
-			next.ServeHTTP(w, r)
+			ctx := api.WithWorkspace(r.Context(), ws)
+			if id, ok := callerOf(r); ok {
+				ctx = api.WithCaller(ctx, id)
+			}
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// workspaces resolves a request's workspace: the one the host names, or the
+// default. Keys are remembered, so a request costs no query for it.
+type workspaces struct {
+	svc  *clock.Service
+	key  func(*http.Request) (string, bool)
+	seen sync.Map // key → uuid.UUID
+}
+
+func (w *workspaces) of(r *http.Request) (uuid.UUID, error) {
+	key := clock.DefaultWorkspace
+	if w.key != nil {
+		if k, ok := w.key(r); ok && k != "" {
+			key = k
+		}
+	}
+	if id, ok := w.seen.Load(key); ok {
+		return id.(uuid.UUID), nil
+	}
+	ws, err := w.svc.EnsureWorkspace(r.Context(), key)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	w.seen.Store(key, ws.ID)
+	return ws.ID, nil
 }
 
 // OpenAPI returns the API's OpenAPI document without connecting to

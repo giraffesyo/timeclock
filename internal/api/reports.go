@@ -72,11 +72,11 @@ func (d Deps) payroll(ctx context.Context, dayParam string) (payrollBody, error)
 	if err != nil {
 		return payrollBody{}, err
 	}
-	cfg, err := d.Clock.Settings(ctx)
+	cfg, err := d.clock(ctx).Settings(ctx)
 	if err != nil {
 		return payrollBody{}, err
 	}
-	team, err := d.Clock.Payroll(ctx, actor, day)
+	team, err := d.clock(ctx).Payroll(ctx, actor, day)
 	if err != nil {
 		return payrollBody{}, err
 	}
@@ -104,11 +104,11 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			cfg, err := d.Clock.Settings(ctx)
+			cfg, err := d.clock(ctx).Settings(ctx)
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Exceptions(ctx, actor, day)
+			list, err := d.clock(ctx).Exceptions(ctx, actor, day)
 			if err != nil {
 				return nil, err
 			}
@@ -162,7 +162,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := d.Clock.ProjectReport(ctx, actor, from, to)
+			rows, err := d.clock(ctx).ProjectReport(ctx, actor, from, to)
 			if err != nil {
 				return nil, err
 			}
@@ -179,7 +179,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			report, err := d.Clock.ProjectReport(ctx, actor, from, to)
+			report, err := d.clock(ctx).ProjectReport(ctx, actor, from, to)
 			if err != nil {
 				return nil, err
 			}
@@ -208,7 +208,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := d.Clock.HoursByDayAndProject(ctx, actor, from, to, in.Mine)
+			rows, err := d.clock(ctx).HoursByDayAndProject(ctx, actor, from, to, in.Mine)
 			if err != nil {
 				return nil, err
 			}
@@ -231,7 +231,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Activity(ctx, actor)
+			list, err := d.clock(ctx).Activity(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
@@ -257,7 +257,7 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.Clock.Audit(ctx, actor, in.Person, in.Limit)
+			list, err := d.clock(ctx).Audit(ctx, actor, in.Person, in.Limit)
 			if err != nil {
 				return nil, err
 			}

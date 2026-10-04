@@ -18,14 +18,18 @@ import (
 // Service is Timeclock's payroll data and its rules. Every method takes the
 // Actor it acts for and refuses what that person may not do.
 type Service struct {
-	pool *pgxpool.Pool
+	// raw is the pool itself, for transactions and for what is about no
+	// workspace. pool is the same pool for one workspace: see scoped.
+	raw  *pgxpool.Pool
+	pool scoped
+	ws   uuid.UUID
 	// now is the clock, replaceable in tests.
 	now func() time.Time
 }
 
 // New returns a Service on a pool whose search_path is Timeclock's schema.
 func New(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, now: time.Now}
+	return &Service{raw: pool, pool: scoped{q: pool}, now: time.Now}
 }
 
 // querier is the part of a pool or transaction the queries use.
@@ -39,14 +43,16 @@ func newID() uuid.UUID { return uuid.Must(uuid.NewV7()) }
 
 // tx runs fn in a transaction that holds a lock on one person's time, so
 // two requests can't both pass the overlap or lock checks and then write.
-func (s *Service) tx(ctx context.Context, personID string, fn func(tx pgx.Tx) error) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+func (s *Service) tx(ctx context.Context, personID string, fn func(tx querier) error) error {
+	return pgx.BeginFunc(ctx, s.raw, func(tx pgx.Tx) error {
+		q := scoped{q: tx, ws: s.ws}
 		if personID != "" {
-			if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "timeclock/person/"+personID); err != nil {
+			key := "timeclock/person/" + s.ws.String() + "/" + personID
+			if _, err := q.Exec(ctx, globalSQL+`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, key); err != nil {
 				return fmt.Errorf("lock person: %w", err)
 			}
 		}
-		return fn(tx)
+		return fn(q)
 	})
 }
 
@@ -58,7 +64,7 @@ func audit(ctx context.Context, q querier, actor Actor, action, personID string,
 		return fmt.Errorf("audit detail: %w", err)
 	}
 	if _, err := q.Exec(ctx,
-		`INSERT INTO audit_log (id, actor, action, person_id, detail) VALUES ($1, $2, $3, $4, $5)`,
+		`INSERT INTO audit_log (id, workspace_id, actor, action, person_id, detail) VALUES ($1, $W, $2, $3, $4, $5)`,
 		newID(), actor.ID, action, personID, raw); err != nil {
 		return fmt.Errorf("write audit log: %w", err)
 	}
@@ -85,7 +91,7 @@ func (s *Service) Settings(ctx context.Context) (Settings, error) {
 }
 
 func settings(ctx context.Context, q querier) (Settings, error) {
-	out, err := scanSettings(q.QueryRow(ctx, `SELECT `+settingsColumns+` FROM settings`))
+	out, err := scanSettings(q.QueryRow(ctx, `SELECT `+settingsColumns+` FROM settings WHERE workspace_id = $W`))
 	if err != nil {
 		return out, fmt.Errorf("read settings: %w", err)
 	}
@@ -101,14 +107,14 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 	if _, err := time.LoadLocation(in.Timezone); err != nil || in.Timezone == "" {
 		return Settings{}, invalidField("timezone", "not an IANA time zone")
 	}
-	err := s.tx(ctx, "", func(tx pgx.Tx) error {
+	err := s.tx(ctx, "", func(tx querier) error {
 		before, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE settings SET timezone = $1, pay_cycle = $2, cycle_anchor = $3, week_start = $4,
 			overtime_weekly_hours = $5, approve_timesheets = $6, approve_time_off = $7, require_project = $8,
-			long_entry_hours = $9, updated_at = now(), updated_by = $10`,
+			long_entry_hours = $9, updated_at = now(), updated_by = $10 WHERE workspace_id = $W`,
 			in.Timezone, in.PayCycle, in.CycleAnchor.Time(), in.WeekStart, in.OvertimeWeeklyHours,
 			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, actor.ID); err != nil {
 			return fmt.Errorf("update settings: %w", err)
@@ -137,13 +143,13 @@ func scanPerson(row pgx.Row) (Person, error) {
 // table always has everyone who has used Timeclock.
 func (s *Service) Sync(ctx context.Context, hp host.Person) (Actor, error) {
 	p, err := scanPerson(s.pool.QueryRow(ctx, `
-		INSERT INTO people (id, name, email, host_manager_id) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email,
+		INSERT INTO people (id, workspace_id, name, email, host_manager_id) VALUES ($1, $W, $2, $3, $4)
+		ON CONFLICT (workspace_id, id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email,
 			host_manager_id = EXCLUDED.host_manager_id, updated_at = now()
 		WHERE (people.name, people.email, people.host_manager_id) IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.email, EXCLUDED.host_manager_id)
 		RETURNING `+personColumns, hp.ID, hp.Name, hp.Email, hp.ManagerID))
 	if errors.Is(err, pgx.ErrNoRows) { // nothing changed, so nothing was returned
-		p, err = scanPerson(s.pool.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1`, hp.ID))
+		p, err = scanPerson(s.pool.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1 AND workspace_id = $W`, hp.ID))
 	}
 	if err != nil {
 		return Actor{}, fmt.Errorf("sync person: %w", err)
@@ -163,7 +169,7 @@ func (s *Service) SyncAll(ctx context.Context, people []host.Person) error {
 }
 
 func person(ctx context.Context, q querier, id string) (Person, error) {
-	p, err := scanPerson(q.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1`, id))
+	p, err := scanPerson(q.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1 AND workspace_id = $W`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, notFound("person")
 	}
@@ -219,7 +225,8 @@ func (s *Service) decidable(ctx context.Context, q querier, actor Actor, personI
 // otherwise the actor and their reports.
 func (s *Service) People(ctx context.Context, actor Actor) ([]Person, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+personColumns+` FROM people
-		WHERE $1 OR id = $2 OR (CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END) = $2
+		WHERE workspace_id = $W
+		AND ($1 OR id = $2 OR (CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END) = $2)
 		ORDER BY lower(name), id`, actor.Admin, actor.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list people: %w", err)
@@ -249,7 +256,7 @@ func (s *Service) UpdatePerson(ctx context.Context, actor Actor, id string, in P
 		return Person{}, err
 	}
 	var out Person
-	err := s.tx(ctx, id, func(tx pgx.Tx) error {
+	err := s.tx(ctx, id, func(tx querier) error {
 		before, err := person(ctx, tx, id)
 		if err != nil {
 			return err
@@ -260,7 +267,7 @@ func (s *Service) UpdatePerson(ctx context.Context, actor Actor, id string, in P
 			}
 		}
 		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET manager_id = $2, overtime_exempt = $3, payroll_id = $4,
-			active = $5, timezone = $6, updated_at = now() WHERE id = $1 RETURNING `+personColumns,
+			active = $5, timezone = $6, updated_at = now() WHERE id = $1 AND workspace_id = $W RETURNING `+personColumns,
 			id, in.ManagerID, in.OvertimeExempt, in.PayrollID, in.Active, in.Timezone))
 		if err != nil {
 			return fmt.Errorf("update person: %w", err)
@@ -289,9 +296,9 @@ func (s *Service) SetOwnTimezone(ctx context.Context, actor Actor, tz string) (P
 		return Person{}, err
 	}
 	var out Person
-	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+	err := s.tx(ctx, actor.ID, func(tx querier) error {
 		var err error
-		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET timezone = $2, updated_at = now() WHERE id = $1 RETURNING `+personColumns,
+		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET timezone = $2, updated_at = now() WHERE id = $1 AND workspace_id = $W RETURNING `+personColumns,
 			actor.ID, tz))
 		if err != nil {
 			return fmt.Errorf("set time zone: %w", err)
@@ -328,7 +335,7 @@ func personNames(ctx context.Context, q querier, ids []string) (map[string]strin
 	if len(ids) == 0 {
 		return names, nil
 	}
-	rows, err := q.Query(ctx, `SELECT id, name FROM people WHERE id = ANY($1)`, ids)
+	rows, err := q.Query(ctx, `SELECT id, name FROM people WHERE id = ANY($1) AND workspace_id = $W`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("read names: %w", err)
 	}

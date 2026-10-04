@@ -27,9 +27,9 @@ func (s *Service) Activity(ctx context.Context, actor Actor) ([]Activity, error)
 	since := WeekStart(s.Today(cfg), time.Weekday(cfg.WeekStart)).AddDays(-2).Time()
 
 	rows, err := s.pool.Query(ctx, entrySelect+`
-		WHERE e.started_at < $3 AND coalesce(e.ended_at, $3) > $2
+		WHERE e.workspace_id = $W AND e.started_at < $3 AND coalesce(e.ended_at, $3) > $2
 		AND ($4 OR e.person_id = $5 OR e.person_id IN (SELECT id FROM people
-			WHERE (CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END) = $5))
+			WHERE workspace_id = $W AND (CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END) = $5))
 		ORDER BY e.started_at`, cfg.Timezone, since, now, actor.Admin, actor.ID)
 	if err != nil {
 		return nil, fmt.Errorf("read activity: %w", err)
@@ -94,8 +94,8 @@ func (s *Service) HoursByDayAndProject(ctx context.Context, actor Actor, from, t
 	now := s.now()
 	// Wide enough for every time zone; each person's own midnights cut it below.
 	rows, err := s.pool.Query(ctx, `SELECT coalesce(e.project_id::text, ''), pe.timezone, e.started_at, coalesce(e.ended_at, $3)
-		FROM time_entries e JOIN people pe ON pe.id = e.person_id
-		WHERE e.started_at < $2 AND coalesce(e.ended_at, $3) > $1
+		FROM time_entries e JOIN people pe ON pe.id = e.person_id AND pe.workspace_id = e.workspace_id
+		WHERE e.workspace_id = $W AND e.started_at < $2 AND coalesce(e.ended_at, $3) > $1
 		AND (pe.id = $5 OR (NOT $6 AND ($4 OR (CASE WHEN pe.manager_id <> '' THEN pe.manager_id ELSE pe.host_manager_id END) = $5)))`,
 		from.AddDays(-1).Time(), to.AddDays(2).Time(), now, actor.Admin, actor.ID, mine)
 	if err != nil {

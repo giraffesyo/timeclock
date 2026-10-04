@@ -5,6 +5,7 @@ package api
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 
@@ -52,6 +53,20 @@ type Deps struct {
 
 type callerKey struct{}
 
+type workspaceKey struct{}
+
+// WithWorkspace returns ctx carrying the workspace a request is in.
+func WithWorkspace(ctx context.Context, id uuid.UUID) context.Context {
+	return context.WithValue(ctx, workspaceKey{}, id)
+}
+
+// clock is the service for the request's workspace. Without one its queries
+// are refused, so nothing is read or written across workspaces by default.
+func (d Deps) clock(ctx context.Context) *clock.Service {
+	id, _ := ctx.Value(workspaceKey{}).(uuid.UUID)
+	return d.Clock.In(id)
+}
+
 // WithCaller returns ctx carrying the id of the host user making a request.
 func WithCaller(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, callerKey{}, id)
@@ -70,14 +85,14 @@ func (d Deps) actor(ctx context.Context) (clock.Actor, error) {
 	if err != nil {
 		return clock.Actor{}, problem.Status(http.StatusServiceUnavailable, "the directory is unavailable").WithCause(err)
 	}
-	return d.Clock.Sync(ctx, hp)
+	return d.clock(ctx).Sync(ctx, hp)
 }
 
 // info is Info with the look in force: each scheme the workspace's if an
 // admin set it, and the host's if not.
 func (d Deps) info(ctx context.Context) (Info, error) {
 	out := d.Info
-	workspace, err := d.Clock.Theme(ctx)
+	workspace, err := d.clock(ctx).Theme(ctx)
 	if err != nil {
 		return out, err
 	}
@@ -149,11 +164,11 @@ func op(method, path, id, summary string, tags ...string) huma.Operation {
 // where the caller is.
 func (d Deps) day(ctx context.Context, caller clock.Person, param, value string) (clock.Date, error) {
 	if value == "" {
-		cfg, err := d.Clock.Settings(ctx)
+		cfg, err := d.clock(ctx).Settings(ctx)
 		if err != nil {
 			return clock.Date{}, err
 		}
-		return d.Clock.TodayFor(cfg, caller), nil
+		return d.clock(ctx).TodayFor(cfg, caller), nil
 	}
 	parsed, err := clock.ParseDate(value)
 	if err != nil {

@@ -13,11 +13,11 @@ import (
 
 // zoneExpr is the time zone an entry's days are cut in: its person's own,
 // or the organization's ($1).
-const zoneExpr = `coalesce(nullif((SELECT timezone FROM people WHERE id = e.person_id), ''), $1)`
+const zoneExpr = `coalesce(nullif((SELECT timezone FROM people WHERE id = e.person_id AND workspace_id = e.workspace_id), ''), $1)`
 
 // A day is locked for a person while a timesheet covering it is submitted
 // or approved.
-const lockedExpr = `EXISTS (SELECT 1 FROM timesheets t WHERE t.person_id = e.person_id
+const lockedExpr = `EXISTS (SELECT 1 FROM timesheets t WHERE t.workspace_id = e.workspace_id AND t.person_id = e.person_id
 	AND t.status IN ('submitted', 'approved')
 	AND (e.started_at AT TIME ZONE ` + zoneExpr + `)::date <= t.period_end
 	AND (coalesce(e.ended_at, now()) AT TIME ZONE ` + zoneExpr + `)::date >= t.period_start)`
@@ -43,7 +43,7 @@ func (s *Service) Entries(ctx context.Context, actor Actor, personID string, fro
 	}
 	loc := cfg.LocationOf(p)
 	rows, err := s.pool.Query(ctx, entrySelect+`
-		WHERE e.person_id = $2 AND e.started_at < $4 AND coalesce(e.ended_at, now()) >= $3
+		WHERE e.workspace_id = $W AND e.person_id = $2 AND e.started_at < $4 AND coalesce(e.ended_at, now()) >= $3
 		ORDER BY e.started_at`, cfg.Timezone, p.ID, from.In(loc), to.AddDays(1).In(loc))
 	if err != nil {
 		return nil, fmt.Errorf("list entries: %w", err)
@@ -61,7 +61,7 @@ func (s *Service) Running(ctx context.Context, actor Actor) (*Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	e, err := scanEntry(s.pool.QueryRow(ctx, entrySelect+` WHERE e.person_id = $2 AND e.ended_at IS NULL`, cfg.Timezone, actor.ID))
+	e, err := scanEntry(s.pool.QueryRow(ctx, entrySelect+` WHERE e.workspace_id = $W AND e.person_id = $2 AND e.ended_at IS NULL`, cfg.Timezone, actor.ID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no running clock is an answer, not an error
 	}
@@ -95,7 +95,7 @@ func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, person
 		return invalidField("endedAt", "must be after startedAt")
 	}
 	var tz string
-	if err := q.QueryRow(ctx, `SELECT timezone FROM people WHERE id = $1`, personID).Scan(&tz); err != nil {
+	if err := q.QueryRow(ctx, `SELECT timezone FROM people WHERE id = $1 AND workspace_id = $W`, personID).Scan(&tz); err != nil {
 		return fmt.Errorf("read time zone: %w", err)
 	}
 	loc := cfg.LocationOf(Person{Timezone: tz})
@@ -104,7 +104,7 @@ func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, person
 		last = *end
 	}
 	var locked bool
-	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM timesheets WHERE person_id = $1
+	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM timesheets WHERE person_id = $1 AND workspace_id = $W
 		AND status IN ('submitted', 'approved') AND period_start <= $3 AND period_end >= $2)`,
 		personID, DateOf(start, loc).Time(), DateOf(last, loc).Time()).Scan(&locked); err != nil {
 		return fmt.Errorf("check lock: %w", err)
@@ -128,13 +128,13 @@ func checkProject(ctx context.Context, q querier, cfg Settings, projectID *uuid.
 // ClockIn starts the actor's clock.
 func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID, note string) (Entry, error) {
 	var out Entry
-	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+	err := s.tx(ctx, actor.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
 		var running bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE person_id = $1 AND ended_at IS NULL)`, actor.ID).Scan(&running); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL)`, actor.ID).Scan(&running); err != nil {
 			return fmt.Errorf("check running clock: %w", err)
 		}
 		if running {
@@ -148,11 +148,11 @@ func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID
 			return err
 		}
 		id := newID()
-		if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, person_id, project_id, started_at, note, source, created_by)
-			VALUES ($1, $2, $3, $4, $5, 'clock', $2)`, id, actor.ID, projectID, start, strings.TrimSpace(note)); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, workspace_id, person_id, project_id, started_at, note, source, created_by)
+			VALUES ($1, $W, $2, $3, $4, $5, 'clock', $2)`, id, actor.ID, projectID, start, strings.TrimSpace(note)); err != nil {
 			return fmt.Errorf("clock in: %w", err)
 		}
-		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id))
 		return err
 	})
 	return out, err
@@ -167,14 +167,14 @@ const retagWithin = time.Minute
 // on, from this instant, against the given project and note.
 func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID, note string) (Entry, error) {
 	var out Entry
-	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+	err := s.tx(ctx, actor.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
 		var id uuid.UUID
 		var start time.Time
-		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
+		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrClockNotRunning.New("")
 		}
@@ -187,23 +187,23 @@ func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID,
 		note = strings.TrimSpace(note)
 		now := s.now().Truncate(time.Second)
 		if now.Sub(start) < retagWithin {
-			if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, note = $3, updated_at = now() WHERE id = $1`, id, projectID, note); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, note = $3, updated_at = now() WHERE id = $1 AND workspace_id = $W`, id, projectID, note); err != nil {
 				return fmt.Errorf("retag running clock: %w", err)
 			}
 		} else {
-			if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1`, id, now); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1 AND workspace_id = $W`, id, now); err != nil {
 				return fmt.Errorf("stop running clock: %w", err)
 			}
 			if err := s.checkSpan(ctx, tx, cfg, actor.ID, now, nil); err != nil {
 				return err
 			}
 			id = newID()
-			if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, person_id, project_id, started_at, note, source, created_by)
-				VALUES ($1, $2, $3, $4, $5, 'clock', $2)`, id, actor.ID, projectID, now, note); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, workspace_id, person_id, project_id, started_at, note, source, created_by)
+				VALUES ($1, $W, $2, $3, $4, $5, 'clock', $2)`, id, actor.ID, projectID, now, note); err != nil {
 				return fmt.Errorf("start clock: %w", err)
 			}
 		}
-		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id))
 		return err
 	})
 	return out, err
@@ -212,14 +212,14 @@ func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID,
 // ClockOut stops the actor's clock.
 func (s *Service) ClockOut(ctx context.Context, actor Actor) (Entry, error) {
 	var out Entry
-	err := s.tx(ctx, actor.ID, func(tx pgx.Tx) error {
+	err := s.tx(ctx, actor.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
 		var id uuid.UUID
 		var start time.Time
-		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
+		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrClockNotRunning.New("")
 		}
@@ -231,10 +231,10 @@ func (s *Service) ClockOut(ctx context.Context, actor Actor) (Entry, error) {
 		if !end.After(start) {
 			end = start.Add(time.Second)
 		}
-		if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1`, id, end); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE time_entries SET ended_at = $2, updated_at = now() WHERE id = $1 AND workspace_id = $W`, id, end); err != nil {
 			return fmt.Errorf("clock out: %w", err)
 		}
-		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id))
 		return err
 	})
 	return out, err
@@ -259,7 +259,7 @@ func (s *Service) CreateEntry(ctx context.Context, actor Actor, in EntryInput) (
 		return Entry{}, err
 	}
 	var out Entry
-	err = s.tx(ctx, p.ID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, p.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
@@ -271,12 +271,12 @@ func (s *Service) CreateEntry(ctx context.Context, actor Actor, in EntryInput) (
 			return err
 		}
 		id := newID()
-		if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, person_id, project_id, started_at, ended_at, note, source, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, 'manual', $7)`,
+		if _, err := tx.Exec(ctx, `INSERT INTO time_entries (id, workspace_id, person_id, project_id, started_at, ended_at, note, source, created_by)
+			VALUES ($1, $W, $2, $3, $4, $5, $6, 'manual', $7)`,
 			id, p.ID, in.ProjectID, in.StartedAt, in.EndedAt, strings.TrimSpace(in.Note), actor.ID); err != nil {
 			return fmt.Errorf("create entry: %w", err)
 		}
-		if out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id)); err != nil {
+		if out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id)); err != nil {
 			return err
 		}
 		return audit(ctx, tx, actor, "entry.create", p.ID, out)
@@ -288,7 +288,7 @@ func (s *Service) CreateEntry(ctx context.Context, actor Actor, in EntryInput) (
 // actor who may not change that person's time.
 func (s *Service) entryForWrite(ctx context.Context, actor Actor, id uuid.UUID) (Person, error) {
 	var personID string
-	err := s.pool.QueryRow(ctx, `SELECT person_id FROM time_entries WHERE id = $1`, id).Scan(&personID)
+	err := s.pool.QueryRow(ctx, `SELECT person_id FROM time_entries WHERE id = $1 AND workspace_id = $W`, id).Scan(&personID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Person{}, notFound("entry")
 	}
@@ -310,12 +310,12 @@ func (s *Service) UpdateEntry(ctx context.Context, actor Actor, id uuid.UUID, in
 		return Entry{}, err
 	}
 	var out Entry
-	err = s.tx(ctx, p.ID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, p.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
-		before, err := scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		before, err := scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return notFound("entry")
 		}
@@ -338,10 +338,10 @@ func (s *Service) UpdateEntry(ctx context.Context, actor Actor, id uuid.UUID, in
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, started_at = $3, ended_at = $4, note = $5,
-			updated_at = now() WHERE id = $1`, id, in.ProjectID, in.StartedAt, in.EndedAt, strings.TrimSpace(in.Note)); err != nil {
+			updated_at = now() WHERE id = $1 AND workspace_id = $W`, id, in.ProjectID, in.StartedAt, in.EndedAt, strings.TrimSpace(in.Note)); err != nil {
 			return fmt.Errorf("update entry: %w", err)
 		}
-		if out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id)); err != nil {
+		if out, err = scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id)); err != nil {
 			return err
 		}
 		return audit(ctx, tx, actor, "entry.update", p.ID, map[string]any{"before": before, "after": out})
@@ -355,12 +355,12 @@ func (s *Service) DeleteEntry(ctx context.Context, actor Actor, id uuid.UUID) er
 	if err != nil {
 		return err
 	}
-	return s.tx(ctx, p.ID, func(tx pgx.Tx) error {
+	return s.tx(ctx, p.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
 		}
-		before, err := scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2`, cfg.Timezone, id))
+		before, err := scanEntry(tx.QueryRow(ctx, entrySelect+` WHERE e.id = $2 AND e.workspace_id = $W`, cfg.Timezone, id))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return notFound("entry")
 		}
@@ -370,7 +370,7 @@ func (s *Service) DeleteEntry(ctx context.Context, actor Actor, id uuid.UUID) er
 		if before.Locked {
 			return ErrLocked.New("")
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM time_entries WHERE id = $1`, id); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM time_entries WHERE id = $1 AND workspace_id = $W`, id); err != nil {
 			return fmt.Errorf("delete entry: %w", err)
 		}
 		return audit(ctx, tx, actor, "entry.delete", p.ID, before)

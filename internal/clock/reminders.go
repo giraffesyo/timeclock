@@ -44,8 +44,8 @@ func (s *Service) DueReminders(ctx context.Context) ([]Reminder, error) {
 	var due []Reminder
 
 	rows, err := s.pool.Query(ctx, `SELECT e.person_id, e.id::text, e.started_at FROM time_entries e
-		JOIN people p ON p.id = e.person_id
-		WHERE e.ended_at IS NULL AND p.active AND $1 - e.started_at > $2`,
+		JOIN people p ON p.id = e.person_id AND p.workspace_id = e.workspace_id
+		WHERE e.workspace_id = $W AND e.ended_at IS NULL AND p.active AND $1 - e.started_at > $2`,
 		now, time.Duration(cfg.LongEntryHours*float64(time.Hour)))
 	if err != nil {
 		return nil, fmt.Errorf("find running clocks: %w", err)
@@ -65,10 +65,10 @@ func (s *Service) DueReminders(ctx context.Context) ([]Reminder, error) {
 	last := PeriodBefore(cfg.PayCycle, cfg.CycleAnchor, cfg.PeriodOf(s.Today(cfg)))
 	loc := cfg.Location()
 	rows, err = s.pool.Query(ctx, `SELECT p.id FROM people p
-		WHERE p.active
-		AND NOT EXISTS (SELECT 1 FROM timesheets t WHERE t.person_id = p.id AND t.period_start = $1 AND t.status <> 'rejected')
-		AND (EXISTS (SELECT 1 FROM time_entries e WHERE e.person_id = p.id AND e.started_at >= $3 AND e.started_at < $4)
-			OR EXISTS (SELECT 1 FROM time_off o WHERE o.person_id = p.id AND o.day BETWEEN $1 AND $2))`,
+		WHERE p.workspace_id = $W AND p.active
+		AND NOT EXISTS (SELECT 1 FROM timesheets t WHERE t.workspace_id = $W AND t.person_id = p.id AND t.period_start = $1 AND t.status <> 'rejected')
+		AND (EXISTS (SELECT 1 FROM time_entries e WHERE e.workspace_id = $W AND e.person_id = p.id AND e.started_at >= $3 AND e.started_at < $4)
+			OR EXISTS (SELECT 1 FROM time_off o WHERE o.workspace_id = $W AND o.person_id = p.id AND o.day BETWEEN $1 AND $2))`,
 		last.Start.Time(), last.End.Time(), last.Start.In(loc), last.End.AddDays(1).In(loc))
 	if err != nil {
 		return nil, fmt.Errorf("find due timesheets: %w", err)
@@ -84,7 +84,7 @@ func (s *Service) DueReminders(ctx context.Context) ([]Reminder, error) {
 	// Keep only the ones not sent before, recording them as sent.
 	var out []Reminder
 	for _, r := range due {
-		tag, err := s.pool.Exec(ctx, `INSERT INTO reminders (person_id, kind, key) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+		tag, err := s.pool.Exec(ctx, `INSERT INTO reminders (workspace_id, person_id, kind, key) VALUES ($W, $1, $2, $3) ON CONFLICT DO NOTHING`,
 			r.PersonID, r.Kind, r.Key)
 		if err != nil {
 			return nil, fmt.Errorf("record reminder: %w", err)
@@ -124,9 +124,17 @@ func (r *Reminders) Register(workers *hopper.Workers) hopper.PeriodicJob {
 func (r *Reminders) Bind(svc *Service) { r.svc = svc }
 
 func (r *Reminders) run(ctx context.Context, _ *hopper.Job[remindJob]) error {
-	due, err := r.svc.DueReminders(ctx)
+	workspaces, err := r.svc.Workspaces(ctx)
 	if err != nil {
 		return err
+	}
+	var due []Reminder
+	for _, w := range workspaces {
+		list, err := r.svc.In(w.ID).DueReminders(ctx)
+		if err != nil {
+			return err
+		}
+		due = append(due, list...)
 	}
 	for _, d := range due {
 		n := host.Notification{Kind: d.Kind, Path: "/"}

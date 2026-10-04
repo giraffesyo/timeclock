@@ -32,7 +32,7 @@ func scanCustomer(row pgx.Row) (Customer, error) {
 // Customers lists customers by name, with archived ones when asked.
 func (s *Service) Customers(ctx context.Context, archived bool) ([]Customer, error) {
 	rows, err := s.pool.Query(ctx, `SELECT id, name, archived_at IS NOT NULL FROM customers
-		WHERE $1 OR archived_at IS NULL ORDER BY lower(name)`, archived)
+		WHERE workspace_id = $W AND ($1 OR archived_at IS NULL) ORDER BY lower(name)`, archived)
 	if err != nil {
 		return nil, fmt.Errorf("list customers: %w", err)
 	}
@@ -53,15 +53,15 @@ func (s *Service) SaveCustomer(ctx context.Context, actor Actor, id uuid.UUID, n
 		return Customer{}, requiredField("name")
 	}
 	var out Customer
-	err := s.tx(ctx, "", func(tx pgx.Tx) error {
+	err := s.tx(ctx, "", func(tx querier) error {
 		var err error
 		if id == uuid.Nil {
 			out, err = scanCustomer(tx.QueryRow(ctx,
-				`INSERT INTO customers (id, name) VALUES ($1, $2) RETURNING id, name, archived_at IS NOT NULL`, newID(), name))
+				`INSERT INTO customers (id, workspace_id, name) VALUES ($1, $W, $2) RETURNING id, name, archived_at IS NOT NULL`, newID(), name))
 		} else {
 			out, err = scanCustomer(tx.QueryRow(ctx, `UPDATE customers SET name = $2,
 				archived_at = CASE WHEN $3 THEN coalesce(archived_at, now()) END
-				WHERE id = $1 RETURNING id, name, archived_at IS NOT NULL`, id, name, archived))
+				WHERE id = $1 AND workspace_id = $W RETURNING id, name, archived_at IS NOT NULL`, id, name, archived))
 		}
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -81,8 +81,8 @@ func (s *Service) DeleteCustomer(ctx context.Context, actor Actor, id uuid.UUID)
 	if !actor.Admin {
 		return forbidden("only an admin changes customers")
 	}
-	return s.tx(ctx, "", func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `DELETE FROM customers WHERE id = $1`, id)
+	return s.tx(ctx, "", func(tx querier) error {
+		tag, err := tx.Exec(ctx, `DELETE FROM customers WHERE id = $1 AND workspace_id = $W`, id)
 		switch {
 		case isForeignKeyViolation(err):
 			return ErrInUse.New("the customer has projects")
@@ -116,7 +116,7 @@ func scanProject(row pgx.Row) (Project, error) {
 // with archived ones when asked: its own, and those of archived customers.
 func (s *Service) Projects(ctx context.Context, archived bool) ([]Project, error) {
 	rows, err := s.pool.Query(ctx, projectSelect+`
-		WHERE $1 OR (p.archived_at IS NULL AND c.archived_at IS NULL) ORDER BY lower(coalesce(c.name, '')), lower(p.name)`, archived)
+		WHERE p.workspace_id = $W AND ($1 OR (p.archived_at IS NULL AND c.archived_at IS NULL)) ORDER BY lower(coalesce(c.name, '')), lower(p.name)`, archived)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -146,16 +146,26 @@ func (s *Service) SaveProject(ctx context.Context, actor Actor, id uuid.UUID, in
 		return Project{}, requiredField("name")
 	}
 	var out Project
-	err := s.tx(ctx, "", func(tx pgx.Tx) error {
+	err := s.tx(ctx, "", func(tx querier) error {
 		var err error
+		if in.CustomerID != nil {
+			// The customer is this workspace's, or it is no customer at all.
+			var ok bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM customers WHERE id = $1 AND workspace_id = $W)`, in.CustomerID).Scan(&ok); err != nil {
+				return fmt.Errorf("check customer: %w", err)
+			}
+			if !ok {
+				return invalidField("customerId", "no such customer")
+			}
+		}
 		if id == uuid.Nil {
 			id = newID()
-			_, err = tx.Exec(ctx, `INSERT INTO projects (id, customer_id, name, code, billable) VALUES ($1, $2, $3, $4, $5)`,
+			_, err = tx.Exec(ctx, `INSERT INTO projects (id, workspace_id, customer_id, name, code, billable) VALUES ($1, $W, $2, $3, $4, $5)`,
 				id, in.CustomerID, in.Name, strings.TrimSpace(in.Code), in.Billable)
 		} else {
 			var tag pgconn.CommandTag
 			tag, err = tx.Exec(ctx, `UPDATE projects SET customer_id = $2, name = $3, code = $4, billable = $5,
-				archived_at = CASE WHEN $6 THEN coalesce(archived_at, now()) END WHERE id = $1`,
+				archived_at = CASE WHEN $6 THEN coalesce(archived_at, now()) END WHERE id = $1 AND workspace_id = $W`,
 				id, in.CustomerID, in.Name, strings.TrimSpace(in.Code), in.Billable, in.Archived)
 			if err == nil && tag.RowsAffected() == 0 {
 				return notFound("project")
@@ -169,7 +179,7 @@ func (s *Service) SaveProject(ctx context.Context, actor Actor, id uuid.UUID, in
 		case err != nil:
 			return fmt.Errorf("save project: %w", err)
 		}
-		if out, err = scanProject(tx.QueryRow(ctx, projectSelect+` WHERE p.id = $1`, id)); err != nil {
+		if out, err = scanProject(tx.QueryRow(ctx, projectSelect+` WHERE p.id = $1 AND p.workspace_id = $W`, id)); err != nil {
 			return fmt.Errorf("read project: %w", err)
 		}
 		return audit(ctx, tx, actor, "project.save", "", out)
@@ -182,8 +192,8 @@ func (s *Service) DeleteProject(ctx context.Context, actor Actor, id uuid.UUID) 
 	if !actor.Admin {
 		return forbidden("only an admin changes projects")
 	}
-	return s.tx(ctx, "", func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `DELETE FROM projects WHERE id = $1`, id)
+	return s.tx(ctx, "", func(tx querier) error {
+		tag, err := tx.Exec(ctx, `DELETE FROM projects WHERE id = $1 AND workspace_id = $W`, id)
 		switch {
 		case isForeignKeyViolation(err):
 			return ErrInUse.New("the project has time recorded")
@@ -199,7 +209,7 @@ func (s *Service) DeleteProject(ctx context.Context, actor Actor, id uuid.UUID) 
 // usableProject checks a project can take new time: it exists and neither
 // it nor its customer is archived.
 func usableProject(ctx context.Context, q querier, id uuid.UUID) error {
-	p, err := scanProject(q.QueryRow(ctx, projectSelect+` WHERE p.id = $1`, id))
+	p, err := scanProject(q.QueryRow(ctx, projectSelect+` WHERE p.id = $1 AND p.workspace_id = $W`, id))
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return invalidField("projectId", "no such project")

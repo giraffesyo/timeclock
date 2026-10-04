@@ -15,7 +15,7 @@ const timeOffColumns = `id, person_id, kind, day, hours::float8, note, status, d
 
 // timeOffLocked is whether a time_off row (aliased o) is in a submitted or
 // approved timesheet.
-const timeOffLocked = `EXISTS (SELECT 1 FROM timesheets t WHERE t.person_id = o.person_id
+const timeOffLocked = `EXISTS (SELECT 1 FROM timesheets t WHERE t.workspace_id = o.workspace_id AND t.person_id = o.person_id
 	AND t.status IN ('submitted', 'approved') AND o.day BETWEEN t.period_start AND t.period_end)`
 
 func scanTimeOff(row pgx.Row) (TimeOff, error) {
@@ -64,7 +64,7 @@ func (s *Service) TimeOff(ctx context.Context, actor Actor, personID string, fro
 
 func timeOff(ctx context.Context, q querier, personID string, from, to Date) ([]TimeOff, error) {
 	rows, err := q.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o
-		WHERE o.person_id = $1 AND o.day BETWEEN $2 AND $3 ORDER BY o.day, o.kind`, personID, from.Time(), to.Time())
+		WHERE o.workspace_id = $W AND o.person_id = $1 AND o.day BETWEEN $2 AND $3 ORDER BY o.day, o.kind`, personID, from.Time(), to.Time())
 	if err != nil {
 		return nil, fmt.Errorf("list time off: %w", err)
 	}
@@ -78,8 +78,8 @@ func timeOff(ctx context.Context, q querier, personID string, from, to Date) ([]
 // PendingTimeOff lists the time off waiting for actor's decision: their
 // reports', or everyone's for an admin.
 func (s *Service) PendingTimeOff(ctx context.Context, actor Actor) ([]TimeOff, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o JOIN people p ON p.id = o.person_id
-		WHERE o.status = 'pending'
+	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o JOIN people p ON p.id = o.person_id AND p.workspace_id = o.workspace_id
+		WHERE o.workspace_id = $W AND o.status = 'pending'
 		AND ($1 OR ((CASE WHEN p.manager_id <> '' THEN p.manager_id ELSE p.host_manager_id END) = $2 AND p.id <> $2))
 		ORDER BY o.day, o.person_id`, actor.Admin, actor.ID)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 		return nil, invalidField("to", fmt.Sprintf("at most %d days in one request", maxTimeOffDays))
 	}
 	var out []TimeOff
-	err = s.tx(ctx, p.ID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, p.ID, func(tx querier) error {
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err
@@ -147,8 +147,8 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 			if err := dayLocked(ctx, tx, p.ID, d); err != nil {
 				return err
 			}
-			t, err := scanTimeOff(tx.QueryRow(ctx, `INSERT INTO time_off (id, person_id, kind, day, hours, note, status)
-				VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING `+timeOffColumns,
+			t, err := scanTimeOff(tx.QueryRow(ctx, `INSERT INTO time_off (id, workspace_id, person_id, kind, day, hours, note, status)
+				VALUES ($1, $W, $2, $3, $4, $5, $6, $7) RETURNING `+timeOffColumns,
 				newID(), p.ID, in.Kind, d.Time(), in.Hours, strings.TrimSpace(in.Note), status))
 			if isUniqueViolation(err) {
 				return ErrOverlap.Newf("%s time off is already recorded on %s", in.Kind, d)
@@ -168,7 +168,7 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 
 func dayLocked(ctx context.Context, q querier, personID string, d Date) error {
 	var locked bool
-	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM timesheets WHERE person_id = $1
+	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM timesheets WHERE person_id = $1 AND workspace_id = $W
 		AND status IN ('submitted', 'approved') AND $2 BETWEEN period_start AND period_end)`, personID, d.Time()).Scan(&locked); err != nil {
 		return fmt.Errorf("check lock: %w", err)
 	}
@@ -179,7 +179,7 @@ func dayLocked(ctx context.Context, q querier, personID string, d Date) error {
 }
 
 func timeOffByID(ctx context.Context, q querier, id uuid.UUID) (TimeOff, error) {
-	t, err := scanTimeOff(q.QueryRow(ctx, `SELECT `+timeOffColumns+` FROM time_off WHERE id = $1`, id))
+	t, err := scanTimeOff(q.QueryRow(ctx, `SELECT `+timeOffColumns+` FROM time_off WHERE id = $1 AND workspace_id = $W`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, notFound("time off")
 	}
@@ -198,11 +198,11 @@ func (s *Service) CancelTimeOff(ctx context.Context, actor Actor, id uuid.UUID) 
 	if _, err := s.writable(ctx, s.pool, actor, t.PersonID); err != nil {
 		return notFound("time off")
 	}
-	return s.tx(ctx, t.PersonID, func(tx pgx.Tx) error {
+	return s.tx(ctx, t.PersonID, func(tx querier) error {
 		if err := dayLocked(ctx, tx, t.PersonID, t.Day); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM time_off WHERE id = $1`, id); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM time_off WHERE id = $1 AND workspace_id = $W`, id); err != nil {
 			return fmt.Errorf("cancel time off: %w", err)
 		}
 		return audit(ctx, tx, actor, "time_off.cancel", t.PersonID, t)
@@ -222,9 +222,9 @@ func (s *Service) DecideTimeOff(ctx context.Context, actor Actor, id uuid.UUID, 
 	if approve {
 		status = StatusApproved
 	}
-	err = s.tx(ctx, t.PersonID, func(tx pgx.Tx) error {
+	err = s.tx(ctx, t.PersonID, func(tx querier) error {
 		t, err = scanTimeOff(tx.QueryRow(ctx, `UPDATE time_off SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4
-			WHERE id = $1 AND status = 'pending' RETURNING `+timeOffColumns, id, status, actor.ID, strings.TrimSpace(note)))
+			WHERE id = $1 AND workspace_id = $W AND status = 'pending' RETURNING `+timeOffColumns, id, status, actor.ID, strings.TrimSpace(note)))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotSubmitted.New("")
 		}

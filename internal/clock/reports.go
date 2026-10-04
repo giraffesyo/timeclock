@@ -63,7 +63,7 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 // finished ones, and a clock still running.
 func (s *Service) longEntries(ctx context.Context, personID string, period Period, loc *time.Location, limit time.Duration) ([]Exception, error) {
 	rows, err := s.pool.Query(ctx, `SELECT id, started_at, ended_at FROM time_entries
-		WHERE person_id = $1 AND started_at >= $2 AND started_at < $3
+		WHERE workspace_id = $W AND person_id = $1 AND started_at >= $2 AND started_at < $3
 		AND coalesce(ended_at, $4) - started_at > $5 ORDER BY started_at`,
 		personID, period.Start.In(loc), period.End.AddDays(1).In(loc), s.now(), limit)
 	if err != nil {
@@ -115,8 +115,8 @@ func (s *Service) ProjectReport(ctx context.Context, actor Actor, from, to Date)
 			SELECT t.*, pe.name AS person_name,
 				($1::timestamp AT TIME ZONE coalesce(nullif(pe.timezone, ''), $5)) AS lo,
 				($2::timestamp AT TIME ZONE coalesce(nullif(pe.timezone, ''), $5)) AS hi
-			FROM time_entries t JOIN people pe ON pe.id = t.person_id
-			WHERE t.ended_at IS NOT NULL
+			FROM time_entries t JOIN people pe ON pe.id = t.person_id AND pe.workspace_id = t.workspace_id
+			WHERE t.workspace_id = $W AND t.ended_at IS NOT NULL
 			AND ($3 OR pe.id = $4 OR (CASE WHEN pe.manager_id <> '' THEN pe.manager_id ELSE pe.host_manager_id END) = $4)
 		)
 		SELECT coalesce(c.name, ''), coalesce(p.id::text, ''), coalesce(p.name, ''), coalesce(p.code, ''), coalesce(p.billable, false),
@@ -162,7 +162,7 @@ func (s *Service) Audit(ctx context.Context, actor Actor, personID string, limit
 		return nil, forbidden("only an admin reads the audit log")
 	}
 	rows, err := s.pool.Query(ctx, `SELECT id, at, actor, action, person_id, detail FROM audit_log
-		WHERE $1 = '' OR person_id = $1 ORDER BY at DESC, id DESC LIMIT $2`, personID, limit)
+		WHERE workspace_id = $W AND ($1 = '' OR person_id = $1) ORDER BY at DESC, id DESC LIMIT $2`, personID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("read audit log: %w", err)
 	}
