@@ -18,5 +18,8 @@
   "weak_password": "Use at least 10 characters.",
   "breached_password": "That password has appeared in a data breach, so it’s easy to guess. Choose another.",
   "link_expired": "This link no longer works. Ask for a new one.",
-  "not_a_member": "You’re not in that workspace."
+  "not_a_member": "You’re not in that workspace.",
+  "invalid_code": "That code isn’t right, or was already used.",
+  "passkey_refused": "That passkey wasn’t accepted.",
+  "sso_required": "This needs your workspace’s single sign-on."
 }

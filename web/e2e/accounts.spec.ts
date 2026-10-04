@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { ACCOUNTS_ENV } from '../playwright.config';
 
@@ -33,6 +34,27 @@ async function join(browser: Browser, link: string, name: string): Promise<Page>
   return page;
 }
 
+/** Signs in with an email and password, as far as the password goes. */
+async function signIn(page: Page, email: string, password: string) {
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+}
+
+/** The code an authenticator app shows for a key now (RFC 6238). */
+function authenticatorCode(key: string, at = Date.now()): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of key) bits += alphabet.indexOf(c).toString(2).padStart(5, '0');
+  const secret = Buffer.from(bits.match(/.{8}/g)?.map((b) => Number.parseInt(b, 2)) ?? []);
+  const step = Buffer.alloc(8);
+  step.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)));
+  const mac = createHmac('sha1', secret).update(step).digest();
+  const offset = (mac.at(-1) ?? 0) & 0xf;
+  return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
+}
+
 test('nobody gets in without signing in', async ({ page, request }) => {
   await page.goto('/timesheet');
   await expect(page).toHaveURL(/\/login\?next=/);
@@ -55,13 +77,11 @@ test('an invited admin sets a password, signs out, and signs back in', async ({ 
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
   // The wrong password says so, without saying which part was wrong.
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('not the password');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await signIn(page, email, 'not the password');
   await expect(page.getByRole('alert')).toHaveText('That email and password don’t match.');
 
   await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
 });
 
@@ -143,19 +163,131 @@ test('someone in two workspaces switches between them, and each has its own time
 test('the signed-in person changes their password', async ({ browser }) => {
   const email = address('kit');
   const page = await join(browser, manage('invite', 'default', email), 'Kit');
-  await page.getByRole('button', { name: 'Change your password' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Change your password' });
+  await page.getByRole('link', { name: 'Account and sign-in' }).click();
+  await page.getByRole('button', { name: 'Change password' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Change password' });
   await dialog.getByLabel('Current password').fill(PASSWORD);
   await dialog.getByLabel('New password').fill('a different long passphrase');
   await dialog.getByRole('button', { name: 'Change password' }).click();
   await expect(dialog).toBeHidden();
 
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await signIn(page, email, PASSWORD);
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByLabel('Password').fill('a different long passphrase');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
+});
+
+test('an authenticator app is asked for after the password, and a recovery code stands in for it', async ({
+  browser,
+}) => {
+  const email = address('tova');
+  const page = await join(browser, manage('invite', 'default', email), 'Tova');
+  await page.goto('/account');
+
+  // Setting it up asks for the password, shows a QR code and the key, and turns on with a code.
+  await page.getByRole('button', { name: 'Set up' }).click();
+  const gate = page.getByRole('dialog', { name: 'Set up' });
+  await gate.getByLabel('Your password').fill(PASSWORD);
+  await gate.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
+  const key = (await page.locator('code').innerText()).trim();
+  await page.getByLabel('Code from the app').fill('000000');
+  await page.getByRole('button', { name: 'Turn on' }).click();
+  await expect(page.getByRole('alert')).toHaveText('That code isn’t right, or was already used.');
+  await page.getByLabel('Code from the app').fill(authenticatorCode(key));
+  await page.getByRole('button', { name: 'Turn on' }).click();
+
+  const saved = page.getByRole('dialog', { name: 'Save your recovery codes' });
+  const codes = await saved.getByRole('listitem').allInnerTexts();
+  expect(codes).toHaveLength(10);
+  await saved.getByRole('button', { name: 'I’ve saved them' }).click();
+  await expect(page.getByText('10 recovery codes left.')).toBeVisible();
+
+  // Now the password is only the first step.
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signIn(page, email, PASSWORD);
+  await expect(page.getByRole('heading', { name: 'Enter your code' })).toBeVisible();
+  await page.getByLabel('Code', { exact: true }).fill('123456');
+  await page.getByRole('button', { name: 'Verify' }).click();
+  await expect(page.getByRole('alert')).toHaveText('That code isn’t right, or was already used.');
+  // The next half-minute's code: the one that turned it on is spent.
+  await page.getByLabel('Code', { exact: true }).fill(authenticatorCode(key, Date.now() + 30_000));
+  await page.getByRole('button', { name: 'Verify' }).click();
+  await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
+
+  // Without the phone: a recovery code, once.
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signIn(page, email, PASSWORD);
+  await page.getByRole('button', { name: 'Use a recovery code' }).click();
+  await page.getByLabel('Recovery code').fill(codes[0] ?? '');
+  await page.getByRole('button', { name: 'Verify' }).click();
+  await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
+  await page.goto('/account');
+  await expect(page.getByText('9 recovery codes left.')).toBeVisible();
+
+  // Turning it off needs the password; then the password is enough again.
+  await page.getByRole('button', { name: 'Turn off' }).click();
+  const off = page.getByRole('dialog', { name: 'Turn off' });
+  await off.getByLabel('Your password').fill(PASSWORD);
+  await off.getByRole('button', { name: 'Turn off' }).click();
+  await expect(page.getByRole('button', { name: 'Set up' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await signIn(page, email, PASSWORD);
+  await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
+});
+
+test('a passkey signs in on its own, with no password or code', async ({ browser }) => {
+  const email = address('pia');
+  const page = await join(browser, manage('invite', 'default', email), 'Pia');
+  // A pretend authenticator that keeps passkeys and verifies its user, as a laptop's does.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+
+  await page.goto('/account');
+  await page.getByRole('button', { name: 'Add a passkey' }).click();
+  const gate = page.getByRole('dialog', { name: 'Add a passkey' });
+  await gate.getByLabel('Name').fill('Work laptop');
+  await gate.getByLabel('Your password').fill(PASSWORD);
+  await gate.getByRole('button', { name: 'Continue' }).click();
+  await expect(gate).toBeHidden();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+  await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
+  await expect(page.getByText('Pia', { exact: true })).toBeVisible();
+
+  // Removed, it no longer signs in.
+  await page.goto('/account');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toContainText('Last used');
+  await page.getByRole('button', { name: 'Remove the passkey Work laptop' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+});
+
+test('a workspace admin sees where to set up single sign-on', async ({ browser }) => {
+  const page = await join(browser, manage('invite', 'default', address('ora'), '--admin'), 'Ora');
+  await page.goto('/settings?tab=signin');
+  await expect(page.getByLabel('Redirect URL')).toHaveValue(/\/auth\/callback$/);
+  // An address that is no provider is refused when saving.
+  await page.getByLabel('Issuer').fill('http://127.0.0.1:9');
+  await page.getByLabel('Client ID').fill('timeclock');
+  await page.getByLabel('Client secret').fill('secret');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('alert')).toContainText('Couldn’t save single sign-on.');
 });

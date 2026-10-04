@@ -35,6 +35,22 @@ func (a *Auth) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /auth/invites", a.listInvites)
 	mux.HandleFunc("POST /auth/invites", a.createInvite)
 	mux.HandleFunc("DELETE /auth/invites/{id}", a.revokeInvite)
+	mux.HandleFunc("POST /auth/login/second", a.loginSecond)
+	mux.HandleFunc("GET /auth/security", a.getSecurity)
+	mux.HandleFunc("POST /auth/totp/setup", a.totpSetup)
+	mux.HandleFunc("POST /auth/totp/confirm", a.totpConfirm)
+	mux.HandleFunc("POST /auth/totp/disable", a.totpDisable)
+	mux.HandleFunc("POST /auth/recovery-codes", a.recoveryRenew)
+	mux.HandleFunc("POST /auth/passkeys/register/begin", a.passkeyRegisterBegin)
+	mux.HandleFunc("POST /auth/passkeys/register/finish", a.passkeyRegisterFinish)
+	mux.HandleFunc("DELETE /auth/passkeys/{id}", a.passkeyDelete)
+	mux.HandleFunc("POST /auth/passkeys/login/begin", a.passkeyLoginBegin)
+	mux.HandleFunc("POST /auth/passkeys/login/finish", a.passkeyLoginFinish)
+	mux.HandleFunc("POST /auth/login/start", a.loginStart)
+	mux.HandleFunc("GET /auth/sso", a.getSSO)
+	mux.HandleFunc("PUT /auth/sso", a.putSSO)
+	mux.HandleFunc("DELETE /auth/sso", a.deleteSSO)
+	mux.HandleFunc("GET /auth/sso/login", a.ssoLogin)
 	mux.HandleFunc("GET /auth/oidc/login", a.oidcLogin)
 	mux.HandleFunc("GET /auth/callback", a.oidcCallback)
 }
@@ -49,7 +65,16 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // read decodes a small JSON body, answering a problem and reporting false
 // when it can't.
 func read(w http.ResponseWriter, r *http.Request, into any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+	return readUpTo(w, r, into, 16<<10)
+}
+
+// readLarge is read for a body that carries a passkey's answer.
+func readLarge(w http.ResponseWriter, r *http.Request, into any) bool {
+	return readUpTo(w, r, into, 64<<10)
+}
+
+func readUpTo(w http.ResponseWriter, r *http.Request, into any, limit int64) bool {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	if err := dec.Decode(into); err != nil {
 		problem.Write(w, problem.Status(http.StatusBadRequest, "the request body is not the JSON this expects"))
 		return false
@@ -119,6 +144,35 @@ func (a *Auth) failed(ctx context.Context, keys ...string) {
 	}
 }
 
+// tooMany answers that sign-in is paused, and for how long.
+func (a *Auth) tooMany(w http.ResponseWriter, r *http.Request, wait time.Duration) {
+	w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+	a.fail(w, r, clock.ErrTooManyAttempts.New(""))
+}
+
+// enter signs an account in once its password is accepted: at once, or after
+// a second step if it has an authenticator.
+func (a *Auth) enter(w http.ResponseWriter, r *http.Request, account, workspace uuid.UUID) {
+	f, err := a.factors(r.Context(), account)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	if f.TOTP {
+		if err := a.hold(w, r, account); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"secondStep": true, "passkey": f.Passkeys > 0})
+		return
+	}
+	if err := a.start(w, r, account, workspace, uuid.Nil); err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *Auth) succeeded(ctx context.Context, key string) {
 	_, _ = a.pool.Exec(ctx, `DELETE FROM auth_failures WHERE key = $1`, key)
 }
@@ -130,6 +184,9 @@ type sessionBody struct {
 	Workspaces []Membership `json:"workspaces"`
 	// Workspace is the key of the one the session is looking at.
 	Workspace string `json:"workspace"`
+	// Limited means the session came in through one workspace's provider:
+	// it sees that workspace only, and can't change how the account signs in.
+	Limited bool `json:"limited"`
 }
 
 type methodsBody struct {
@@ -150,7 +207,7 @@ func (a *Auth) getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var out sessionBody
-	out.Workspace = s.workspace
+	out.Workspace, out.Limited = s.workspace, s.sso != uuid.Nil
 	if err := a.pool.QueryRow(r.Context(), `SELECT id, email, name FROM accounts WHERE id = $1`, s.account).
 		Scan(&out.Account.ID, &out.Account.Email, &out.Account.Name); err != nil {
 		a.fail(w, r, fmt.Errorf("read account: %w", err))
@@ -185,8 +242,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if wait > 0 {
-		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
-		a.fail(w, r, clock.ErrTooManyAttempts.New(""))
+		a.tooMany(w, r, wait)
 		return
 	}
 	var id uuid.UUID
@@ -207,11 +263,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.succeeded(ctx, byEmail)
-	if err := a.start(w, r, id, uuid.Nil); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	a.enter(w, r, id, uuid.Nil)
 }
 
 func (a *Auth) logout(w http.ResponseWriter, r *http.Request) {
@@ -234,14 +286,26 @@ func (a *Auth) switchWorkspace(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, errSignedOut)
 		return
 	}
-	tag, err := a.pool.Exec(r.Context(), `UPDATE sessions SET workspace_id = w.id FROM workspaces w, memberships m
-		WHERE sessions.token_hash = $1 AND w.key = $2 AND m.workspace_id = w.id AND m.account_id = sessions.account_id`, s.hash, in.Workspace)
+	var target uuid.UUID
+	var required bool
+	err := a.pool.QueryRow(r.Context(), `SELECT w.id, EXISTS (SELECT 1 FROM workspace_sso o WHERE o.workspace_id = w.id AND o.required)
+		FROM workspaces w JOIN memberships m ON m.workspace_id = w.id WHERE w.key = $1 AND m.account_id = $2`, in.Workspace, s.account).Scan(&target, &required)
+	if errors.Is(err, pgx.ErrNoRows) {
+		a.fail(w, r, clock.ErrNotAMember.New("").AsDenial())
+		return
+	}
 	if err != nil {
 		a.fail(w, r, fmt.Errorf("switch workspace: %w", err))
 		return
 	}
-	if tag.RowsAffected() == 0 {
-		a.fail(w, r, clock.ErrNotAMember.New("").AsDenial())
+	// A session from one workspace's provider stays there, and a workspace
+	// that requires its provider is entered only through it.
+	if (s.sso != uuid.Nil || required) && s.sso != target {
+		a.fail(w, r, clock.ErrSSORequired.New("").AsDenial())
+		return
+	}
+	if _, err := a.pool.Exec(r.Context(), `UPDATE sessions SET workspace_id = $2 WHERE token_hash = $1`, s.hash, target); err != nil {
+		a.fail(w, r, fmt.Errorf("switch workspace: %w", err))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -359,11 +423,7 @@ func (a *Auth) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.start(w, r, id, i.workspace); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	a.enter(w, r, id, i.workspace)
 }
 
 // admin returns the request's session if its account runs the workspace it
@@ -550,11 +610,8 @@ func (a *Auth) resetPassword(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.start(w, r, id, uuid.Nil); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	// A new password doesn't stand in for the second step.
+	a.enter(w, r, id, uuid.Nil)
 }
 
 // changePassword sets a new password for the signed-in account, which proves
@@ -571,6 +628,10 @@ func (a *Auth) changePassword(w http.ResponseWriter, r *http.Request) {
 	s, ok := a.session(r)
 	if !ok {
 		a.fail(w, r, errSignedOut)
+		return
+	}
+	if s.sso != uuid.Nil {
+		a.fail(w, r, clock.ErrSSORequired.New("sign in with your password to change it").AsDenial())
 		return
 	}
 	var current string
@@ -607,23 +668,11 @@ func (a *Auth) changePassword(w http.ResponseWriter, r *http.Request) {
 // --- Sign-in with a provider ---
 
 func (a *Auth) oidcLogin(w http.ResponseWriter, r *http.Request) {
-	next := safeNext(r.URL.Query().Get("next"))
 	if a.oauth == nil {
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
-	ctx := r.Context()
-	state, verifier, nonce := newState(), oauth2.GenerateVerifier(), newState()
-	if _, err := a.pool.Exec(ctx, `DELETE FROM login_attempts WHERE created_at < $1`, a.now().Add(-attemptTTL)); err != nil {
-		a.failPage(w, r, "clear old sign-ins", err)
-		return
-	}
-	if _, err := a.pool.Exec(ctx, `INSERT INTO login_attempts (state, code_verifier, nonce, next) VALUES ($1, $2, $3, $4)`,
-		state, verifier, nonce, next); err != nil {
-		a.failPage(w, r, "record sign-in", err)
-		return
-	}
-	http.Redirect(w, r, a.oauth.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)), http.StatusFound)
+	a.redirectToProvider(w, r, a.oauth, nil)
 }
 
 func newState() string {
@@ -632,19 +681,40 @@ func newState() string {
 }
 
 func (a *Auth) oidcCallback(w http.ResponseWriter, r *http.Request) {
-	if a.oauth == nil {
-		http.NotFound(w, r)
-		return
-	}
 	ctx := r.Context()
 	var verifier, nonce, next string
-	err := a.pool.QueryRow(ctx, `DELETE FROM login_attempts WHERE state = $1 AND created_at > $2 RETURNING code_verifier, nonce, next`,
-		r.URL.Query().Get("state"), a.now().Add(-attemptTTL)).Scan(&verifier, &nonce, &next)
+	var workspace *uuid.UUID
+	err := a.pool.QueryRow(ctx, `DELETE FROM login_attempts WHERE state = $1 AND created_at > $2 RETURNING code_verifier, nonce, next, workspace_id`,
+		r.URL.Query().Get("state"), a.now().Add(-attemptTTL)).Scan(&verifier, &nonce, &next, &workspace)
 	if err != nil {
 		a.failPage(w, r, "unknown or expired sign-in", err)
 		return
 	}
-	token, err := a.oauth.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(verifier))
+	// The sign-in went out to the server's provider, or to one workspace's.
+	oauth, verify := a.oauth, a.verifier
+	var sso ssoConfig
+	if workspace != nil {
+		var key string
+		if err := a.pool.QueryRow(ctx, `SELECT key FROM workspaces WHERE id = $1`, *workspace).Scan(&key); err != nil {
+			a.failPage(w, r, "find workspace", err)
+			return
+		}
+		if sso, err = a.ssoOf(ctx, key); err != nil {
+			a.failPage(w, r, "the workspace has no provider", err)
+			return
+		}
+		p, err := a.provider(ctx, sso.issuer)
+		if err != nil {
+			a.failPage(w, r, "discover provider", err)
+			return
+		}
+		oauth, verify = a.oauthFor(p, sso), p.Verifier(&oidc.Config{ClientID: sso.clientID})
+	}
+	if oauth == nil {
+		http.NotFound(w, r)
+		return
+	}
+	token, err := oauth.Exchange(ctx, r.URL.Query().Get("code"), oauth2.VerifierOption(verifier))
 	if err != nil {
 		a.failPage(w, r, "exchange code", err)
 		return
@@ -654,7 +724,7 @@ func (a *Auth) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		a.failPage(w, r, "no id_token in the provider's response", nil)
 		return
 	}
-	idToken, err := a.verifier.Verify(ctx, raw)
+	idToken, err := verify.Verify(ctx, raw)
 	if err != nil || idToken.Nonce != nonce {
 		a.failPage(w, r, "verify id_token", err)
 		return
@@ -669,6 +739,19 @@ func (a *Auth) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	email := strings.ToLower(claims.Email)
+	if workspace != nil {
+		id, err := a.enterBySSO(ctx, sso, idToken.Issuer, idToken.Subject, email, claims.Name)
+		if err != nil {
+			a.failPage(w, r, "not in the workspace", err)
+			return
+		}
+		if err := a.start(w, r, id, sso.workspace, sso.workspace); err != nil {
+			a.failPage(w, r, "start session", err)
+			return
+		}
+		http.Redirect(w, r, next, http.StatusFound)
+		return
+	}
 	if d := a.cfg.AllowedDomain; d != "" && !strings.HasSuffix(email, "@"+strings.ToLower(d)) {
 		a.failPage(w, r, "email outside the allowed domain", nil)
 		return
@@ -694,7 +777,7 @@ func (a *Auth) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		a.failPage(w, r, "save account", err)
 		return
 	}
-	if err := a.start(w, r, id, uuid.Nil); err != nil {
+	if err := a.start(w, r, id, uuid.Nil, uuid.Nil); err != nil {
 		a.failPage(w, r, "start session", err)
 		return
 	}

@@ -131,6 +131,24 @@ var (
 		Title:  "Link no longer works",
 		Doc:    "An invitation or password-reset link was already used, was withdrawn, or is too old.",
 	})
+	ErrInvalidCode = Problems.Define(problem.Type{
+		Code:   "invalid_code",
+		Status: http.StatusUnauthorized,
+		Title:  "Wrong code",
+		Doc:    "The authenticator or recovery code isn't right, or was already used.",
+	})
+	ErrPasskeyRefused = Problems.Define(problem.Type{
+		Code:   "passkey_refused",
+		Status: http.StatusUnauthorized,
+		Title:  "Passkey not accepted",
+		Doc:    "The passkey isn't one this server knows, or its answer didn't verify.",
+	})
+	ErrSSORequired = Problems.Define(problem.Type{
+		Code:   "sso_required",
+		Status: http.StatusForbidden,
+		Title:  "Single sign-on required",
+		Doc:    "The workspace can only be entered by signing in through its identity provider.",
+	})
 	ErrNotAMember = Problems.Define(problem.Type{
 		Code:   "not_a_member",
 		Status: http.StatusForbidden,

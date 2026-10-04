@@ -27,6 +27,7 @@ export const ACCOUNTS_ENV = {
   TIMECLOCK_PUBLIC_URL: ACCOUNTS_URL,
   // The breach list is a network call; the Go tests cover it.
   TIMECLOCK_BREACH_CHECK: 'off',
+  TIMECLOCK_SECRET_KEY: 'a key only the end-to-end tests use, long enough',
 };
 
 export default defineConfig({

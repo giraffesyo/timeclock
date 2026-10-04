@@ -1,10 +1,9 @@
-import { ConfirmModal } from '@parallelworks/ui';
+import { TOOLTIP_ID } from '@parallelworks/ui';
 import { CheckIcon } from '@parallelworks/ui/icons';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
-import { authInput } from '@/components/auth-page';
-import { Field } from '@/components/field';
 import { BrandIcon, KeyIcon } from '@/components/nav-icons';
 import { ErrorNote } from '@/components/page';
 import { accounts } from '@/lib/accounts';
@@ -56,6 +55,11 @@ export function WorkspaceSwitcher() {
     return <span className="flex h-9 min-w-0 items-center gap-2 px-2 text-sm font-semibold">{label}</span>;
   }
   const go = async (key: string) => {
+    // A workspace with its own single sign-on is entered through it.
+    if (workspaces.find((w) => w.key === key)?.ssoRequired) {
+      window.location.assign(accounts.workspaceSSOUrl(key, `${basePath}/`));
+      return;
+    }
     try {
       await accounts.switchWorkspace(key);
       // Everything on the page was the other workspace's.
@@ -100,66 +104,20 @@ export function WorkspaceSwitcher() {
   );
 }
 
-/** Changes the signed-in account's password, from the foot of the sidebar. */
-export function PasswordButton({ className }: { className?: string }) {
-  const t = useTranslations('shell.password');
-  const account = useAccount();
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [error, setError] = useState<unknown>(null);
-  if (!account.data) return null;
-  const close = () => {
-    setOpen(false);
-    setCurrent('');
-    setNext('');
-    setError(null);
-  };
+/** The way to the account's own page, on a server that has its own accounts. */
+export function AccountLink({ className }: { className?: string }) {
+  const t = useTranslations('shell');
+  const { info } = useSession();
+  if (!info.accountsUrl) return null;
   return (
-    <>
-      <button type="button" className={className} aria-label={t('open')} onClick={() => setOpen(true)}>
-        <KeyIcon />
-      </button>
-      <ConfirmModal
-        open={open}
-        onClose={close}
-        title={t('title')}
-        description={t('description')}
-        confirmLabel={t('save')}
-        confirmDisabled={!current || next.length < 10}
-        closeOnConfirm={false}
-        onConfirm={async () => {
-          try {
-            await accounts.changePassword(current, next);
-            close();
-          } catch (err) {
-            setError(err);
-          }
-        }}
-      >
-        <div className="space-y-3">
-          <input type="email" autoComplete="username" value={account.data.account.email} readOnly hidden />
-          <Field label={t('current')}>
-            <input
-              className={authInput}
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-            />
-          </Field>
-          <Field label={t('next')} hint={t('rule')}>
-            <input
-              className={authInput}
-              type="password"
-              autoComplete="new-password"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-            />
-          </Field>
-          {error !== null && <ErrorNote error={error} />}
-        </div>
-      </ConfirmModal>
-    </>
+    <Link
+      to="/account"
+      className={className}
+      aria-label={t('account')}
+      data-tooltip-id={TOOLTIP_ID}
+      data-tooltip-content={t('account')}
+    >
+      <KeyIcon />
+    </Link>
   );
 }

@@ -78,6 +78,7 @@ import '@giraffesyo/timeclock/styles.css';
 TIMECLOCK_DATABASE_URL=postgres://... \
 TIMECLOCK_PUBLIC_URL=https://time.example.com \
 TIMECLOCK_ADMIN_EMAILS=payroll@example.com \
+TIMECLOCK_SECRET_KEY=<32+ random characters, kept out of the database's backups> \
 TIMECLOCK_SMTP_HOST=smtp.example.com TIMECLOCK_SMTP_FROM='Timeclock <time@example.com>' \
 TIMECLOCK_SMTP_USERNAME=... TIMECLOCK_SMTP_PASSWORD=... \
 timeclock-server
@@ -87,8 +88,10 @@ timeclock-server
 - **Workspaces.** `timeclock-server workspace KEY "Name" --admin EMAIL` makes another organization on the same server and invites its first admin. Someone in more than one switches between them from the top of the sidebar.
 - **Passwords.** At least 10 characters, with no rules about what they contain; ones known from a data breach are refused (the check sends five characters of a hash, never the password; `TIMECLOCK_BREACH_CHECK=off` turns it off). They are stored as Argon2id hashes. Repeated wrong guesses pause sign-in for the account and for the address they come from.
 - **Sessions.** A random token in an `HttpOnly`, `SameSite=Lax` cookie, kept only as a hash. Signing out, resetting or changing a password ends sessions at the server.
+- **A second step.** Anyone can add an authenticator app to their account (with recovery codes for when the phone is gone); sign-in then asks for its code after the password, and a reset link doesn't get around it. A passkey signs in on its own, with a fingerprint, face or device PIN. Both are set up under Account.
 - **Email.** Invitations and password resets go by SMTP. Without a mail server, they are written to the log, and an invitation's link is shown to the admin who made it.
-- **Single sign-on.** `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add an OpenID Connect provider beside passwords, for the whole server; its redirect URL is `<public URL>/auth/callback`.
+- **Single sign-on.** A workspace's admins can give it its own OpenID Connect provider in Settings → Sign-in, require it, and let anyone it signs in join. What a workspace's provider says counts in that workspace only: a session that came in through it sees that workspace and can't change how the account signs in. `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add a provider for the whole server instead. Either way the redirect URL is `<public URL>/auth/callback`.
+- **The secret key.** `TIMECLOCK_SECRET_KEY` seals authenticator secrets and providers' client secrets in the database (AES-256-GCM). Losing it means setting those up again; it isn't needed to read time or sign in with a password.
 
 See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
 

@@ -7,7 +7,8 @@
     "projects": "Customers and projects",
     "people": "People",
     "history": "History",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "signin": "Sign-in"
   },
   "payroll": {
     "periods": {
@@ -257,5 +258,27 @@
     "expires": "until {date}",
     "withdraw": "Withdraw",
     "withdrawFor": "Withdraw the invitation to {email}"
+  },
+  "sso": {
+    "hosted": "Sign-in is handled by the application Timeclock runs in.",
+    "loadFailed": "Couldn’t load the sign-in settings.",
+    "intro": "Let this workspace’s people sign in through your own identity provider. What the provider says counts in this workspace only.",
+    "provider": "OpenID Connect provider",
+    "issuer": "Issuer",
+    "issuerHint": "The provider’s address. It is checked when you save.",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret",
+    "secretKept": "Leave empty to keep the one saved.",
+    "redirect": "Redirect URL",
+    "redirectHint": "Give this to the provider as the allowed redirect.",
+    "required": "Require single sign-on",
+    "requiredHint": "A password no longer gets into this workspace.",
+    "autoJoin": "Let anyone the provider signs in join",
+    "autoJoinHint": "Otherwise only people already here or invited.",
+    "saved": "Single sign-on is saved.",
+    "saveFailed": "Couldn’t save single sign-on.",
+    "remove": "Remove single sign-on",
+    "removed": "Single sign-on is removed.",
+    "removeFailed": "Couldn’t remove single sign-on."
   }
 }

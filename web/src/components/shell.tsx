@@ -20,7 +20,7 @@ import {
   TimerIcon,
   TimesheetIcon,
 } from '@/components/nav-icons';
-import { PasswordButton, WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { AccountLink, WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { ZoneButton } from '@/components/zone';
 import { useSession } from '@/lib/session';
 import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
@@ -142,7 +142,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="flex h-8 items-center gap-2 pr-1 pl-2">
             <span className="min-w-0 flex-1 truncate text-sm">{me.person.name}</span>
             <ZoneButton className="shell-zone tabular" />
-            <PasswordButton className="shell-icon-button" />
+            <AccountLink className="shell-icon-button" />
             {info.signOutUrl && (
               <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
                 <SignOutIcon />
