@@ -797,6 +797,7 @@ export interface components {
              * @example https://example.com/api/schemas/Info.json
              */
             readonly $schema?: string;
+            accountsUrl?: string;
             homeLabel?: string;
             homeUrl?: string;
             signInUrl?: string;

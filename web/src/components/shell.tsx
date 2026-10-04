@@ -20,6 +20,7 @@ import {
   TimerIcon,
   TimesheetIcon,
 } from '@/components/nav-icons';
+import { PasswordButton, WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { ZoneButton } from '@/components/zone';
 import { useSession } from '@/lib/session';
 import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
@@ -122,10 +123,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <aside className="shell-side">
-        <Link to="/" className="flex h-9 items-center gap-2 px-2 text-sm font-semibold">
-          <BrandIcon className="text-primary" />
-          {t('name')}
-        </Link>
+        <WorkspaceSwitcher />
         <nav aria-label={t('nav.label')} className="mt-3 flex flex-1 flex-col gap-4 overflow-y-auto">
           {groups.map((g) => (
             <div key={g.label}>
@@ -144,6 +142,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="flex h-8 items-center gap-2 pr-1 pl-2">
             <span className="min-w-0 flex-1 truncate text-sm">{me.person.name}</span>
             <ZoneButton className="shell-zone tabular" />
+            <PasswordButton className="shell-icon-button" />
             {info.signOutUrl && (
               <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
                 <SignOutIcon />

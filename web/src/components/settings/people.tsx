@@ -5,6 +5,7 @@ import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
+import { Invites } from '@/components/settings/invites';
 import { Switch } from '@/components/settings/switch';
 import { type Person, type PersonUpdate, usePeople, useSyncPeople, useUpdatePerson } from '@/lib/queries';
 import { timeZones } from '@/lib/zone';
@@ -191,6 +192,7 @@ export function People() {
 
   return (
     <>
+      <Invites />
       <Panel
         flush
         title={t('title')}

@@ -99,6 +99,46 @@ var (
 	})
 )
 
+// What a standalone server's sign-in refuses.
+var (
+	ErrInvalidCredentials = Problems.Define(problem.Type{
+		Code:   "invalid_credentials",
+		Status: http.StatusUnauthorized,
+		Title:  "Wrong email or password",
+		Doc:    "The email and password don't match an account. The answer is the same whether or not the email is known.",
+	})
+	ErrTooManyAttempts = Problems.Define(problem.Type{
+		Code:   "too_many_attempts",
+		Status: http.StatusTooManyRequests,
+		Title:  "Too many attempts",
+		Doc:    "Sign-in for this account or from this address is paused after repeated failures. Retry-After says for how long.",
+	})
+	ErrWeakPassword = Problems.Define(problem.Type{
+		Code:   "weak_password",
+		Status: http.StatusUnprocessableEntity,
+		Title:  "Password too short",
+		Doc:    "A password is at least 10 characters and at most 128. There are no other rules about what it contains.",
+	})
+	ErrBreachedPassword = Problems.Define(problem.Type{
+		Code:   "breached_password",
+		Status: http.StatusUnprocessableEntity,
+		Title:  "Password is known from a breach",
+		Doc:    "The password appears in a public list of passwords from data breaches, so it is easy to guess.",
+	})
+	ErrLinkExpired = Problems.Define(problem.Type{
+		Code:   "link_expired",
+		Status: http.StatusGone,
+		Title:  "Link no longer works",
+		Doc:    "An invitation or password-reset link was already used, was withdrawn, or is too old.",
+	})
+	ErrNotAMember = Problems.Define(problem.Type{
+		Code:   "not_a_member",
+		Status: http.StatusForbidden,
+		Title:  "Not in this workspace",
+		Doc:    "The account doesn't belong to the workspace it asked for.",
+	})
+)
+
 func notFound(what string) *problem.Problem {
 	return problem.Status(http.StatusNotFound, what+" not found")
 }

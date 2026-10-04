@@ -10,8 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ForgotRouteImport } from './routes/forgot'
+import { Route as InviteRouteImport } from './routes/invite'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TimeOffRouteImport } from './routes/time-off'
@@ -22,6 +26,21 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotRoute = ForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OverviewRoute = OverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
@@ -30,6 +49,11 @@ const OverviewRoute = OverviewRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetRoute = ResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -55,8 +79,12 @@ const TimesheetRoute = TimesheetRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
+  '/invite': typeof InviteRoute
+  '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/time-off': typeof TimeOffRoute
@@ -64,8 +92,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
+  '/invite': typeof InviteRoute
+  '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/time-off': typeof TimeOffRoute
@@ -74,8 +106,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/forgot': typeof ForgotRoute
+  '/invite': typeof InviteRoute
+  '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
   '/reports': typeof ReportsRoute
+  '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/time-off': typeof TimeOffRoute
@@ -85,8 +121,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot'
+    | '/invite'
+    | '/login'
     | '/overview'
     | '/reports'
+    | '/reset'
     | '/settings'
     | '/team'
     | '/time-off'
@@ -94,8 +134,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot'
+    | '/invite'
+    | '/login'
     | '/overview'
     | '/reports'
+    | '/reset'
     | '/settings'
     | '/team'
     | '/time-off'
@@ -103,8 +147,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/forgot'
+    | '/invite'
+    | '/login'
     | '/overview'
     | '/reports'
+    | '/reset'
     | '/settings'
     | '/team'
     | '/time-off'
@@ -113,8 +161,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ForgotRoute: typeof ForgotRoute
+  InviteRoute: typeof InviteRoute
+  LoginRoute: typeof LoginRoute
   OverviewRoute: typeof OverviewRoute
   ReportsRoute: typeof ReportsRoute
+  ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
   TimeOffRoute: typeof TimeOffRoute
@@ -130,6 +182,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot': {
+      id: '/forgot'
+      path: '/forgot'
+      fullPath: '/forgot'
+      preLoaderRoute: typeof ForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/overview': {
       id: '/overview'
       path: '/overview'
@@ -142,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset': {
+      id: '/reset'
+      path: '/reset'
+      fullPath: '/reset'
+      preLoaderRoute: typeof ResetRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -177,8 +257,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ForgotRoute: ForgotRoute,
+  InviteRoute: InviteRoute,
+  LoginRoute: LoginRoute,
   OverviewRoute: OverviewRoute,
   ReportsRoute: ReportsRoute,
+  ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,
   TimeOffRoute: TimeOffRoute,

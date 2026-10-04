@@ -76,3 +76,31 @@ type Theme struct {
 	Light *Scheme `json:"light,omitempty"`
 	Dark  *Scheme `json:"dark,omitempty"`
 }
+
+type workspaceKey struct{}
+
+// WithWorkspace returns ctx carrying the key of the workspace a request is
+// in. Timeclock sets it before asking the Directory anything.
+func WithWorkspace(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, workspaceKey{}, key)
+}
+
+// Workspace is the key of the workspace a request is in, for a Directory
+// whose answers depend on it, such as who is an admin where.
+func Workspace(ctx context.Context) string {
+	key, _ := ctx.Value(workspaceKey{}).(string)
+	return key
+}
+
+// Message is an email for one person.
+type Message struct {
+	To      string
+	Subject string
+	// Text is the body, in plain text.
+	Text string
+}
+
+// Mailer sends email: SMTP on a standalone server, or whatever the host has.
+type Mailer interface {
+	Send(ctx context.Context, m Message) error
+}

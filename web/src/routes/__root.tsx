@@ -1,6 +1,8 @@
-import { createRootRoute, Link, Outlet } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
+import { createRootRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslations } from 'use-intl';
+import { api, unwrap } from '@/api/client';
 import { Button } from '@/components/button';
 import { ErrorNote, Loading } from '@/components/page';
 import { Shell } from '@/components/shell';
@@ -15,13 +17,30 @@ export const Route = createRootRoute({
   notFoundComponent: NotFound,
 });
 
+// Pages for someone who isn't signed in yet: they render without a session.
+const PUBLIC = ['/login', '/invite', '/forgot', '/reset'];
+
 function Root() {
+  const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <AppUIProvider>
-      <Session />
+      {PUBLIC.includes(path.replace(/\/$/, '')) ? <Public /> : <Session />}
       <Toaster />
     </AppUIProvider>
   );
+}
+
+/** A page outside the app, wearing the workspace's or host's look all the same. */
+function Public() {
+  const info = useQuery({
+    queryKey: ['info'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/info')),
+  });
+  const theme = info.data?.theme;
+  useEffect(() => {
+    if (info.data) setTheme(theme);
+  }, [info.data, theme]);
+  return <Outlet />;
 }
 
 /** Loads who is calling before any page renders, so pages can assume it. */

@@ -78,6 +78,10 @@ type Options struct {
 	// Timeclock's web app POSTs to it and then loads HomeURL. Without it,
 	// Timeclock offers no sign-out.
 	SignOutURL string
+	// AccountsURL is where a standalone server manages its own accounts
+	// (workspaces to switch between, invitations, passwords). A host that
+	// has its own users leaves it empty.
+	AccountsURL string
 	// ThemeStorageKey is the localStorage key where the host keeps the
 	// person's light, dark or system choice, so Timeclock matches it.
 	// Without it, Timeclock follows the system.
@@ -164,7 +168,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 
 	deps := api.Deps{Clock: svc, Directory: opts.Directory, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
-		ThemeStorageKey: opts.ThemeStorageKey,
+		ThemeStorageKey: opts.ThemeStorageKey, AccountsURL: opts.AccountsURL,
 	}, HostTheme: opts.Theme}
 	h := server.New(server.Options{
 		Logger: logger,
@@ -209,15 +213,15 @@ func (t *Timeclock) Close() { t.pool.Close() }
 
 // authenticate attaches the host's caller, and the workspace they are in, to
 // each request.
-func authenticate(callerOf func(*http.Request) (string, bool), workspaceOf func(*http.Request) (uuid.UUID, error)) func(http.Handler) http.Handler {
+func authenticate(callerOf func(*http.Request) (string, bool), workspaceOf func(*http.Request) (uuid.UUID, string, error)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ws, err := workspaceOf(r)
+			ws, key, err := workspaceOf(r)
 			if err != nil {
 				problem.Write(w, problem.Status(http.StatusServiceUnavailable, "the workspace is unavailable").WithCause(err))
 				return
 			}
-			ctx := api.WithWorkspace(r.Context(), ws)
+			ctx := host.WithWorkspace(api.WithWorkspace(r.Context(), ws), key)
 			if id, ok := callerOf(r); ok {
 				ctx = api.WithCaller(ctx, id)
 			}
@@ -234,7 +238,7 @@ type workspaces struct {
 	seen sync.Map // key → uuid.UUID
 }
 
-func (w *workspaces) of(r *http.Request) (uuid.UUID, error) {
+func (w *workspaces) of(r *http.Request) (uuid.UUID, string, error) {
 	key := clock.DefaultWorkspace
 	if w.key != nil {
 		if k, ok := w.key(r); ok && k != "" {
@@ -242,14 +246,14 @@ func (w *workspaces) of(r *http.Request) (uuid.UUID, error) {
 		}
 	}
 	if id, ok := w.seen.Load(key); ok {
-		return id.(uuid.UUID), nil
+		return id.(uuid.UUID), key, nil
 	}
 	ws, err := w.svc.EnsureWorkspace(r.Context(), key)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, key, err
 	}
 	w.seen.Store(key, ws.ID)
-	return ws.ID, nil
+	return ws.ID, key, nil
 }
 
 // OpenAPI returns the API's OpenAPI document without connecting to

@@ -96,3 +96,9 @@ export const SystemIcon = (p: Props) => (
     <path d="M6 13.500h4M8 11v2.500" />
   </Icon>
 );
+export const KeyIcon = (p: Props) => (
+  <Icon {...p}>
+    <circle cx="5.500" cy="10.500" r="3" />
+    <path d="M7.700 8.300 13.500 2.500M11 5l2 2M9.500 6.500l1.500 1.500" />
+  </Icon>
+);

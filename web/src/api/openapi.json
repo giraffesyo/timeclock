@@ -494,6 +494,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "accountsUrl": {
+            "type": "string"
+          },
           "homeLabel": {
             "type": "string"
           },
