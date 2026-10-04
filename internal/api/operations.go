@@ -43,10 +43,14 @@ func registerMe(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
+			info, err := d.info(ctx)
+			if err != nil {
+				return nil, err
+			}
 			today := d.Clock.TodayFor(cfg, actor.Person)
 			out := meBody{
 				Person: actor.Person, Admin: actor.Admin, Settings: cfg, Today: today,
-				Period: cfg.PeriodOf(today), Running: running, Info: d.Info,
+				Period: cfg.PeriodOf(today), Running: running, Info: info,
 			}
 			for _, p := range people {
 				if p.ManagerID == actor.ID && p.ID != actor.ID {
@@ -61,6 +65,22 @@ func registerMe(a huma.API, d Deps) {
 // --- Settings ---
 
 func registerSettings(a huma.API, d Deps) {
+	huma.Register(a, op(http.MethodPut, "/theme", "set-theme", "Set the workspace's look; an empty theme goes back to the host's or Timeclock's own", "Settings"),
+		func(ctx context.Context, in *struct{ Body clock.Theme }) (*struct{ Body Info }, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := d.Clock.SetTheme(ctx, actor, in.Body); err != nil {
+				return nil, err
+			}
+			info, err := d.info(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body Info }{info}, nil
+		})
+
 	huma.Register(a, op(http.MethodPut, "/settings", "update-settings", "Change how payroll runs", "Settings"),
 		func(ctx context.Context, in *struct{ Body clock.Settings }) (*struct{ Body clock.Settings }, error) {
 			actor, err := d.actor(ctx)

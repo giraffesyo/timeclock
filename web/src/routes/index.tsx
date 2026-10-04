@@ -158,7 +158,7 @@ function TimerPage() {
         <ErrorNote className="m-3" context={t('period.loadFailed')} error={sheet.error} />
       ) : (
         sheet.data && (
-          <div className="bottom-0 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-card px-4 py-2 text-sm md:sticky">
+          <div className="bottom-0 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-background px-4 py-2 text-sm md:sticky">
             <span className="font-medium">{t('period.title')}</span>
             <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
             <span className="flex items-baseline gap-1.5">

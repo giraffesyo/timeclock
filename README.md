@@ -22,6 +22,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Exceptions.** What payroll should look at before paying: a clock left running, a very long entry, a timesheet not submitted or not approved, pending time off, overtime, a period with nothing recorded.
 - **Reports.** Hours per person per pay period, exported as a CSV for Gusto's hours import, and hours by customer, project and person.
 - **Audit log.** Every change to payroll data, with who made it.
+- **Themes.** A look is a few values: for light and for dark, an accent, a background and a contrast, and optionally the same for the sidebar; every other color follows from them. A workspace admin sets the workspace's in Settings, with the page wearing the draft as it changes; a host application can hand Timeclock its own; and each person chooses light, dark or the system's.
 - **Reminders.** With a host notifier, people are told once about a clock left running and a timesheet that is due.
 
 ## Embedding
@@ -40,6 +41,7 @@ tc, err := timeclock.New(ctx, timeclock.Options{
 	SignInURL:       "/login?next=",
 	SignOutURL:      "/api/auth/logout",
 	ThemeStorageKey: "portal-theme", // optional: follow the host's light/dark choice
+	Theme:           theme,          // optional: a host.Theme, so Timeclock matches the host's colors
 })
 if err != nil {
 	return err

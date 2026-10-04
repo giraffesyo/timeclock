@@ -34,6 +34,11 @@ type Info struct {
 	// ThemeStorageKey is the localStorage key holding the host's light,
 	// dark or system choice, so Timeclock matches it.
 	ThemeStorageKey string `json:"themeStorageKey,omitempty"`
+	// Theme is the look to use: the workspace's where an admin set one, the
+	// host's otherwise. A missing scheme is Timeclock's own.
+	Theme host.Theme `json:"theme"`
+	// WorkspaceTheme is what an admin set, for the settings page to edit.
+	WorkspaceTheme host.Theme `json:"workspaceTheme"`
 }
 
 // Deps are what the operations need.
@@ -41,6 +46,8 @@ type Deps struct {
 	Clock     *clock.Service
 	Directory host.Directory
 	Info      Info
+	// HostTheme is the host application's look, which a workspace's own overrides.
+	HostTheme host.Theme
 }
 
 type callerKey struct{}
@@ -66,6 +73,25 @@ func (d Deps) actor(ctx context.Context) (clock.Actor, error) {
 	return d.Clock.Sync(ctx, hp)
 }
 
+// info is Info with the look in force: each scheme the workspace's if an
+// admin set it, and the host's if not.
+func (d Deps) info(ctx context.Context) (Info, error) {
+	out := d.Info
+	workspace, err := d.Clock.Theme(ctx)
+	if err != nil {
+		return out, err
+	}
+	out.WorkspaceTheme = workspace
+	out.Theme = d.HostTheme
+	if workspace.Light != nil {
+		out.Theme.Light = workspace.Light
+	}
+	if workspace.Dark != nil {
+		out.Theme.Dark = workspace.Dark
+	}
+	return out, nil
+}
+
 // Config returns huma's configuration for the API.
 func Config() huma.Config {
 	cfg := huma.DefaultConfig("Timeclock API", "1")
@@ -84,8 +110,12 @@ func New(mux *http.ServeMux, deps Deps) huma.API {
 	a := humago.New(mux, Config())
 	// Open to a signed-out browser, which asks it where to sign in.
 	huma.Register(a, op(http.MethodGet, "/info", "get-info", "Where Timeclock runs and how to sign in", "Me"),
-		func(context.Context, *struct{}) (*struct{ Body Info }, error) {
-			return &struct{ Body Info }{deps.Info}, nil
+		func(ctx context.Context, _ *struct{}) (*struct{ Body Info }, error) {
+			info, err := deps.info(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body Info }{info}, nil
 		})
 	registerMe(a, deps)
 	registerSettings(a, deps)

@@ -289,6 +289,11 @@ export function useSetOwnTimezone() {
   return useWrite(async (timezone: string) => unwrap(await api.PUT('/api/v1/me/timezone', { body: { timezone } })));
 }
 
+/** Sets the workspace's look; an empty theme goes back to the host's or Timeclock's own. */
+export function useSaveTheme() {
+  return useWrite(async (body: Schemas['Theme']) => unwrap(await api.PUT('/api/v1/theme', { body })));
+}
+
 export function useSyncPeople() {
   return useWrite(async () => unwrap(await api.POST('/api/v1/people/sync')));
 }

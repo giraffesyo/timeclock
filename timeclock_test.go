@@ -56,6 +56,10 @@ func mounted(t *testing.T) http.Handler {
 		HomeURL:   "/",
 		HomeLabel: "Host",
 		SignInURL: "/login?next=",
+		Theme: host.Theme{
+			Light: &host.Scheme{Interface: host.ThemeSeed{Accent: "#06354f", Background: "#f3f4f6"}},
+			Dark:  &host.Scheme{Interface: host.ThemeSeed{Accent: "#2f81f7", Background: "#0d1117"}},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -166,6 +170,46 @@ func TestMountedInAHost(t *testing.T) {
 
 // The web app's client is generated from this document, so every operation
 // must be in it, named, under the versioned prefix.
+func TestThemeIsTheWorkspacesOverTheHosts(t *testing.T) {
+	if os.Getenv("TIMECLOCK_TEST_DATABASE_URL") == "" {
+		t.Skip("TIMECLOCK_TEST_DATABASE_URL not set")
+	}
+	h := mounted(t)
+	const api = "/timeclock/api/v1"
+	accent := func(body map[string]any, key, mode string) any {
+		theme, _ := body[key].(map[string]any)
+		scheme, _ := theme[mode].(map[string]any)
+		seed, _ := scheme["interface"].(map[string]any)
+		return seed["accent"]
+	}
+
+	// Signed out, the look is already the host's.
+	_, info := call(t, h, "", http.MethodGet, api+"/info", "")
+	if accent(info, "theme", "light") != "#06354f" || accent(info, "theme", "dark") != "#2f81f7" {
+		t.Fatalf("theme without a workspace's own = %v", info["theme"])
+	}
+
+	// Only an admin sets the workspace's.
+	rec, _ := call(t, h, "ada", http.MethodPut, api+"/theme", `{"light":{"interface":{"accent":"#aa0000","background":"#ffffff"}}}`)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("a non-admin setting the theme: %d", rec.Code)
+	}
+	rec, info = call(t, h, "pat", http.MethodPut, api+"/theme", `{"light":{"interface":{"accent":"#aa0000","background":"#ffffff"}}}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set theme: %d %s", rec.Code, rec.Body)
+	}
+	// Light is now the workspace's; dark, which it didn't set, is still the host's.
+	if accent(info, "theme", "light") != "#aa0000" || accent(info, "theme", "dark") != "#2f81f7" || accent(info, "workspaceTheme", "light") != "#aa0000" {
+		t.Errorf("theme after the workspace set light = %v", info)
+	}
+
+	// Clearing it goes back to the host's.
+	_, info = call(t, h, "pat", http.MethodPut, api+"/theme", `{}`)
+	if accent(info, "theme", "light") != "#06354f" || accent(info, "workspaceTheme", "light") != nil {
+		t.Errorf("theme after clearing = %v", info)
+	}
+}
+
 func TestOpenAPIDocumentsEveryOperation(t *testing.T) {
 	doc := timeclock.OpenAPI()
 	if len(doc.Paths) < 25 {

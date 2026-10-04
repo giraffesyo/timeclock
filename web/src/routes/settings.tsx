@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { Page } from '@/components/page';
+import { Appearance } from '@/components/settings/appearance';
 import { Catalog } from '@/components/settings/catalog';
 import { History } from '@/components/settings/history';
 import { PayrollSettings } from '@/components/settings/payroll';
@@ -8,7 +9,7 @@ import { People } from '@/components/settings/people';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 
-const TABS = ['payroll', 'projects', 'people', 'history'] as const;
+const TABS = ['payroll', 'projects', 'people', 'appearance', 'history'] as const;
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
@@ -56,6 +57,7 @@ function SettingsPage() {
       {tab === 'payroll' && <PayrollSettings />}
       {tab === 'projects' && <Catalog />}
       {tab === 'people' && <People />}
+      {tab === 'appearance' && <Appearance />}
       {tab === 'history' && <History />}
     </Page>
   );

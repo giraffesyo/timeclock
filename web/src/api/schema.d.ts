@@ -435,6 +435,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the workspace's look; an empty theme goes back to the host's or Timeclock's own */
+        put: operations["set-theme"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/time-off": {
         parameters: {
             query?: never;
@@ -784,7 +801,9 @@ export interface components {
             homeUrl?: string;
             signInUrl?: string;
             signOutUrl?: string;
+            theme: components["schemas"]["Theme"];
             themeStorageKey?: string;
+            workspaceTheme: components["schemas"]["Theme"];
         };
         "List-activityResponse": {
             /**
@@ -1078,6 +1097,10 @@ export interface components {
             readonly $schema?: string;
             note?: string;
         };
+        Scheme: {
+            interface: components["schemas"]["ThemeSeed"];
+            sidebar?: components["schemas"]["ThemeSeed"];
+        };
         "Set-own-timezoneRequest": {
             /**
              * Format: uri
@@ -1156,6 +1179,24 @@ export interface components {
             readonly $schema?: string;
             members: components["schemas"]["PeriodSummary"][] | null;
             period: components["schemas"]["Period"];
+        };
+        Theme: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Theme.json
+             */
+            readonly $schema?: string;
+            dark?: components["schemas"]["Scheme"];
+            light?: components["schemas"]["Scheme"];
+        };
+        ThemeSeed: {
+            /** @example #4b50d9 */
+            accent: string;
+            /** @example #ffffff */
+            background: string;
+            /** Format: double */
+            contrast?: number;
         };
         TimeOff: {
             /**
@@ -2235,6 +2276,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamBodyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "set-theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Theme"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Info"];
                 };
             };
             /** @description Error */

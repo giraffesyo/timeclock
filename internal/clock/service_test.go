@@ -354,6 +354,39 @@ func TestOwnTimezoneCutsTheDay(t *testing.T) {
 	}
 }
 
+func TestTheme(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+
+	got, err := f.Theme(ctx)
+	if err != nil || got.Light != nil || got.Dark != nil {
+		t.Fatalf("theme before any is set = %+v, %v", got, err)
+	}
+	light := &Scheme{Interface: ThemeSeed{Accent: "#06344e", Background: "#fefffe", Contrast: 1.2}, Sidebar: &ThemeSeed{Accent: "#ffffff", Background: "#06344e"}}
+
+	_, err = f.SetTheme(ctx, f.ada, Theme{Light: light})
+	wantProblem(t, err, "forbidden")
+	_, err = f.SetTheme(ctx, f.admin, Theme{Light: &Scheme{Interface: ThemeSeed{Accent: "navy", Background: "#ffffff"}}})
+	wantProblem(t, err, "validation")
+	_, err = f.SetTheme(ctx, f.admin, Theme{Light: &Scheme{Interface: ThemeSeed{Accent: "#000000", Background: "#ffffff", Contrast: 3}}})
+	wantProblem(t, err, "validation")
+
+	if _, err := f.SetTheme(ctx, f.admin, Theme{Light: light}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = f.Theme(ctx)
+	if err != nil || got.Light == nil || got.Light.Interface != light.Interface || got.Light.Sidebar == nil || *got.Light.Sidebar != *light.Sidebar || got.Dark != nil {
+		t.Errorf("theme read back = %+v, %v", got, err)
+	}
+	// An empty theme clears it.
+	if _, err := f.SetTheme(ctx, f.admin, Theme{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := f.Theme(ctx); got.Light != nil {
+		t.Errorf("theme after clearing = %+v", got)
+	}
+}
+
 func TestActivity(t *testing.T) {
 	f := newFixture(t)
 	f.settings(func(s *Settings) { s.RequireProject = false })

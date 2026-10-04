@@ -6,7 +6,8 @@
     "payroll": "Payroll",
     "projects": "Customers and projects",
     "people": "People",
-    "history": "History"
+    "history": "History",
+    "appearance": "Appearance"
   },
   "payroll": {
     "periods": {
@@ -205,5 +206,38 @@
       "project_save": "Saved a project",
       "project_delete": "Deleted a project"
     }
+  },
+  "appearance": {
+    "isOwn": "This workspace uses Timeclock’s own look. Change a value and everything else follows.",
+    "isHost": "This workspace matches {name}. Change a value to give it a look of its own.",
+    "isCustom": "This workspace has its own look. Everyone sees it.",
+    "mode": {
+      "label": "Which mode to edit",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "interface": "Interface",
+    "accent": "Accent",
+    "background": "Background",
+    "contrast": "Contrast",
+    "sidebar": "Its own sidebar colors",
+    "sidebarHint": "Otherwise the sidebar is the background, a little deeper.",
+    "presets": {
+      "title": "Start from",
+      "own": "Timeclock"
+    },
+    "notDark": "The dark mode’s background is a light color. Choose a darker one, or edit the light mode instead.",
+    "notLight": "The light mode’s background is a dark color. Choose a lighter one, or edit the dark mode instead.",
+    "lowContrast": "{mode}: {pair} is too faint to read. Raise the contrast or change a color.",
+    "saved": "The workspace’s look is saved.",
+    "saveFailed": "Couldn’t save the look.",
+    "discard": "Discard changes",
+    "copy": "Copy theme",
+    "copied": "Theme copied.",
+    "copyFailed": "Couldn’t copy the theme.",
+    "paste": "Paste theme",
+    "pasteFailed": "There is no theme on the clipboard.",
+    "reset": "Go back to the default",
+    "wasReset": "The workspace is back to the default look."
   }
 }

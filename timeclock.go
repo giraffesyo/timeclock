@@ -80,6 +80,10 @@ type Options struct {
 	// person's light, dark or system choice, so Timeclock matches it.
 	// Without it, Timeclock follows the system.
 	ThemeStorageKey string
+	// Theme is the host's look, so Timeclock mounted in it matches: for
+	// light and for dark, an accent and a background. A workspace admin can
+	// still set the workspace's own in Timeclock's settings.
+	Theme host.Theme
 	// Routes registers extra handlers beside Timeclock's own, such as a
 	// standalone server's sign-in.
 	Routes func(mux *http.ServeMux)
@@ -155,7 +159,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 	deps := api.Deps{Clock: svc, Directory: opts.Directory, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
 		ThemeStorageKey: opts.ThemeStorageKey,
-	}}
+	}, HostTheme: opts.Theme}
 	h := server.New(server.Options{
 		Logger: logger,
 		Routes: func(mux *http.ServeMux) {
