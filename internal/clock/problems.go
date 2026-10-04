@@ -37,6 +37,12 @@ var (
 		Title:  "Timesheet already submitted",
 		Doc:    "The day is in a timesheet that was submitted or approved, so its time can't change. A manager or admin can send the timesheet back.",
 	})
+	ErrDescriptionRequired = Problems.Define(problem.Type{
+		Code:   "description_required",
+		Status: http.StatusUnprocessableEntity,
+		Title:  "Description required",
+		Doc:    "This workspace requires a nonblank description on every time entry.",
+	})
 	ErrProjectRequired = Problems.Define(problem.Type{
 		Code:   "project_required",
 		Status: http.StatusUnprocessableEntity,

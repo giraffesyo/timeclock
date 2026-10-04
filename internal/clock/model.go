@@ -15,6 +15,7 @@ type Settings struct {
 	OvertimeWeeklyHours float64  `json:"overtimeWeeklyHours" minimum:"0" maximum:"168" doc:"Hours in a workweek beyond which time is overtime. 0 turns overtime off."`
 	ApproveTimesheets   bool     `json:"approveTimesheets" doc:"A submitted timesheet waits for the person's manager or an admin."`
 	ApproveTimeOff      bool     `json:"approveTimeOff" doc:"Time off waits for the person's manager or an admin."`
+	RequireDescription  bool     `json:"requireDescription" doc:"Every time entry has a description."`
 	RequireProject      bool     `json:"requireProject" doc:"Every time entry names a project."`
 	LongEntryHours      float64  `json:"longEntryHours" exclusiveMinimum:"0" maximum:"24" doc:"An entry or a running clock longer than this is an exception."`
 }

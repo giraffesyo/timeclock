@@ -1143,6 +1143,8 @@ export interface components {
             overtimeWeeklyHours: number;
             /** @enum {string} */
             payCycle: "weekly" | "biweekly" | "semimonthly" | "monthly";
+            /** @description Every time entry has a description. */
+            requireDescription: boolean;
             /** @description Every time entry names a project. */
             requireProject: boolean;
             /**

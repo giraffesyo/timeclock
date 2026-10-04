@@ -31,6 +31,7 @@ export interface ClockState {
   projects: Project[];
   /** Whether the organization requires a project on every entry. */
   requireProject: boolean;
+  requireDescription: boolean;
   /** The pay period's timesheet is in, so the clock is off. */
   locked: boolean;
   /** The IANA time zone the person's times are shown in. */
@@ -92,6 +93,7 @@ const initial: ClockState = {
   running: null,
   projects: [],
   requireProject: false,
+  requireDescription: false,
   locked: false,
   timeZone: 'UTC',
   busy: false,
@@ -140,7 +142,7 @@ export function createClock(options: ClockOptions = {}): ClockStore {
       const [me, projects, sheet] = await Promise.all([
         call<{
           person: { timezone: string };
-          settings: { timezone: string; requireProject: boolean };
+          settings: { timezone: string; requireProject: boolean; requireDescription: boolean };
           running?: Entry;
         }>('GET', '/me'),
         call<{ projects: Project[] | null }>('GET', '/projects'),
@@ -152,6 +154,7 @@ export function createClock(options: ClockOptions = {}): ClockStore {
         running: me.running ?? null,
         projects: projects.projects ?? [],
         requireProject: me.settings.requireProject,
+        requireDescription: me.settings.requireDescription ?? false,
         locked: status === 'submitted' || status === 'approved',
         timeZone: me.person.timezone || me.settings.timezone,
       });

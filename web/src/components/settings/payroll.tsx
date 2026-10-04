@@ -33,6 +33,7 @@ function toDraft(s: Settings): Draft {
     approveTimesheets: s.approveTimesheets,
     approveTimeOff: s.approveTimeOff,
     requireProject: s.requireProject,
+    requireDescription: s.requireDescription,
     overtime: String(s.overtimeWeeklyHours),
     longEntry: String(s.longEntryHours),
   };
@@ -68,6 +69,7 @@ export function PayrollSettings() {
     approveTimesheets: draft.approveTimesheets,
     approveTimeOff: draft.approveTimeOff,
     requireProject: draft.requireProject,
+    requireDescription: draft.requireDescription,
     longEntryHours: longEntry,
   };
   const valid =
@@ -87,6 +89,7 @@ export function PayrollSettings() {
     next.approveTimesheets !== settings.approveTimesheets ||
     next.approveTimeOff !== settings.approveTimeOff ||
     next.requireProject !== settings.requireProject ||
+    next.requireDescription !== settings.requireDescription ||
     next.longEntryHours !== settings.longEntryHours;
 
   // What the chosen cycle does, before it is saved.
@@ -216,6 +219,12 @@ export function PayrollSettings() {
               hint={draft.requireProject ? t('entries.requireProjectOn') : t('entries.requireProjectOff')}
               value={draft.requireProject}
               onChange={(v) => set('requireProject', v)}
+            />
+            <SwitchRow
+              label={t('entries.requireDescription')}
+              hint={draft.requireDescription ? t('entries.requireDescriptionOn') : t('entries.requireDescriptionOff')}
+              value={draft.requireDescription}
+              onChange={(v) => set('requireDescription', v)}
             />
             <Field label={t('entries.longEntry')} hint={t('entries.longEntryHint')} className="sm:max-w-xs">
               <input

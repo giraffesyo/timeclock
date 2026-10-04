@@ -13,6 +13,7 @@
   "hintTouch": "Tap an empty hour to add time. Tap a block to change it.",
   "earlier": "Show earlier hours",
   "later": "Show later hours",
+  "hours": "Calendar hours",
   "adjustFailed": "Couldn’t change the time.",
   "dayTotal": "{date}: {length}"
 }

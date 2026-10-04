@@ -110,10 +110,10 @@ function TimerPage() {
   );
 
   return (
-    <main className="flex min-h-full flex-col">
+    <main className="flex min-h-full flex-col md:h-full md:min-h-0">
       <h1 className="sr-only">{t('title')}</h1>
       <ZoneBanner />
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
         <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
         <div className="flex items-baseline gap-2">
           <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
@@ -141,7 +141,7 @@ function TimerPage() {
         </div>
       </div>
 
-      <div className="flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         {entries.isError ? (
           <ErrorNote className="m-4" context={t('loadFailed')} error={entries.error} />
         ) : entries.isPending ? (
@@ -158,7 +158,7 @@ function TimerPage() {
         <ErrorNote className="m-3" context={t('period.loadFailed')} error={sheet.error} />
       ) : (
         sheet.data && (
-          <div className="bottom-0 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-background px-4 py-2 text-sm md:sticky">
+          <div className="bottom-0 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-background px-4 py-2 text-sm md:sticky">
             <span className="font-medium">{t('period.title')}</span>
             <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
             <span className="flex items-baseline gap-1.5">

@@ -1,7 +1,6 @@
-import { AngleDownIcon, AngleUpIcon } from '@parallelworks/ui/icons';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { DayTimeline } from '@/components/day-timeline';
+import { DayTimeline, type MovePreview } from '@/components/day-timeline';
 import { cn } from '@/lib/cn';
 import type { Entry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -34,8 +33,9 @@ export function WeekCalendar({
   const zone = useZone();
   const wide = useMedia('(min-width: 48rem)');
   const [picked, setPicked] = useState<Day | null>(null);
-  const [earlier, setEarlier] = useState(0);
-  const [later, setLater] = useState(0);
+  const [movePreview, setMovePreview] = useState<MovePreview | null>(null);
+  const scroll = useRef<HTMLElement>(null);
+  const positioned = useRef('');
   const hasToday = week.includes(today);
   const now = useNow(30_000, hasToday);
 
@@ -53,19 +53,27 @@ export function WeekCalendar({
     return { day, bounds, entries: own, spans, worked: covered(spans) };
   });
 
-  // Every day shows the same hours: the working day, widened to whole hours
-  // around everything in the week.
-  let from = 7;
-  let to = 19;
+  // Render the whole day at a constant scale. Start at the working day, or
+  // the first earlier entry, but leave every hour reachable by scrolling.
+  const from = 0;
+  const to = Math.max(24, ...days.map((d) => (d.bounds.end - d.bounds.start) / HOUR));
+  let initialHour = 7;
   for (const d of days) {
     for (const s of d.spans) {
-      from = Math.min(from, Math.floor((s.start - d.bounds.start) / HOUR));
-      to = Math.max(to, Math.ceil((s.end - d.bounds.start) / HOUR));
+      initialHour = Math.min(initialHour, Math.floor((s.start - d.bounds.start) / HOUR));
     }
-    if (d.day === today) to = Math.max(to, Math.ceil((now - d.bounds.start) / HOUR));
   }
-  from = Math.max(0, from - earlier);
-  to = Math.min(24, to + later);
+  const todayBounds = days.find((d) => d.day === today)?.bounds;
+  const currentHour = todayBounds ? (now - todayBounds.start) / HOUR : null;
+  const positionKey = `${week[0]}:${zone}`;
+  useLayoutEffect(() => {
+    const el = scroll.current;
+    if (!el || positioned.current === positionKey) return;
+    const height = el.firstElementChild?.clientHeight ?? 0;
+    el.scrollTop =
+      currentHour === null ? (initialHour / to) * height : (currentHour / to) * height - el.clientHeight / 2;
+    positioned.current = positionKey;
+  }, [positionKey, initialHour, currentHour, to]);
   const hours = { from, to };
   const marks = Array.from({ length: to - from + 1 }, (_, i) => from + i);
   const first = days[0];
@@ -76,9 +84,9 @@ export function WeekCalendar({
   const total = (ms: number) => tc('duration', hoursMinutes(ms));
 
   return (
-    <div className="wk" style={{ '--wk-hours': to - from } as CSSProperties}>
+    <div className="wk">
       {/* The days: on a wide screen the heads of the columns, on a narrow one the way to pick a day. */}
-      <div className={cn('grid border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
+      <div className={cn('grid shrink-0 border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
         {wide && <span />}
         {days.map((d) => {
           const date = dayToDate(d.day);
@@ -135,39 +143,37 @@ export function WeekCalendar({
         })}
       </div>
 
-      {from > 0 && (
-        <button type="button" className="wk-more border-b border-border" onClick={() => setEarlier(earlier + 2)}>
-          <AngleUpIcon aria-hidden className="size-3" />
-          {t('earlier')}
-        </button>
-      )}
-      <div className={cn('grid', wide ? 'wk-grid' : 'wk-one')}>
-        <div className="wk-gutter" aria-hidden style={{ '--tl-hours': to - from } as CSSProperties}>
-          {marks.map((h, i) => (
-            <span key={h} className="tl-at" style={{ '--s': i / Math.max(1, to - from) } as CSSProperties}>
-              {i > 0 && i < marks.length - 1 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
-            </span>
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users need to focus and scroll the hours. */}
+      <section ref={scroll} className="wk-scroll" aria-label={t('hours')} tabIndex={0}>
+        <div className={cn('grid', wide ? 'wk-grid' : 'wk-one')}>
+          <div className="wk-gutter" aria-hidden style={{ '--tl-hours': to - from } as CSSProperties}>
+            {marks.map((h, i) => (
+              <span key={h} className="tl-at" style={{ '--s': i / Math.max(1, to - from) } as CSSProperties}>
+                {i > 0 && i < marks.length - 1 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
+              </span>
+            ))}
+          </div>
+          {shown.map((d) => (
+            <div
+              key={d.day}
+              className={cn(
+                'min-w-0 border-l border-border',
+                d.day === today && 'bg-primary/[0.035]',
+                d.day > today && 'wk-future',
+              )}
+            >
+              <DayTimeline
+                day={d.day}
+                entries={d.entries}
+                readOnly={readOnly(d.day)}
+                hours={hours}
+                movePreview={movePreview?.day === d.day ? movePreview : null}
+                onMovePreview={setMovePreview}
+              />
+            </div>
           ))}
         </div>
-        {shown.map((d) => (
-          <div
-            key={d.day}
-            className={cn(
-              'min-w-0 border-l border-border',
-              d.day === today && 'bg-primary/[0.035]',
-              d.day > today && 'wk-future',
-            )}
-          >
-            <DayTimeline day={d.day} entries={d.entries} readOnly={readOnly(d.day)} hours={hours} />
-          </div>
-        ))}
-      </div>
-      {to < 24 && (
-        <button type="button" className="wk-more border-t border-border" onClick={() => setLater(later + 2)}>
-          <AngleDownIcon aria-hidden className="size-3" />
-          {t('later')}
-        </button>
-      )}
+      </section>
     </div>
   );
 }

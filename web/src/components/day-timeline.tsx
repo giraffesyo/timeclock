@@ -1,7 +1,16 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
 import { TOOLTIP_ID } from '@parallelworks/ui';
 import { ChevronLeftIcon, ChevronRightIcon, LockIcon } from '@parallelworks/ui/icons';
-import { type CSSProperties, type KeyboardEvent, type PointerEvent, useEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -29,7 +38,10 @@ type Drag = Span & {
   grab: number;
   /** Whether the pointer has travelled, which tells a drag from a click. */
   moved: boolean;
+  destination?: Day;
 };
+
+export type MovePreview = Span & { entry: Entry; day: Day };
 
 type Block = Span & {
   entry: Entry;
@@ -40,6 +52,8 @@ type Block = Span & {
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
+/** Allow normal hand movement during a click before picking up the entry. */
+const DRAG_DISTANCE = 8;
 
 /**
  * A day as a ruler: each entry is a block placed by the hour, and the running
@@ -59,6 +73,8 @@ export function DayTimeline({
   readOnly,
   personId,
   hours: shared,
+  movePreview,
+  onMovePreview,
 }: {
   day: Day;
   /** The entries that touch the day. */
@@ -69,6 +85,8 @@ export function DayTimeline({
   personId?: string;
   /** The hours from midnight to show, as a column of a week that shows the same hours in every day. */
   hours?: { from: number; to: number };
+  movePreview?: MovePreview | null;
+  onMovePreview?: (preview: MovePreview | null) => void;
 }) {
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
@@ -85,9 +103,15 @@ export function DayTimeline({
   const root = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const keyTimer = useRef(0);
-  const pointer = useRef('mouse');
+  const suppressClick = useRef(false);
+  const press = useRef({ x: 0, y: 0 });
+  // Pointer events can arrive before React paints; keep the current gesture
+  // synchronously, and only render a drag preview once it becomes a drag.
+  const gesture = useRef<Drag | null>(null);
+  const touchTap = useRef<(Span & { x: number; y: number }) | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const [tooltipEntries, setTooltipEntries] = useState<Set<string>>(new Set());
   const [earlier, setEarlier] = useState(0);
   const [later, setLater] = useState(0);
   const [editing, setEditing] = useState<Entry | null>(null);
@@ -130,6 +154,26 @@ export function DayTimeline({
   // Every hour is named until they crowd; then every other one.
   const labelEvery = across && marks.length > 17 ? 2 : 1;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: remeasure the rendered blocks when their entries or ruler layout change.
+  useLayoutEffect(() => {
+    const bodies = root.current?.querySelectorAll<HTMLElement>('[data-entry] .tl-body');
+    if (!bodies) return;
+    const measure = () => {
+      const next = new Set<string>();
+      for (const body of bodies) {
+        const id = body.parentElement?.dataset['entry'];
+        if (id && needsTooltip(body)) next.add(id);
+      }
+      setTooltipEntries((previous) =>
+        previous.size === next.size && [...next].every((id) => previous.has(id)) ? previous : next,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const body of bodies) observer.observe(body);
+    return () => observer.disconnect();
+  }, [entries, across, length]);
+
   const clock = (ms: number) => format.dateTime(new Date(ms), { hour: 'numeric', minute: '2-digit', timeZone: zone });
   const hourLabel = (ms: number) => format.dateTime(new Date(ms), { hour: 'numeric', timeZone: zone });
   const range = (s: Span) => t('range', { start: clock(s.start), end: clock(s.end) });
@@ -156,11 +200,14 @@ export function DayTimeline({
 
   const blockEl = (id: string) => root.current?.querySelector<HTMLElement>(`[data-entry="${id}"]`) ?? null;
   const draftEl = () => root.current?.querySelector<HTMLElement>('[data-draft]') ?? null;
-  const openEntry = (entry: Entry) =>
-    morph(
-      () => setEditing(entry),
-      () => blockEl(entry.id),
-    );
+  const openEntry = (entry: Entry) => setEditing(entry);
+  const activateEntry = (e: MouseEvent, entry: Entry) => {
+    e.stopPropagation();
+    // A completed pointer drag also emits a click. Every other activation,
+    // including keyboard activation and clicks after lost capture, edits.
+    if (e.detail > 0 && suppressClick.current) return;
+    openEntry(entry);
+  };
   const openNew = (s: Span) => {
     // The stretch is drawn first, so the dialog can open out of it.
     flushSync(() => {
@@ -179,9 +226,12 @@ export function DayTimeline({
   const begin = (e: PointerEvent, d: Drag) => {
     e.preventDefault();
     e.stopPropagation();
-    root.current?.setPointerCapture(e.pointerId);
+    // Capture on the pressed control so the browser's click still reaches it.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    suppressClick.current = false;
+    press.current = { x: e.clientX, y: e.clientY };
+    gesture.current = d;
     setHover(null);
-    setDrag(d);
   };
 
   const beginCreate = (e: PointerEvent) => {
@@ -192,7 +242,7 @@ export function DayTimeline({
     if (e.pointerType === 'touch') {
       // A touch scrolls the page; a tap adds an hour here.
       const end = Math.min(anchor + HOUR, cap);
-      if (end - anchor >= SNAP) openNew({ start: anchor, end });
+      if (end - anchor >= SNAP) touchTap.current = { start: anchor, end, x: e.clientX, y: e.clientY };
       return;
     }
     begin(e, { kind: 'create', start: anchor, end: anchor, lo: bounds.start, hi: cap, grab: anchor, moved: false });
@@ -204,7 +254,7 @@ export function DayTimeline({
   };
 
   const beginMove = (e: PointerEvent, b: Block) => {
-    pointer.current = e.pointerType;
+    suppressClick.current = false;
     // The press is the block's: the track under it must not take it for a new stretch.
     e.stopPropagation();
     if (e.button !== 0 || e.pointerType === 'touch') return;
@@ -223,15 +273,20 @@ export function DayTimeline({
   };
 
   const onPointerMove = (e: PointerEvent) => {
+    if (touchTap.current && Math.hypot(e.clientX - touchTap.current.x, e.clientY - touchTap.current.y) > 8)
+      touchTap.current = null;
     const ms = instant(e);
+    const drag = gesture.current;
     if (!drag) {
       if (e.pointerType !== 'mouse' || !editable) return;
       setHover(e.target === track.current && ms <= cap + SNAP ? clamp(snap(ms), bounds.start, cap) : null);
       return;
     }
+    if (!drag.moved && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) < DRAG_DISTANCE) return;
     const step = e.shiftKey ? MINUTE : SNAP;
     const to = snap(ms, step);
     let next: Span;
+    let destination: Day | undefined;
     switch (drag.kind) {
       case 'create': {
         const other = clamp(to, drag.lo, drag.hi);
@@ -246,17 +301,62 @@ export function DayTimeline({
         break;
       case 'move': {
         const size = drag.end - drag.start;
+        const target = column
+          ? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('.tl-column .tl-track'))
+          : null;
+        const targetDay = target instanceof HTMLElement ? target.dataset['day'] : undefined;
+        // Locked/future days and entries crossing midnight cannot be moved into another column.
+        if (target && (targetDay !== day || drag.destination)) {
+          const b = blocks.find((x) => x.entry.id === drag.id);
+          if (
+            !targetDay ||
+            !(target instanceof HTMLElement) ||
+            target.dataset['editable'] !== 'true' ||
+            !b ||
+            b.running ||
+            b.clippedStart ||
+            b.clippedEnd
+          )
+            return;
+          const targetBounds = dayBounds(targetDay, zone);
+          const targetCap = Math.min(targetBounds.end, Math.floor(now / SNAP) * SNAP);
+          if (targetCap - targetBounds.start < size) return;
+          const r = target.getBoundingClientRect();
+          const targetInstant =
+            targetBounds.start +
+            ((e.clientY - r.top) / r.height) *
+              Math.min(targetBounds.end - targetBounds.start, (shared?.to ?? 24) * HOUR);
+          const start = clamp(snap(targetInstant - drag.grab, step), targetBounds.start, targetCap - size);
+          destination = targetDay === day ? undefined : targetDay;
+          next = { start, end: start + size };
+          onMovePreview?.(destination ? { ...next, entry: b.entry, day: destination } : null);
+          break;
+        }
+        if (column && !target) return;
         const start = clamp(snap(ms - drag.grab, step), drag.lo, Math.max(drag.lo, drag.hi - size));
         next = { start, end: start + size };
         break;
       }
     }
-    if (next.start !== drag.start || next.end !== drag.end) setDrag({ ...drag, ...next, moved: true });
+    if (!drag.moved || next.start !== drag.start || next.end !== drag.end || destination !== drag.destination) {
+      gesture.current = { ...drag, ...next, destination, moved: true };
+      setDrag(gesture.current);
+    }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: PointerEvent) => {
+    if (touchTap.current) {
+      const tap = touchTap.current;
+      touchTap.current = null;
+      openNew(tap);
+      return;
+    }
+    const drag = gesture.current;
     if (!drag) return;
+    gesture.current = null;
+    suppressClick.current = drag.moved;
     setDrag(null);
+    onMovePreview?.(null);
     if (drag.kind === 'create') {
       // A click without a drag offers the hour from there.
       const end = drag.moved ? drag.end : Math.min(drag.start + HOUR, drag.hi);
@@ -265,8 +365,16 @@ export function DayTimeline({
     }
     const b = blocks.find((x) => x.entry.id === drag.id);
     if (!b) return;
+    if (column && drag.kind === 'move' && drag.moved) {
+      const target = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('.tl-column .tl-track'));
+      if (
+        !(target instanceof HTMLElement) ||
+        target.dataset['editable'] !== 'true' ||
+        target.dataset['day'] !== (drag.destination ?? day)
+      )
+        return;
+    }
     if (drag.moved) save(b, drag);
-    else if (drag.kind === 'move' && !b.entry.locked) openEntry(b.entry);
   };
 
   // --- Keyboard: an edge is a slider ---
@@ -308,7 +416,20 @@ export function DayTimeline({
       )}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={() => {
+        suppressClick.current = !!gesture.current?.moved;
+        gesture.current = null;
+        setDrag(null);
+        touchTap.current = null;
+        onMovePreview?.(null);
+      }}
+      onLostPointerCapture={() => {
+        if (!gesture.current) return;
+        suppressClick.current = gesture.current.moved;
+        gesture.current = null;
+        setDrag(null);
+        onMovePreview?.(null);
+      }}
       onPointerLeave={() => setHover(null)}
       style={{ '--tl-hours': length / HOUR } as CSSProperties}
     >
@@ -338,7 +459,13 @@ export function DayTimeline({
         )}
 
         {/* Dragging here is the pointer's shortcut; the Add time button and each block's own controls are the keyboard's. */}
-        <div ref={track} className={cn('tl-track', editable && 'tl-track-editable')} onPointerDown={beginCreate}>
+        <div
+          ref={track}
+          data-day={day}
+          data-editable={editable}
+          className={cn('tl-track', editable && 'tl-track-editable')}
+          onPointerDown={beginCreate}
+        >
           {marks.slice(1, -1).map((h) => (
             <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': at(h) } as CSSProperties} />
           ))}
@@ -365,6 +492,7 @@ export function DayTimeline({
                 aria-valuenow={Math.round(((kind === 'start' ? b.start : b.end) - bounds.start) / MINUTE)}
                 aria-valuetext={clock(kind === 'start' ? b.start : b.end)}
                 onPointerDown={(e) => beginEdge(e, b, kind)}
+                onClick={(e) => activateEntry(e, b.entry)}
                 onKeyDown={(e) => nudge(e, b, kind)}
               />
             );
@@ -378,6 +506,8 @@ export function DayTimeline({
               <div
                 key={b.entry.id}
                 data-entry={b.entry.id}
+                data-tooltip-id={!drag && !editing && tooltipEntries.has(b.entry.id) ? TOOLTIP_ID : undefined}
+                data-tooltip-content={tooltipEntries.has(b.entry.id) ? label : undefined}
                 className={cn(
                   'tl-pos tl-block',
                   !b.entry.projectId && 'tl-plain',
@@ -386,6 +516,7 @@ export function DayTimeline({
                   b.clippedStart && 'tl-clipped-start',
                   b.clippedEnd && 'tl-clipped-end',
                   inHand && 'tl-held',
+                  inHand && drag?.destination && 'invisible',
                 )}
                 style={
                   {
@@ -401,13 +532,8 @@ export function DayTimeline({
                     type="button"
                     className="tl-body"
                     aria-label={t('editBlock', { block: label })}
-                    data-tooltip-id={drag ? undefined : TOOLTIP_ID}
-                    data-tooltip-content={label}
                     onPointerDown={(e) => beginMove(e, b)}
-                    // The pointer opens it on release (see onPointerUp); this is the keyboard and touch.
-                    onClick={(e) => {
-                      if (e.detail === 0 || pointer.current === 'touch') openEntry(b.entry);
-                    }}
+                    onClick={(e) => activateEntry(e, b.entry)}
                   >
                     {text}
                   </button>
@@ -416,8 +542,6 @@ export function DayTimeline({
                     className="tl-body"
                     role="img"
                     aria-label={b.entry.locked ? t('lockedBlock', { block: label }) : label}
-                    data-tooltip-id={TOOLTIP_ID}
-                    data-tooltip-content={label}
                   >
                     {text}
                   </div>
@@ -427,6 +551,28 @@ export function DayTimeline({
               </div>
             );
           })}
+
+          {movePreview?.day === day && (
+            <div
+              aria-hidden
+              className="tl-pos tl-block tl-held pointer-events-none"
+              style={
+                {
+                  ...place(movePreview),
+                  '--lane': 0,
+                  '--lanes': 1,
+                  '--hue': movePreview.entry.projectId ? projectHue(movePreview.entry.projectId) : 0,
+                } as CSSProperties
+              }
+            >
+              <div className="tl-body">
+                <BlockText
+                  name={movePreview.entry.note || projectName(movePreview.entry.projectId)}
+                  detail={range(movePreview)}
+                />
+              </div>
+            </div>
+          )}
 
           {draft && (
             <div data-draft className="tl-pos tl-draft" style={place(draft)} aria-hidden>
@@ -481,14 +627,10 @@ export function DayTimeline({
       <EntryDialog
         open={!!editing}
         onClose={() => {
-          const id = editing?.id;
-          morph(
-            () => setEditing(null),
-            () => null,
-            () => (id ? blockEl(id) : null),
-          );
+          setEditing(null);
         }}
         entry={editing ?? undefined}
+        anchor={column && editing ? blockEl(editing.id) : undefined}
         day={day}
       />
       <EntryDialog
@@ -500,6 +642,19 @@ export function DayTimeline({
         end={adding ? timeInput(iso(adding.end), zone) : undefined}
       />
     </div>
+  );
+}
+
+/** Only supplement details the block cannot fit visibly. */
+function needsTooltip(body: HTMLElement): boolean {
+  const text = body.querySelector<HTMLElement>('.tl-text');
+  if (!text || getComputedStyle(text).display === 'none') return true;
+  return Array.from(text.children).some(
+    (line) =>
+      line instanceof HTMLElement &&
+      (getComputedStyle(line).display === 'none' ||
+        line.scrollWidth > line.clientWidth ||
+        line.scrollHeight > body.clientHeight),
   );
 }
 

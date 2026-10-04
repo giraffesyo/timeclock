@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS_ENV } from '../playwright.config';
 import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
+import { lastWeek } from './fixtures';
 
 // A server with its own accounts: nobody is signed in until they accept an
 // invitation and set a password.
@@ -242,4 +243,81 @@ test('a workspace admin sees where to set up single sign-on', async ({ browser }
   await page.getByLabel('Client secret').fill('secret');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('alert')).toContainText('Couldn’t save single sign-on.');
+});
+
+test('workspace project and description requirements control clocks and manual entries independently', async ({
+  browser,
+}) => {
+  const page = await join(
+    browser,
+    manage('workspace', workspaceKey('entry-rules'), 'Entry rules', '--admin', address('rules-admin')),
+    'Rules Admin',
+  );
+  const request = page.request;
+  const settings = async () => (await (await request.get('/api/v1/me')).json()).settings;
+  expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
+  await page.goto('/settings?tab=projects');
+  const internal = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Internal' }) });
+  await internal.getByRole('button', { name: 'Add project' }).click();
+  const project = page.getByRole('dialog', { name: 'Add project' });
+  await project.getByLabel('Name', { exact: true }).fill('Review');
+  await project.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(project).toBeHidden();
+
+  await page.goto('/settings');
+  const projectRule = page.getByLabel('Require a project on every entry', { exact: true });
+  const descriptionRule = page.getByLabel('Require a description on every entry', { exact: true });
+  await projectRule.click();
+  await descriptionRule.click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await page.reload();
+  expect(await settings()).toMatchObject({ requireProject: false, requireDescription: true });
+
+  await page.getByRole('link', { name: 'Timer', exact: true }).click();
+  const clock = page.getByRole('form', { name: 'Clock' });
+  const note = clock.getByRole('textbox', { name: 'What you are working on' });
+  await expect(note).toHaveAttribute('required', '');
+  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect(clock.getByRole('timer')).toHaveCount(0);
+  // Whitespace must also be refused by the server.
+  await note.fill('   ');
+  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect(page.getByText('Describe what you worked on.', { exact: true })).toBeVisible();
+  await note.fill('Review the schedule');
+  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect(clock.getByRole('timer')).toBeVisible();
+  await clock.getByRole('button', { name: /^Project the clock is running on:/ }).click();
+  await page.getByRole('option', { name: 'Review', exact: true }).click();
+  await expect(clock.getByRole('button', { name: /^Project the clock is running on: Review/ })).toBeVisible();
+  await expect(note).toHaveValue('Review the schedule');
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Add time', exact: true }).click();
+  const add = page.getByRole('dialog', { name: 'Add time' });
+  await add.getByLabel('Day', { exact: true }).fill(lastWeek().day(0));
+  await add.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(add.getByRole('alert')).toContainText('Describe what you worked on.');
+  await add.getByRole('textbox', { name: /^Note/ }).fill('Planning');
+  await add.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(add).toBeHidden();
+
+  await page.goto('/settings');
+  await projectRule.click();
+  await descriptionRule.click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
+  await page.getByRole('link', { name: 'Timer', exact: true }).click();
+  await expect(note).not.toHaveAttribute('required');
+  await note.fill('');
+  await clock.getByRole('button', { name: /^Project:/ }).click();
+  await expect(page.getByRole('option', { name: 'No project', exact: true })).toHaveCount(0);
+  await page.getByRole('option', { name: 'Review', exact: true }).click();
+  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect(clock.getByRole('timer')).toBeVisible();
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('timer')).toHaveCount(0);
+  await page.context().close();
 });

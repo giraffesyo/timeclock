@@ -74,13 +74,13 @@ func audit(ctx context.Context, q querier, actor Actor, action, personID string,
 // --- Settings ---
 
 const settingsColumns = `timezone, pay_cycle, cycle_anchor, week_start, overtime_weekly_hours::float8,
-	approve_timesheets, approve_time_off, require_project, long_entry_hours::float8`
+	approve_timesheets, approve_time_off, require_project, require_description, long_entry_hours::float8`
 
 func scanSettings(row pgx.Row) (Settings, error) {
 	var s Settings
 	var anchor time.Time
 	err := row.Scan(&s.Timezone, &s.PayCycle, &anchor, &s.WeekStart, &s.OvertimeWeeklyHours,
-		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.LongEntryHours)
+		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.RequireDescription, &s.LongEntryHours)
 	s.CycleAnchor = DateFromTime(anchor)
 	return s, err
 }
@@ -114,9 +114,9 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 		}
 		if _, err := tx.Exec(ctx, `UPDATE settings SET timezone = $1, pay_cycle = $2, cycle_anchor = $3, week_start = $4,
 			overtime_weekly_hours = $5, approve_timesheets = $6, approve_time_off = $7, require_project = $8,
-			long_entry_hours = $9, updated_at = now(), updated_by = $10 WHERE workspace_id = $W`,
+			long_entry_hours = $9, require_description = $10, updated_at = now(), updated_by = $11 WHERE workspace_id = $W`,
 			in.Timezone, in.PayCycle, in.CycleAnchor.Time(), in.WeekStart, in.OvertimeWeeklyHours,
-			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, actor.ID); err != nil {
+			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, in.RequireDescription, actor.ID); err != nil {
 			return fmt.Errorf("update settings: %w", err)
 		}
 		return audit(ctx, tx, actor, "settings.update", "", map[string]any{"before": before, "after": in})

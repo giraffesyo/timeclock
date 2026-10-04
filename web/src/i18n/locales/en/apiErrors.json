@@ -3,6 +3,7 @@
   "clock_not_running": "You’re not clocked in.",
   "entry_overlaps": "Time off is already recorded on one of those days.",
   "period_locked": "That day is in a submitted timesheet, so its time can’t change. Ask a manager or admin to send the timesheet back.",
+  "description_required": "Describe what you worked on.",
   "project_required": "Choose a project.",
   "project_archived": "That project is archived. Choose another.",
   "in_the_future": "Worked time can’t be in the future.",

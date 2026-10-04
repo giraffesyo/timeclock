@@ -48,7 +48,7 @@ function HeaderClock() {
 }
 ```
 
-`useClock()` gives the state (`status`, `running`, `projects`, `requireProject`, `locked`, `timeZone`, `busy`), what is being typed (`note`, `setNote`, `projectId`), and what can be done (`start`, `stop`, `chooseProject`, `saveNote`, `resume`). Everything that changes the clock returns a promise that rejects with a `ClockError` when Timeclock refuses.
+`useClock()` gives the state (`status`, `running`, `projects`, `requireProject`, `requireDescription`, `locked`, `timeZone`, `busy`), what is being typed (`note`, `setNote`, `projectId`), and what can be done (`start`, `stop`, `chooseProject`, `saveNote`, `resume`). Everything that changes the clock returns a promise that rejects with a `ClockError` when Timeclock refuses.
 
 ## The store
 

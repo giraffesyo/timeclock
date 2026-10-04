@@ -59,6 +59,9 @@
     },
     "entries": {
       "title": "Time entries",
+      "requireDescription": "Require a description on every entry",
+      "requireDescriptionOn": "People must describe their work when starting, adding, or editing time.",
+      "requireDescriptionOff": "Off: time can be recorded without a description.",
       "requireProject": "Require a project on every entry",
       "requireProjectOn": "No one can clock in or add time without choosing a project.",
       "requireProjectOff": "Off: time can be recorded with no project, and shows as “No project” in reports.",

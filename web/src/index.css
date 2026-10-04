@@ -341,7 +341,7 @@
     color: inherit;
   }
   button.tl-body {
-    cursor: grab;
+    cursor: pointer;
   }
   .tl-text {
     display: none;
@@ -423,16 +423,16 @@
   .tl-handle {
     position: absolute;
     inset-inline: 0;
-    height: 0.75rem;
+    height: min(0.75rem, 50%);
     cursor: ns-resize;
     touch-action: none;
     border-radius: 0.25rem;
   }
   .tl-handle-start {
-    top: -0.25rem;
+    top: 0;
   }
   .tl-handle-end {
-    bottom: -0.25rem;
+    bottom: 0;
   }
   .tl-handle::after {
     content: "";
@@ -449,13 +449,7 @@
   }
   @media (pointer: coarse) {
     .tl-handle {
-      height: 1.25rem;
-    }
-    .tl-handle-start {
-      top: -0.5rem;
-    }
-    .tl-handle-end {
-      bottom: -0.5rem;
+      height: min(1.25rem, 50%);
     }
     .tl-handle::after {
       opacity: 0.55;
@@ -650,14 +644,32 @@
     position: relative;
     height: calc(var(--tl-hours) * var(--tl-hour));
   }
-  /* An hour is as tall as it takes for the day to fill the sheet, and never cramped. */
+  /* Keep the hour scale steady while scrolling through the full day. */
   .wk {
     --tl-hour: 3rem;
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+  .wk-scroll {
+    position: relative;
+    height: max(18rem, calc(100dvh - 17.5rem));
+    flex: none;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
   }
   @media (min-width: 48rem) {
-    .wk {
-      --tl-hour: max(2.75rem, calc((100dvh - 17.5rem) / var(--wk-hours)));
+    .wk-scroll {
+      height: 0;
+      min-height: 0;
+      flex: 1;
     }
+  }
+  .wk-scroll:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: -2px;
   }
   .wk-future {
     background-image: repeating-linear-gradient(
@@ -665,21 +677,6 @@
       transparent 0 7px,
       color-mix(in oklab, var(--color-border) 55%, transparent) 7px 8px
     );
-  }
-  .wk-more {
-    display: flex;
-    width: 100%;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.25rem;
-    font-size: 0.6875rem;
-    color: var(--color-muted-foreground);
-  }
-  .wk-more:hover {
-    background-color: var(--color-muted);
-    color: var(--color-foreground);
   }
 
   /* A project's color, wherever its name is. */
@@ -718,6 +715,15 @@
     box-shadow:
       0 10px 28px -10px rgb(0 0 0 / 0.3),
       0 2px 6px -2px rgb(0 0 0 / 0.12);
+  }
+  .entry-popover {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: min(23rem, calc(100vw - 1rem));
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    padding: 1rem;
   }
 }
 

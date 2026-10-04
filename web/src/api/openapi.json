@@ -1356,6 +1356,10 @@
             ],
             "type": "string"
           },
+          "requireDescription": {
+            "description": "Every time entry has a description.",
+            "type": "boolean"
+          },
           "requireProject": {
             "description": "Every time entry names a project.",
             "type": "boolean"
@@ -1383,6 +1387,7 @@
           "overtimeWeeklyHours",
           "approveTimesheets",
           "approveTimeOff",
+          "requireDescription",
           "requireProject",
           "longEntryHours"
         ],

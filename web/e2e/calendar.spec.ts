@@ -1,13 +1,72 @@
 import type { Page } from '@playwright/test';
 import { column, drag, expect, hourPoint, instant, lastWeek, test } from './fixtures';
 
-// The calendar shows 7 AM to 7 PM unless something lies outside it.
-const FROM = 7;
-const TO = 19;
+// The full day is rendered, initially scrolled to working hours.
+const FROM = 0;
+const TO = 24;
 const at = (page: Page, weekday: number, hour: number, across = 0.5) =>
   hourPoint(page, weekday, hour, FROM, TO, across);
 const dialog = (page: Page, name: string) => page.getByRole('dialog', { name });
 const dayTotal = (page: Page, date: RegExp) => page.getByRole('group', { name: date });
+
+test('the calendar fills the space above payroll at different window heights', async ({ me }) => {
+  const { page } = me;
+  await page.goto('/');
+  const hours = page.getByRole('region', { name: 'Calendar hours' });
+  const payroll = page.getByText('Pay period', { exact: true }).locator('..');
+  for (const height of [800, 1200]) {
+    await page.setViewportSize({ width: 1440, height });
+    await expect
+      .poll(async () => {
+        const calendar = await hours.boundingBox();
+        const footer = await payroll.boundingBox();
+        if (!calendar || !footer) throw new Error('calendar is not laid out');
+        return Math.abs(footer.y - calendar.y - calendar.height);
+      })
+      .toBeLessThanOrEqual(1);
+    await expect(payroll).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(height);
+  }
+});
+
+test('the calendar opens around now and keeps the chosen scroll position', async ({ me }) => {
+  const { page } = me;
+  await page.goto('/');
+  const hours = page.getByRole('region', { name: 'Calendar hours' });
+  const now = page.locator('.tl-now');
+  await expect(now).toBeVisible();
+  const viewport = await hours.boundingBox();
+  const line = await now.boundingBox();
+  if (!viewport || !line) throw new Error('calendar is not laid out');
+  expect(line.y).toBeGreaterThanOrEqual(viewport.y);
+  expect(line.y).toBeLessThanOrEqual(viewport.y + viewport.height);
+  await hours.hover();
+  const initial = await hours.evaluate((el) => el.scrollTop);
+  await page.mouse.wheel(0, -1000);
+  await expect.poll(() => hours.evaluate((el) => el.scrollTop)).toBeLessThan(initial);
+  const position = await hours.evaluate((el) => el.scrollTop);
+  await page.clock.install();
+  await page.clock.fastForward(31_000);
+  expect(await hours.evaluate((el) => el.scrollTop)).toBe(position);
+});
+
+test('scrolling reaches early and late hours while day headings stay visible', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '01:00'), week.at(0, '02:00'), 'Early work');
+  await api.entry('Acme / Platform', week.at(0, '22:00'), week.at(0, '23:00'), 'Late work');
+  await page.goto(`/?day=${week.day(0)}`);
+  const hours = page.getByRole('region', { name: 'Calendar hours' });
+  await expect(page.getByRole('button', { name: /^Edit Early work/ })).toBeInViewport();
+  await hours.hover();
+  await page.mouse.wheel(0, 2000);
+  await expect(page.getByRole('button', { name: /^Edit Late work/ })).toBeInViewport();
+  await expect(dayTotal(page, /^Monday/)).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'Show later hours' })).toHaveCount(0);
+  await hours.focus();
+  await page.keyboard.press('Home');
+  await expect.poll(() => hours.evaluate((el) => el.scrollTop)).toBe(0);
+});
 
 test('dragging an empty stretch adds time there', async ({ me }) => {
   const { page, api } = me;
@@ -28,6 +87,9 @@ test('dragging an empty stretch adds time there', async ({ me }) => {
 
   await expect(column(page, 2).locator('[data-entry]')).toHaveCount(1);
   await expect(dayTotal(page, /^Wednesday/)).toContainText('2h 30m');
+  await expect
+    .poll(async () => (await api.get(`/entries?from=${week.day(2)}&to=${week.day(2)}`)).entries.length)
+    .toBe(1);
   const { entries } = await api.get(`/entries?from=${week.day(2)}&to=${week.day(2)}`);
   expect(instant(entries[0].startedAt)).toBe(instant(week.at(2, '09:00')));
 });
@@ -108,6 +170,142 @@ test('a click on a block opens it too', async ({ me }) => {
   await expect(dialog(page, 'Edit time')).toBeVisible();
 });
 
+test('a mouse click opens the entry even when pointer capture is released', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '11:00'), 'Build');
+  await page.goto(`/?day=${week.day(0)}`);
+  await expect(page.getByRole('button', { name: /^Edit Build/ })).toBeVisible();
+  // Capture can be lost independently of the browser's ordinary click event.
+  await page.evaluate(() => {
+    document.addEventListener(
+      'gotpointercapture',
+      (event) => {
+        (event.target as Element).releasePointerCapture(event.pointerId);
+      },
+      { once: true },
+    );
+  });
+  const p = await at(page, 0, 10);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  await page.mouse.move(p.x + 1, p.y + 1);
+  await page.mouse.up();
+  await expect(dialog(page, 'Edit time')).toBeVisible();
+  await expect(dialog(page, 'Edit time')).toHaveAttribute('popover', 'auto');
+  await expect(page.locator('[data-draft]')).toHaveCount(0);
+});
+
+test('a short entry remains clickable next to the following entry', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '09:07'), 'Short entry');
+  await api.entry('Acme / Support', week.at(0, '09:07'), week.at(0, '10:00'), 'Following entry');
+  await page.goto(`/?day=${week.day(0)}`);
+  await page
+    .getByRole('button', { name: /^Edit Short entry/ })
+    .locator('..')
+    .click();
+  const edit = dialog(page, 'Edit time');
+  await expect(edit).toBeVisible();
+  await expect(edit.getByRole('textbox', { name: 'Note' })).toHaveValue('Short entry');
+  await expect(edit.getByLabel(/^End/)).toHaveValue('09:07');
+});
+
+test('a click with small pointer movement opens the popover without moving time', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:02'), week.at(0, '11:17'), 'Click me');
+  await page.goto(`/?day=${week.day(0)}`);
+  const block = page.getByRole('button', { name: /^Edit Click me/ });
+  await expect(block).toBeVisible();
+  const p = await at(page, 0, 10);
+  await page.mouse.move(p.x, p.y);
+  await page.mouse.down();
+  // Pressing is still a click: the entry should not turn into a drag preview.
+  await expect(block).toContainText('Click me');
+  await page.mouse.move(p.x + 3, p.y + 5);
+  await page.mouse.up();
+  const edit = dialog(page, 'Edit time');
+  await expect(edit).toBeVisible();
+  await expect(edit).toHaveAttribute('popover', 'auto');
+  await expect(edit.getByLabel('Start', { exact: true })).toHaveValue('09:02');
+  await expect(edit.getByLabel(/^End/)).toHaveValue('11:17');
+  await expect(page.locator('[data-draft]')).toHaveCount(0);
+  const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`);
+  expect(entries).toHaveLength(1);
+  expect(instant(entries[0].startedAt)).toBe(instant(week.at(0, '09:02')));
+  expect(instant(entries[0].endedAt)).toBe(instant(week.at(0, '11:17')));
+});
+
+test('an entry edits in a popover, changes project, and dismisses with Escape', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:00'), 'Build');
+  await page.goto(`/?day=${week.day(0)}`);
+  const block = page.getByRole('button', { name: /^Edit Build/ });
+  await block.press('Enter');
+  const edit = dialog(page, 'Edit time');
+  await expect(edit).toHaveAttribute('popover', 'auto');
+  await expect(edit).not.toHaveAttribute('aria-modal', 'true');
+  await edit.getByRole('button', { name: /^Project: / }).click();
+  await page.getByRole('option', { name: 'Support' }).click();
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect(block).toHaveAttribute('aria-label', /Acme \/ Support/);
+  await block.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(edit).toBeHidden();
+  await expect(block).toBeFocused();
+});
+
+test('duplicating time preserves its details and can put the copy on another day', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:30'), 'Build');
+  await page.goto(`/?day=${week.day(0)}`);
+  await page.getByRole('button', { name: /^Edit Build/ }).press('Enter');
+  const edit = dialog(page, 'Edit time');
+  await edit.getByLabel('Day', { exact: true }).fill(week.day(1));
+  await edit.getByRole('button', { name: 'Duplicate', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await expect(column(page, 0).locator('[data-entry]')).toHaveCount(1);
+  await expect(column(page, 1).locator('[data-entry]')).toHaveCount(1);
+  const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(1)}`);
+  expect(entries).toHaveLength(2);
+  expect(entries.map((e: { note: string }) => e.note)).toEqual(['Build', 'Build']);
+  expect(entries[0].projectId).toBe(entries[1].projectId);
+  expect(entries.map((e: { startedAt: string; endedAt: string }) => instant(e.endedAt) - instant(e.startedAt))).toEqual(
+    [90 * 60_000, 90 * 60_000],
+  );
+});
+
+test('dragging time into another day preserves its duration and details', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  const original = await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:30'), 'Build');
+  await page.goto(`/?day=${week.day(0)}`);
+  await expect(column(page, 0).locator('[data-entry]')).toBeVisible();
+  await drag(page, await at(page, 0, 9.5), await at(page, 2, 11.5));
+  await expect(column(page, 0).locator('[data-entry]')).toHaveCount(0);
+  await expect(column(page, 2).locator('[data-entry]')).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(2)}`);
+      return instant(entries[0].startedAt);
+    })
+    .toBe(instant(week.at(2, '11:00')));
+  const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(2)}`);
+  expect(entries).toHaveLength(1);
+  expect(entries[0].id).toBe(original.id);
+  expect(entries[0].note).toBe('Build');
+  expect(instant(entries[0].startedAt)).toBe(instant(week.at(2, '11:00')));
+  expect(instant(entries[0].endedAt)).toBe(instant(week.at(2, '12:30')));
+  await expect(dayTotal(page, /^Monday/)).toContainText('0h 0m');
+  await expect(dayTotal(page, /^Wednesday/)).toContainText('1h 30m');
+  await expect(dialog(page, 'Edit time')).toHaveCount(0);
+});
+
 test('overlapping entries sit side by side and count once', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();
@@ -128,15 +326,42 @@ test('overlapping entries sit side by side and count once', async ({ me }) => {
   expect(sheet.regular).toBe(8);
 });
 
+test('hover tooltips only supplement small or clipped entry blocks', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Meetings', week.at(0, '09:00'), week.at(0, '12:00'), 'Review');
+  await api.entry('Meetings', week.at(1, '09:00'), week.at(1, '09:15'), 'Quick call');
+  await api.entry(
+    'Meetings',
+    week.at(2, '09:00'),
+    week.at(2, '12:00'),
+    'A very long description that cannot possibly fit in one calendar column',
+  );
+  await page.goto(`/?day=${week.day(0)}`);
+  const roomy = page.getByRole('button', { name: /^Edit Review,/ }).locator('..');
+  await roomy.hover();
+  await expect(roomy).not.toHaveAttribute('data-tooltip-id');
+  const small = page.getByRole('button', { name: /^Edit Quick call,/ }).locator('..');
+  await small.hover();
+  await expect(small).toHaveAttribute('data-tooltip-id');
+  await expect(page.getByRole('tooltip')).toContainText('Quick call');
+  const clipped = page.getByRole('button', { name: /^Edit A very long description/ }).locator('..');
+  await clipped.hover();
+  await expect(clipped).toHaveAttribute('data-tooltip-id');
+  await small.click();
+  await expect(dialog(page, 'Edit time')).toHaveAttribute('popover', 'auto');
+});
+
 test('a day ahead takes no time', async ({ me }) => {
   const { page } = me;
   await page.goto('/');
   await expect(column(page, 0)).toBeVisible();
   const ahead = page.locator('.wk-future .tl-track');
   test.skip((await ahead.count()) === 0, 'today is the last day of the week');
-  const box = await ahead.last().boundingBox();
-  if (!box) throw new Error('no column');
-  await drag(page, { x: box.x + 20, y: box.y + 60 }, { x: box.x + 20, y: box.y + 160 });
+  const box = await page.locator('.wk-scroll').boundingBox();
+  const track = await ahead.last().boundingBox();
+  if (!box || !track) throw new Error('no column');
+  await drag(page, { x: track.x + 20, y: box.y + 60 }, { x: track.x + 20, y: box.y + 160 });
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
@@ -152,4 +377,51 @@ test('the list shows the week a day at a time', async ({ me }) => {
   await expect(days).toHaveCount(2);
   await expect(days.first()).toContainText('Wednesday');
   await expect(page.getByRole('listitem').filter({ hasText: 'Ticket' })).toContainText('1h 30m');
+});
+
+test('the project menu escapes the entry popover and stays selectable at viewport edges', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:00'), 'Menu clipping');
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 1440, height: 600 },
+    { width: 390, height: 650 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto(`/?day=${week.day(0)}`);
+    await page.getByRole('button', { name: /^Edit Menu clipping/ }).click();
+    const edit = dialog(page, 'Edit time');
+    await edit.getByRole('button', { name: /^Project:/ }).click();
+    const menu = page.getByRole('listbox', { name: 'Project', exact: true });
+    await expect(menu).toBeVisible();
+    const last = menu.getByRole('option').last();
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport({ ratio: 1 });
+    // Visibility alone passes for clipped descendants. Hit-test the last row's
+    // lower edge: it must actually receive a click, outside the editor's bounds too.
+    expect(
+      await last.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.bottom - 2));
+      }),
+    ).toBe(true);
+    const bounds = await menu.locator('..').boundingBox();
+    if (!bounds) throw new Error('menu has no bounds');
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(edit).toBeVisible();
+    await edit.getByRole('button', { name: /^Project:/ }).click();
+    const chosen = (await last.innerText()).trim();
+    await last.click();
+    await expect(menu).toBeHidden();
+    await expect(edit).toBeVisible();
+    await expect(edit.getByRole('button', { name: /^Project:/ })).toContainText(chosen);
+    await edit.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(edit).toBeHidden();
+  }
 });

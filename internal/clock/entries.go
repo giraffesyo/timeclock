@@ -125,6 +125,13 @@ func checkProject(ctx context.Context, q querier, cfg Settings, projectID *uuid.
 	return usableProject(ctx, q, *projectID)
 }
 
+func checkDescription(cfg Settings, note string) error {
+	if cfg.RequireDescription && strings.TrimSpace(note) == "" {
+		return ErrDescriptionRequired.New("")
+	}
+	return nil
+}
+
 // ClockIn starts the actor's clock.
 func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID, note string) (Entry, error) {
 	var out Entry
@@ -139,6 +146,9 @@ func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID
 		}
 		if running {
 			return ErrClockRunning.New("")
+		}
+		if err := checkDescription(cfg, note); err != nil {
+			return err
 		}
 		if err := checkProject(ctx, tx, cfg, projectID); err != nil {
 			return err
@@ -180,6 +190,9 @@ func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID,
 		}
 		if err != nil {
 			return fmt.Errorf("read running clock: %w", err)
+		}
+		if err := checkDescription(cfg, note); err != nil {
+			return err
 		}
 		if err := checkProject(ctx, tx, cfg, projectID); err != nil {
 			return err
@@ -267,6 +280,9 @@ func (s *Service) CreateEntry(ctx context.Context, actor Actor, in EntryInput) (
 		if err := checkProject(ctx, tx, cfg, in.ProjectID); err != nil {
 			return err
 		}
+		if err := checkDescription(cfg, in.Note); err != nil {
+			return err
+		}
 		if err := s.checkSpan(ctx, tx, cfg, p.ID, in.StartedAt, in.EndedAt); err != nil {
 			return err
 		}
@@ -333,6 +349,9 @@ func (s *Service) UpdateEntry(ctx context.Context, actor Actor, id uuid.UUID, in
 			if err := checkProject(ctx, tx, cfg, in.ProjectID); err != nil {
 				return err
 			}
+		}
+		if err := checkDescription(cfg, in.Note); err != nil {
+			return err
 		}
 		if err := s.checkSpan(ctx, tx, cfg, p.ID, in.StartedAt, in.EndedAt); err != nil {
 			return err

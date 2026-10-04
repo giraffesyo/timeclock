@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -82,7 +83,7 @@ export function useClock(options: UseClockOptions = {}): Clock {
       }
       // A note typed just before choosing a project describes the work being
       // moved to, so it goes with the new stretch.
-      return store.switchTo({ projectId, note: noteEdited ? note : '' });
+      return store.switchTo({ projectId, note: noteEdited || state.requireDescription ? note : '' });
     },
     saveNote,
     start: () => store.start({ projectId: current.projectId, note }),
@@ -172,6 +173,7 @@ export function ProjectPicker({
   const listId = useId();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -183,6 +185,40 @@ export function ProjectPicker({
     ...projects.map((p) => ({ id: p.id, name: p.name, group: p.customerName })),
   ].filter((o) => words.every((w) => `${o.group} ${o.name}`.toLowerCase().includes(w)));
   const at = Math.min(cursor, Math.max(options.length - 1, 0));
+
+  // A nested native popover escapes a dialog's scrolling/clipping bounds while
+  // remaining its descendant, so selecting a project keeps the editor open.
+  useLayoutEffect(() => {
+    const el = menu.current;
+    const button = trigger.current;
+    if (!open || !el || !button) return;
+    el.showPopover();
+    const position = () => {
+      const rect = button.getBoundingClientRect();
+      const below = window.innerHeight - rect.bottom - 12;
+      const above = rect.top - 12;
+      el.style.maxHeight = `${Math.max(0, Math.max(below, above))}px`;
+      const height = el.offsetHeight;
+      const down = below >= height || below >= above;
+      el.style.maxHeight = `${Math.max(0, down ? below : above)}px`;
+      el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8))}px`;
+      el.style.top = `${down ? rect.bottom + 4 : Math.max(8, rect.top - el.offsetHeight - 4)}px`;
+    };
+    position();
+    el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    const observer = new ResizeObserver(position);
+    observer.observe(el);
+    const follow = (e: Event) => {
+      if (e.target instanceof Node && !el.contains(e.target)) position();
+    };
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', follow, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', follow, true);
+    };
+  }, [open]);
 
   // A press outside closes the list.
   useEffect(() => {
@@ -226,6 +262,7 @@ export function ProjectPicker({
         break;
       }
       case 'Escape':
+        e.preventDefault();
         // The list closes; a dialog around it stays.
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
@@ -272,7 +309,14 @@ export function ProjectPicker({
         </svg>
       </button>
       {open && (
-        <div className="tc-popover">
+        <div
+          ref={menu}
+          popover="auto"
+          className="tc-popover"
+          onToggle={(e) => {
+            if (e.target === e.currentTarget && e.newState === 'closed') setOpen(false);
+          }}
+        >
           <input
             className="tc-search"
             role="combobox"
@@ -282,8 +326,6 @@ export function ProjectPicker({
             aria-label={labels.search}
             placeholder={labels.search}
             value={query}
-            // biome-ignore lint/a11y/noAutofocus: opening the list is asking to search it
-            autoFocus
             onChange={(e) => {
               setQuery(e.target.value);
               setCursor(0);
@@ -303,7 +345,12 @@ export function ProjectPicker({
                   aria-selected={o.id === value}
                   className={cx('tc-option', i === at && 'tc-option-active')}
                   onPointerMove={() => setCursor(i)}
-                  onClick={() => pick(o.id)}
+                  onClick={(e) => {
+                    // A picker can sit inside a field label. Selecting its row
+                    // must not activate the labelled trigger and reopen the menu.
+                    e.preventDefault();
+                    pick(o.id);
+                  }}
                 >
                   <ProjectDot projectId={o.id} />
                   <span className="tc-option-name">{o.name}</span>
@@ -448,6 +495,7 @@ export function ClockBar({
         placeholder={clock.locked ? labels.locked : labels.notePlaceholder}
         aria-label={labels.noteLabel}
         disabled={clock.locked}
+        required={clock.requireDescription}
         maxLength={2000}
         onChange={(e) => clock.setNote(e.target.value)}
         onBlur={running ? leaveNote : undefined}
@@ -480,6 +528,7 @@ export function ClockBar({
       )}
       <button
         type="submit"
+        formNoValidate={!!running}
         aria-label={running ? labels.stop : labels.start}
         disabled={clock.locked || clock.busy}
         className={cx('tc-go', !!running && 'tc-go-stop')}

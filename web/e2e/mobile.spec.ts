@@ -11,12 +11,12 @@ test('the week is a strip of days, and a tap on an empty hour adds time', async 
   await wednesday.tap();
   await expect(wednesday).toHaveAttribute('aria-pressed', 'true');
 
-  // The day shows 7 AM to 7 PM: a tap a quarter of the way down is 10 AM.
+  // The full day is rendered: 10 AM is ten hours from midnight.
   const track = page.locator('.tl-column .tl-track');
   await expect(track).toHaveCount(1);
   const box = await track.boundingBox();
   if (!box) throw new Error('no day shown');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * 0.25);
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * (10 / 24));
 
   const dialog = page.getByRole('dialog', { name: 'Add time' });
   await expect(dialog.locator('input[type=date]')).toHaveValue(week.day(2));
@@ -37,9 +37,34 @@ test('a tap on a block opens it', async ({ me }) => {
   await page.goto(`/?day=${week.day(0)}`);
   await page.getByRole('button', { name: /^Edit Build/ }).tap();
   await expect(page.getByRole('dialog', { name: 'Edit time' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Edit time' })).toHaveAttribute('popover', 'auto');
   // The tap is the block's alone: it doesn't also start a new stretch under it.
   await expect(page.getByRole('dialog')).toHaveCount(1);
   await expect(page.locator('[data-draft]')).toHaveCount(0);
+});
+
+test('swiping the hours scrolls the calendar without adding time', async ({ me }) => {
+  const { page } = me;
+  const week = lastWeek();
+  await page.goto(`/?day=${week.day(0)}`);
+  const hours = page.getByRole('region', { name: 'Calendar hours' });
+  const box = await hours.boundingBox();
+  if (!box) throw new Error('no hours');
+  const initial = await hours.evaluate((el) => el.scrollTop);
+  const cdp = await page.context().newCDPSession(page);
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height * 0.8;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let step = 1; step <= 6; step++) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: y - step * 30 }],
+    });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect.poll(() => hours.evaluate((el) => el.scrollTop)).toBeGreaterThan(initial);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await cdp.detach();
 });
 
 test('the clock starts and stops', async ({ me }) => {
