@@ -103,6 +103,9 @@ type Options struct {
 	// HSTS sends Strict-Transport-Security. A host that sets its own
 	// security headers leaves it off.
 	HSTS bool
+	// IntegrationSecretKey encrypts integration credentials. At least 32 characters.
+	// Empty disables new connections. Keep this key outside database backups.
+	IntegrationSecretKey string
 	// Logger defaults to slog.Default().
 	Logger *slog.Logger
 }
@@ -146,19 +149,26 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 	}
 	svc := clock.New(pool)
 
-	// Reminders are the only background work, and only a host with a
-	// Notifier can deliver them.
+	toggl, err := clock.NewToggl(svc, opts.IntegrationSecretKey)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
 	var jobs *hopper.Client[pgx.Tx]
-	if opts.Notifier != nil {
+	if opts.Notifier != nil || opts.IntegrationSecretKey != "" {
 		workers := hopper.NewWorkers()
-		reminders := clock.NewReminders(opts.Notifier, logger)
-		periodic := reminders.Register(workers)
-		reminders.Bind(svc)
+		var periodic []hopper.PeriodicJob
+		if opts.Notifier != nil {
+			reminders := clock.NewReminders(opts.Notifier, logger)
+			reminders.Bind(svc)
+			periodic = append(periodic, reminders.Register(workers))
+		}
+		if opts.IntegrationSecretKey != "" {
+			periodic = append(periodic, toggl.Register(workers))
+		}
 		jobs, err = hopper.NewClient(pgdb.HopperDriver(pool), &hopper.Config{
-			Queues:   map[string]hopper.QueueConfig{hopper.QueueDefault: {MaxWorkers: 2}},
-			Workers:  workers,
-			Periodic: []hopper.PeriodicJob{periodic},
-			Logger:   logger,
+			Queues:  map[string]hopper.QueueConfig{hopper.QueueDefault: {MaxWorkers: 2}},
+			Workers: workers, Periodic: periodic, Logger: logger,
 		})
 		if err != nil {
 			pool.Close()
@@ -166,7 +176,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		}
 	}
 
-	deps := api.Deps{Clock: svc, Directory: opts.Directory, Info: api.Info{
+	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
 		ThemeStorageKey: opts.ThemeStorageKey, AccountsURL: opts.AccountsURL,
 	}, HostTheme: opts.Theme}
@@ -197,7 +207,8 @@ func (t *Timeclock) ServeHTTP(w http.ResponseWriter, r *http.Request) { t.handle
 
 // Run does Timeclock's background work until ctx ends: reminding people,
 // through the host's Notifier, about a clock left running or a timesheet
-// that is due. Without a Notifier it returns when ctx ends.
+// that is due, and syncing connected integrations. With neither configured,
+// it returns when ctx ends.
 func (t *Timeclock) Run(ctx context.Context) {
 	if t.jobs == nil {
 		<-ctx.Done()

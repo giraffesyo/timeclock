@@ -102,3 +102,9 @@ export const KeyIcon = (p: Props) => (
     <path d="M7.700 8.300 13.500 2.500M11 5l2 2M9.500 6.500l1.500 1.500" />
   </Icon>
 );
+
+export const IntegrationsIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M6 2v3M10 2v3M4 5h8v2a4 4 0 0 1-4 4v3M4 5v2a4 4 0 0 0 4 4" />
+  </Icon>
+);

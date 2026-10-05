@@ -129,6 +129,8 @@ export default defineConfig({
         TIMECLOCK_SCHEMA: `e2e_${Date.now()}`,
         TIMECLOCK_DEV_USER: ADMIN,
         TIMECLOCK_ADMIN_EMAILS: ADMIN,
+        TIMECLOCK_SECRET_KEY: 'integration key only used by the e2e tests',
+        E2E_SERVICES_URL: SERVICES_URL,
       },
     },
     {

@@ -290,3 +290,28 @@ func TestOpenAPIDocumentsEveryOperation(t *testing.T) {
 		}
 	}
 }
+
+func TestIntegrationsRequireAdmin(t *testing.T) {
+	h := mounted(t)
+	for _, user := range []string{"", "ada"} {
+		want := http.StatusForbidden
+		if user == "" {
+			want = http.StatusUnauthorized
+		}
+		for _, operation := range []struct{ method, path, body string }{
+			{"GET", "/integrations/toggl", ""},
+			{"POST", "/integrations/toggl/preview", `{"token":"secret","workspaceId":0}`},
+			{"POST", "/integrations/toggl/sync", `{}`},
+			{"DELETE", "/integrations/toggl", ""},
+		} {
+			response, _ := call(t, h, user, operation.method, "/timeclock/api/v1"+operation.path, operation.body)
+			if response.Code != want {
+				t.Errorf("%s %s as %q: %d, want %d", operation.method, operation.path, user, response.Code, want)
+			}
+		}
+	}
+	response, status := call(t, h, "pat", "GET", "/timeclock/api/v1/integrations/toggl", "")
+	if response.Code != 200 || status["available"] != false || status["connected"] != false {
+		t.Fatalf("unexpected disabled status: %s", response.Body.String())
+	}
+}

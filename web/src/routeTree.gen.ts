@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as ForgotRouteImport } from './routes/forgot'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OverviewRouteImport } from './routes/overview'
@@ -35,6 +36,11 @@ const AccountRoute = AccountRouteImport.update({
 const ForgotRoute = ForgotRouteImport.update({
   id: '/forgot',
   path: '/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InviteRoute = InviteRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/forgot': typeof ForgotRoute
+  '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/forgot': typeof ForgotRoute
+  '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/forgot': typeof ForgotRoute
+  '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/forgot'
+    | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/forgot'
+    | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/forgot'
+    | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   ForgotRoute: typeof ForgotRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   OverviewRoute: typeof OverviewRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot'
       fullPath: '/forgot'
       preLoaderRoute: typeof ForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invite': {
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   ForgotRoute: ForgotRoute,
+  IntegrationsRoute: IntegrationsRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   OverviewRoute: OverviewRoute,

@@ -49,7 +49,7 @@ if err != nil {
 	return err
 }
 defer tc.Close()
-go tc.Run(ctx)                  // reminders, until ctx ends
+go tc.Run(ctx)                  // reminders and integrations, until ctx ends
 mux.Handle("/timeclock/", tc)   // requests arrive with the base path still on them
 ```
 
@@ -93,9 +93,28 @@ timeclock-server
 - **A second step.** Anyone can add an authenticator app to their account (with recovery codes for when the phone is gone); sign-in then asks for its code after the password, and a reset link doesn't get around it. A passkey signs in on its own, with a fingerprint, face or device PIN. Both are set up under Account.
 - **Email.** Invitations and password resets go by SMTP. Without a mail server, they are written to the log, and an invitation's link is shown to the admin who made it.
 - **Single sign-on.** A workspace's admins can give it its own OpenID Connect provider in Settings → Sign-in, require it, and let anyone it signs in join; Settings shows a sign-in link that goes straight to the provider. What a workspace's provider says counts in that workspace only: a session that came in through it sees that workspace and can't change how the account signs in. `TIMECLOCK_OIDC_ISSUER`, `_CLIENT_ID` and `_CLIENT_SECRET` add a provider for the whole server instead. Either way the redirect URL is `<public URL>/auth/callback`.
-- **The secret key.** `TIMECLOCK_SECRET_KEY` seals authenticator secrets and providers' client secrets in the database (AES-256-GCM). Losing it means setting those up again; it isn't needed to read time or sign in with a password.
+- **The secret key.** `TIMECLOCK_SECRET_KEY` seals authenticator secrets, providers' client secrets, and integration tokens in the database (AES-256-GCM). Losing it means setting those up again; it isn't needed to read time or sign in with a password.
 
 See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
+
+## Toggl Track trial sync
+
+An admin opens **Integrations → Toggl Track**, enters a Toggl workspace admin's API token, selects the workspace, and confirms the suggested email matches between Toggl users and Timeclock people. Employees do not connect their accounts. The Toggl account must have permission to read and edit the matched people's time; plan restrictions and API quotas still apply.
+
+All history is selected by default, including completed entries on archived projects. Historical time with missing required fields or payroll locks is surfaced under **Needs attention**. You can instead choose a starting date (midnight UTC, 1970 or later). Hopper picks up the connection within a minute. Recent time syncs while older time imports in bounded batches; progress and report-page cursors survive restarts and API limits. Large histories can take multiple runs. After the first historical scan, jobs run about every ten minutes and continue sweeping older dates for changes. History is limited to the matched people and data the Toggl account can access. Run `tc.Run(ctx)` when embedding, and set `Options.IntegrationSecretKey` to at least 32 characters. Standalone uses `TIMECLOCK_SECRET_KEY`. Tokens are encrypted with AES-GCM and are never returned by the API or included in audit records.
+
+- Completed time entries sync in both directions, including descriptions, dates and project assignments. Running timers transfer after stopping. Customers and projects are imported from Toggl and paired with existing names within the same customer; use these projects when tracking in either app. Catalog renames, new Timeclock projects, tags, tasks, billable flags/rates, time off and payroll approvals are outside this bridge's scope.
+- Only explicitly matched, active Timeclock people sync. Existing matches cannot be reassigned while connected. An admin can add people through **Manage connection**.
+- Submitted and approved timesheets remain locked. Conflicting edits appear under **Needs attention**, with both versions and an explicit choice. Toggl does not provide conditional updates for these writes: the bridge re-reads before pushing, but a simultaneous edit after that read remains a limitation of polling.
+- Local deletions propagate to Toggl. Missing or inaccessible Toggl entries require an admin decision before deleting local time. A report omission alone never deletes anything.
+- Partial reports and API limits stop that attempt. Backoff is saved in the database, including `Retry-After`; **Sync now** cannot bypass it. Sync resumes from durable entry mappings. If an external create may have succeeded before a network or database failure, the bridge asks the admin to link the created entry or confirm that it is absent before retrying.
+- **Disconnect** waits for the active workspace sync, then deletes credentials, person/project/entry mappings, staged report pages and sync state. Imported time, customers, projects and the audit history stay in Timeclock; no data is deleted in Toggl. Reconnecting requires a token and person matching again. The retained audit history restores entry identity and the last shared version for the same Toggl workspace and people, avoiding duplicates and detecting offline conflicts or deletions. Previously imported users must be matched to their original Timeclock people.
+
+The integration uses Toggl's [Track API](https://engineering.toggl.com/docs/track/api/time_entries/), [detailed Reports API](https://engineering.toggl.com/docs/track/reports/detailed_reports/), and [workspace membership API](https://engineering.toggl.com/docs/track/api/workspaces/). Google Calendar and Gusto have reserved rows on the Integrations page but are not connected services yet.
+
+The regular browser suite uses a local fake Toggl service, synthetic tokens, the real API/database, and the Hopper worker. `make e2e ARGS="e2e/integrations.spec.ts --project=chromium"` covers history pagination, edits, disconnect, reconnect and conflict resolution without any Toggl account. The `e2e` build tag redirects Toggl requests to localhost and refuses real Toggl traffic; production builds have no override.
+
+Live integration tests are opt-in. Set `TIMECLOCK_TOGGL_TEST_TOKEN_FILE` to a local file containing a **Toggl Track** API token and `TIMECLOCK_TOGGL_TEST_WORKSPACE_ID` to the sandbox workspace ID. Run `go test ./internal/toggl -run '^TestLiveWorkspaceContract$' -count=1 -v` for read-only checks. With the test database configured, `TIMECLOCK_TOGGL_TEST_WRITES=1 go test ./internal/clock -run '^TestLiveTogglRoundTrip$' -count=1 -v` creates one disposable entry, verifies edits in both directions and disconnect cleanup, then deletes that remote entry. The write test requires a single-user sandbox and uses an isolated local schema; it does not verify editing another team member's time. Toggl 2.0 tokens use a separate API and are not supported by this Track integration.
 
 ## Development
 

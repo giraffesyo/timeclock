@@ -279,7 +279,8 @@
           "source": {
             "enum": [
               "clock",
-              "manual"
+              "manual",
+              "toggl"
             ],
             "type": "string"
           },
@@ -1029,6 +1030,34 @@
         ],
         "type": "object"
       },
+      "Preview-togglRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Preview-togglRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "workspaceId": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token",
+          "workspaceId"
+        ],
+        "type": "object"
+      },
       "Problem": {
         "additionalProperties": false,
         "properties": {
@@ -1711,6 +1740,344 @@
           "submittedAt"
         ],
         "type": "object"
+      },
+      "TogglIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "entryId": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "local": {
+            "$ref": "#/components/schemas/TogglState"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "remote": {
+            "$ref": "#/components/schemas/TogglState"
+          },
+          "remoteId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entryId",
+          "personId",
+          "kind",
+          "version",
+          "local",
+          "remote"
+        ],
+        "type": "object"
+      },
+      "TogglMapping": {
+        "additionalProperties": false,
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "userId": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "personId",
+          "userId"
+        ],
+        "type": "object"
+      },
+      "TogglPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TogglPreview.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "suggested": {
+            "items": {
+              "$ref": "#/components/schemas/TogglMapping"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "workspaces",
+          "users",
+          "suggested"
+        ],
+        "type": "object"
+      },
+      "TogglResolution": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TogglResolution.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "choice": {
+            "enum": [
+              "local",
+              "remote",
+              "retry",
+              "link"
+            ],
+            "type": "string"
+          },
+          "remoteId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "choice",
+          "version"
+        ],
+        "type": "object"
+      },
+      "TogglSetup": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TogglSetup.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "description": "Optional start date (YYYY-MM-DD). Empty imports all history.",
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TogglMapping"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "token": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "workspaceId": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token",
+          "workspaceId",
+          "from",
+          "people"
+        ],
+        "type": "object"
+      },
+      "TogglState": {
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          },
+          "end": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "note",
+          "deleted"
+        ],
+        "type": "object"
+      },
+      "TogglStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TogglStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "historyComplete": {
+            "type": "boolean"
+          },
+          "historyThrough": {
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/TogglIssue"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "lastSync": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "nextSync": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TogglMapping"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workspaceId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "historyComplete",
+          "historyThrough",
+          "available",
+          "connected",
+          "workspaceId",
+          "from",
+          "error",
+          "people",
+          "issues"
+        ],
+        "type": "object"
+      },
+      "User": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "inactive": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "name",
+          "inactive"
+        ],
+        "type": "object"
+      },
+      "Workspace": {
+        "additionalProperties": false,
+        "properties": {
+          "admin": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "organization_id",
+          "admin",
+          "role"
+        ],
+        "type": "object"
       }
     }
   },
@@ -2342,6 +2709,214 @@
         "summary": "Where Timeclock runs and how to sign in",
         "tags": [
           "Me"
+        ]
+      }
+    },
+    "/api/v1/integrations/toggl": {
+      "delete": {
+        "operationId": "disconnect-toggl",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove Toggl credentials and mappings while keeping recorded time",
+        "tags": [
+          "Integrations"
+        ]
+      },
+      "get": {
+        "operationId": "get-toggl",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TogglStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Toggl connection and sync issues",
+        "tags": [
+          "Integrations"
+        ]
+      },
+      "put": {
+        "operationId": "configure-toggl",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TogglSetup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TogglStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Connect Toggl and confirm person matches",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/toggl/entries/{id}/resolve": {
+      "post": {
+        "operationId": "resolve-toggl-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TogglResolution"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Resolve a sync conflict or recover an uncertain creation",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/toggl/preview": {
+      "post": {
+        "operationId": "preview-toggl",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preview-togglRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TogglPreview"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Find Toggl workspaces and suggest person matches without saving credentials",
+        "tags": [
+          "Integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/toggl/sync": {
+      "post": {
+        "operationId": "sync-toggl",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TogglStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Request a background sync, respecting API backoff",
+        "tags": [
+          "Integrations"
         ]
       }
     },

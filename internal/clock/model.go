@@ -100,7 +100,7 @@ type Entry struct {
 	StartedAt time.Time  `json:"startedAt"`
 	EndedAt   *time.Time `json:"endedAt,omitempty" doc:"Absent while the clock is running."`
 	Note      string     `json:"note"`
-	Source    string     `json:"source" enum:"clock,manual"`
+	Source    string     `json:"source" enum:"clock,manual,toggl"`
 	Locked    bool       `json:"locked" doc:"In a submitted or approved timesheet, so it can't change."`
 }
 

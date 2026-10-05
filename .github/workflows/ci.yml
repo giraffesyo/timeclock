@@ -119,7 +119,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: web
       - name: Build the server with the app embedded
-        run: make build
+        run: |
+          make build
+          go build -tags=e2e -o timeclock-server ./cmd/timeclock-server
       - name: Install browsers
         run: pnpm exec playwright install --with-deps chromium webkit
         working-directory: web

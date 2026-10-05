@@ -48,6 +48,7 @@ type Info struct {
 
 // Deps are what the operations need.
 type Deps struct {
+	Toggl     *clock.Toggl
 	Clock     *clock.Service
 	Directory host.Directory
 	Info      Info
@@ -136,6 +137,7 @@ func New(mux *http.ServeMux, deps Deps) huma.API {
 			}
 			return &struct{ Body Info }{info}, nil
 		})
+	registerIntegrations(a, deps)
 	registerMe(a, deps)
 	registerSettings(a, deps)
 	registerPeople(a, deps)

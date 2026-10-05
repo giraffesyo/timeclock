@@ -4,6 +4,7 @@ import auth from './auth.json'
 import clock from './clock.json'
 import common from './common.json'
 import entry from './entry.json'
+import integrations from './integrations.json'
 import overview from './overview.json'
 import reports from './reports.json'
 import settings from './settings.json'
@@ -23,6 +24,7 @@ export default {
   clock,
   common,
   entry,
+  integrations,
   overview,
   reports,
   settings,

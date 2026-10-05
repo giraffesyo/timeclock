@@ -61,6 +61,7 @@ test-db: db
 # The end-to-end tests: the built server, with the app embedded, driven by
 # real browsers against the development database (a schema of its own per run).
 e2e: db build
+	go build -tags=e2e -o timeclock-server ./cmd/timeclock-server
 	@cd web && pnpm exec playwright test $(ARGS)
 
 # Regenerate the web app's API types from the server's OpenAPI document.

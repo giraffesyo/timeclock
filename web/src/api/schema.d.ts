@@ -195,6 +195,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toggl connection and sync issues */
+        get: operations["get-toggl"];
+        /** Connect Toggl and confirm person matches */
+        put: operations["configure-toggl"];
+        post?: never;
+        /** Remove Toggl credentials and mappings while keeping recorded time */
+        delete: operations["disconnect-toggl"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/toggl/entries/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve a sync conflict or recover an uncertain creation */
+        post: operations["resolve-toggl-entry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/toggl/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Find Toggl workspaces and suggest person matches without saving credentials */
+        post: operations["preview-toggl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/toggl/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a background sync, respecting API backoff */
+        post: operations["sync-toggl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -710,7 +780,7 @@ export interface components {
             personId: string;
             projectId?: string;
             /** @enum {string} */
-            source: "clock" | "manual";
+            source: "clock" | "manual" | "toggl";
             /** Format: date-time */
             startedAt: string;
         };
@@ -998,6 +1068,17 @@ export interface components {
             /** @description The IANA time zone their days are cut in. Empty uses the organization's. */
             timezone: string;
         };
+        "Preview-togglRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Preview-togglRequest.json
+             */
+            readonly $schema?: string;
+            token: string;
+            /** Format: int64 */
+            workspaceId: number;
+        };
         Problem: {
             /**
              * Format: uri
@@ -1283,6 +1364,106 @@ export interface components {
             status: "submitted" | "approved" | "rejected";
             /** Format: date-time */
             submittedAt: string;
+        };
+        TogglIssue: {
+            entryId: string;
+            kind: string;
+            local: components["schemas"]["TogglState"];
+            personId: string;
+            remote: components["schemas"]["TogglState"];
+            /** Format: int64 */
+            remoteId?: number;
+            version: string;
+        };
+        TogglMapping: {
+            personId: string;
+            /** Format: int64 */
+            userId: number;
+        };
+        TogglPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TogglPreview.json
+             */
+            readonly $schema?: string;
+            suggested: components["schemas"]["TogglMapping"][] | null;
+            users: components["schemas"]["User"][] | null;
+            workspaces: components["schemas"]["Workspace"][] | null;
+        };
+        TogglResolution: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TogglResolution.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            choice: "local" | "remote" | "retry" | "link";
+            /** Format: int64 */
+            remoteId?: number;
+            version: string;
+        };
+        TogglSetup: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TogglSetup.json
+             */
+            readonly $schema?: string;
+            /** @description Optional start date (YYYY-MM-DD). Empty imports all history. */
+            from: string;
+            people: components["schemas"]["TogglMapping"][] | null;
+            token: string;
+            /** Format: int64 */
+            workspaceId: number;
+        };
+        TogglState: {
+            deleted: boolean;
+            /** Format: date-time */
+            end?: string;
+            note: string;
+            projectId?: string;
+            /** Format: date-time */
+            start: string;
+        };
+        TogglStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TogglStatus.json
+             */
+            readonly $schema?: string;
+            available: boolean;
+            connected: boolean;
+            error: string;
+            from: string;
+            historyComplete: boolean;
+            historyThrough: string;
+            issues: components["schemas"]["TogglIssue"][] | null;
+            /** Format: date-time */
+            lastSync?: string;
+            /** Format: date-time */
+            nextSync?: string;
+            people: components["schemas"]["TogglMapping"][] | null;
+            /** Format: int64 */
+            workspaceId: number;
+        };
+        User: {
+            email: string;
+            inactive: boolean;
+            name: string;
+            /** Format: int64 */
+            user_id: number;
+        };
+        Workspace: {
+            admin: boolean;
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** Format: int64 */
+            organization_id: number;
+            role: string;
         };
     };
     responses: never;
@@ -1758,6 +1939,190 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Info"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TogglStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "configure-toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TogglSetup"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TogglStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "disconnect-toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "resolve-toggl-entry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TogglResolution"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "preview-toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preview-togglRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TogglPreview"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "sync-toggl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TogglStatus"];
                 };
             };
             /** @description Error */

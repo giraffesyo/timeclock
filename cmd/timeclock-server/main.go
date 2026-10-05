@@ -193,19 +193,20 @@ func serve(ctx context.Context, logger *slog.Logger) error {
 	defer pool.Close()
 
 	tc, err := timeclock.New(ctx, timeclock.Options{
-		DatabaseURL:    dsn,
-		Schema:         schema,
-		SkipMigrations: true,
-		Caller:         auth.Caller,
-		Workspace:      auth.Workspace,
-		Directory:      auth,
-		SignInURL:      "/login?next=",
-		SignOutURL:     "/auth/logout",
-		AccountsURL:    "/auth",
-		Routes:         auth.Routes,
-		DevServer:      os.Getenv("TIMECLOCK_VITE_URL"),
-		HSTS:           strings.HasPrefix(os.Getenv("TIMECLOCK_PUBLIC_URL"), "https://"),
-		Logger:         logger,
+		DatabaseURL:          dsn,
+		IntegrationSecretKey: os.Getenv("TIMECLOCK_SECRET_KEY"),
+		Schema:               schema,
+		SkipMigrations:       true,
+		Caller:               auth.Caller,
+		Workspace:            auth.Workspace,
+		Directory:            auth,
+		SignInURL:            "/login?next=",
+		SignOutURL:           "/auth/logout",
+		AccountsURL:          "/auth",
+		Routes:               auth.Routes,
+		DevServer:            os.Getenv("TIMECLOCK_VITE_URL"),
+		HSTS:                 strings.HasPrefix(os.Getenv("TIMECLOCK_PUBLIC_URL"), "https://"),
+		Logger:               logger,
 	})
 	if err != nil {
 		return err

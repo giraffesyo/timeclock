@@ -8,6 +8,7 @@ import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
+  IntegrationsIcon,
   MoonIcon,
   OverviewIcon,
   ReportsIcon,
@@ -102,7 +103,12 @@ export function Shell({ children }: { children: ReactNode }) {
       links: [
         ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
         { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
-        ...(me.admin ? [{ to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> }] : []),
+        ...(me.admin
+          ? [
+              { to: '/integrations', label: t('nav.integrations'), icon: <IntegrationsIcon /> },
+              { to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
+            ]
+          : []),
       ],
     },
   ];
