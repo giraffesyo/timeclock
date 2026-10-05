@@ -1,14 +1,15 @@
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { ConfirmModal } from '@parallelworks/ui';
-import { CloseIcon, CopyIcon, StartIcon } from '@parallelworks/ui/icons';
+import { CloseIcon, CopyIcon, MenuIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslations } from 'use-intl';
-import { Button } from '@/components/button';
+import { useFormatter, useTranslations } from 'use-intl';
+import { Button, buttonClass } from '@/components/button';
 import { useContinue } from '@/components/clock-bar';
 import { controlClass, Field, textareaClass } from '@/components/field';
 import { ErrorNote } from '@/components/page';
-import { ProjectSelect } from '@/components/project-select';
-import { type Entry, useSaveEntry } from '@/lib/queries';
+import { ProjectSelect, useProjectName } from '@/components/project-select';
+import { type Entry, useDeleteEntry, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, at, type Day, dayOf, hoursMinutes, timeInput } from '@/lib/time';
 import { useZone } from '@/lib/zone';
@@ -76,10 +77,13 @@ function Form({
 }) {
   const t = useTranslations('entry');
   const tc = useTranslations('common');
+  const format = useFormatter();
+  const projectName = useProjectName();
   const { settings } = useSession();
   const zone = useZone(entry?.personId ?? personId);
   const save = useSaveEntry();
   const duplicate = useSaveEntry();
+  const remove = useDeleteEntry();
   const again = useContinue();
 
   const [date, setDate] = useState(entry ? dayOf(entry.startedAt, zone) : day);
@@ -88,6 +92,12 @@ function Form({
   const [projectId, setProjectId] = useState(entry?.projectId ?? '');
   const [note, setNote] = useState(entry?.note ?? '');
   const [invalid, setInvalid] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const cancelDelete = useRef<HTMLButtonElement>(null);
+  const actions = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (deleting) cancelDelete.current?.focus({ preventScroll: true });
+  }, [deleting]);
 
   const running = !!entry && !entry.endedAt;
   const startedAt = at(date, start, zone);
@@ -172,6 +182,11 @@ function Form({
   );
 
   if (anchor && entry) {
+    const time = (iso: string) =>
+      format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
+    const range = entry.endedAt
+      ? t('range', { start: time(entry.startedAt), end: time(entry.endedAt) })
+      : t('rangeRunning', { start: time(entry.startedAt) });
     return (
       <EntryPopover anchor={anchor} onClose={onClose} title={t('editTitle')}>
         <div className="mb-3 flex items-center gap-2">
@@ -182,6 +197,7 @@ function Form({
               aria-label={t('continue')}
               title={t('continue')}
               icon={<StartIcon aria-hidden className="!size-6" />}
+              disabled={deleting}
               onClick={() => {
                 void again.start(entry);
                 onClose();
@@ -196,6 +212,7 @@ function Form({
               title={t('duplicate')}
               icon={<CopyIcon aria-hidden className="!size-5" />}
               loading={duplicate.isPending}
+              disabled={deleting}
               onClick={async () => {
                 if (!startedAt || !endedAt) {
                   setInvalid(true);
@@ -210,24 +227,91 @@ function Form({
               }}
             />
           )}
+          <Menu as="div" className="relative">
+            <MenuButton
+              ref={actions}
+              className={buttonClass('ghost', 'md', '!size-9 !p-0')}
+              aria-label={t('actions')}
+              title={t('actions')}
+              disabled={deleting || save.isPending || duplicate.isPending}
+            >
+              <MenuIcon aria-hidden className="!size-5" />
+            </MenuButton>
+            <MenuItems
+              modal={false}
+              className="popover absolute left-0 top-full z-10 mt-1 min-w-40 p-1 focus:outline-none"
+            >
+              <MenuItem>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger data-focus:bg-danger-subtle"
+                  onClick={() => setDeleting(true)}
+                >
+                  <TrashIcon aria-hidden className="size-4" />
+                  {t('delete')}
+                </button>
+              </MenuItem>
+            </MenuItems>
+          </Menu>
           <span className="flex-1" />
           <Button variant="ghost" size="sm" aria-label={t('close')} onClick={onClose}>
             <CloseIcon aria-hidden />
           </Button>
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          {fields}
-          <div className="mt-3 flex justify-end">
-            <Button type="submit" variant="primary" loading={save.isPending}>
-              {tc('save')}
-            </Button>
-          </div>
-        </form>
+        {deleting ? (
+          <section aria-labelledby="entry-delete-title">
+            <h2 id="entry-delete-title" className="text-base font-semibold">
+              {t('deleteTitle')}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t('deleteDescription', { range, project: projectName(entry.projectId) })}
+            </p>
+            {remove.isError && <ErrorNote className="mt-3" context={t('deleteFailed')} error={remove.error} />}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className={buttonClass()}
+                ref={cancelDelete}
+                disabled={remove.isPending}
+                onClick={() => {
+                  setDeleting(false);
+                  remove.reset();
+                  requestAnimationFrame(() => actions.current?.focus({ preventScroll: true }));
+                }}
+              >
+                {tc('cancel')}
+              </button>
+              <Button
+                variant="danger"
+                loading={remove.isPending}
+                onClick={async () => {
+                  try {
+                    await remove.mutateAsync(entry.id);
+                    onClose();
+                  } catch {
+                    // Keep the confirmation open so deletion can be retried.
+                  }
+                }}
+              >
+                {t('delete')}
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            {fields}
+            <div className="mt-3 flex justify-end">
+              <Button type="submit" variant="primary" loading={save.isPending}>
+                {tc('save')}
+              </Button>
+            </div>
+          </form>
+        )}
       </EntryPopover>
     );
   }

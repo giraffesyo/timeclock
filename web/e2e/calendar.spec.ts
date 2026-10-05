@@ -280,6 +280,72 @@ test('duplicating time preserves its details and can put the copy on another day
   );
 });
 
+test('the entry actions delete time on desktop and mobile, while cancel preserves edits', async ({ me }, testInfo) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 650 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:00'), 'Delete me');
+    await page.goto(`/?day=${week.day(0)}`);
+    await page.getByRole('button', { name: /^Edit Delete me/ }).click();
+    const edit = dialog(page, 'Edit time');
+    await edit.getByRole('textbox', { name: 'Note' }).fill('Unsaved changes');
+    const actions = edit.getByRole('button', { name: 'Entry actions' });
+    await actions.press('Enter');
+    const deletion = edit.getByRole('menuitem', { name: 'Delete' });
+    await expect(deletion).toBeInViewport({ ratio: 1 });
+    await testInfo.attach(`entry-actions-${viewport.width}`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`entry-actions-${viewport.width}.png`) }),
+      contentType: 'image/png',
+    });
+    await page.keyboard.press('Escape');
+    await expect(edit.getByRole('menu')).toBeHidden();
+    await expect(edit).toBeVisible();
+    await expect(actions).toBeFocused();
+    await actions.press('Enter');
+    await deletion.click();
+    await expect(edit.getByRole('heading', { name: 'Delete this time?' })).toBeVisible();
+    await expect(edit).toContainText('9:00 AM – 10:00 AM on Acme / Platform');
+    await expect(edit.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await testInfo.attach(`entry-delete-${viewport.width}`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`entry-delete-${viewport.width}.png`) }),
+      contentType: 'image/png',
+    });
+    await edit.getByRole('button', { name: 'Cancel' }).click();
+    await expect(edit.getByRole('textbox', { name: 'Note' })).toHaveValue('Unsaved changes');
+    expect((await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`)).entries).toHaveLength(1);
+    await actions.click();
+    await deletion.click();
+    await edit.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(edit).toBeHidden();
+    await expect(page.locator('[data-entry]')).toHaveCount(0);
+    expect((await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`)).entries).toHaveLength(0);
+    await expect(page.getByText('Week total').locator('..')).toContainText('0h 0m');
+  }
+});
+
+test('a failed deletion can be retried and deleting running time clears the clock', async ({ me }) => {
+  const { page, api } = me;
+  const entry = await api.clockInAgo('Acme / Platform', 30, 'Running to delete');
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Edit Running to delete/ }).press('Enter');
+  const edit = dialog(page, 'Edit time');
+  await edit.getByRole('button', { name: 'Entry actions' }).click();
+  await edit.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.route(`**/api/v1/entries/${entry.id}`, (route) => route.fulfill({ status: 500 }), { times: 1 });
+  await edit.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(edit.getByRole('alert')).toContainText('Couldn’t delete the time.');
+  await expect(page.locator('[data-entry]')).toHaveCount(1);
+  await edit.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await expect(page.locator('[data-entry]')).toHaveCount(0);
+  expect((await api.get('/me')).running).toBeUndefined();
+  await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
+});
+
 test('dragging time into another day preserves its duration and details', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();

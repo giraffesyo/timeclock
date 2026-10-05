@@ -18,6 +18,7 @@
   "deleteFailed": "Couldn’t delete the time.",
   "edit": "Edit time",
   "duplicate": "Duplicate",
+  "actions": "Entry actions",
   "close": "Close entry",
   "locked": "In a submitted timesheet",
   "range": "{start} – {end}",
