@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.4.0...timeclock-v0.5.0) (2026-10-05)
+
+
+### Features
+
+* add two-way Toggl integration with historical sync ([39ac94f](https://github.com/giraffesyo/timeclock/commit/39ac94fdb80b61477d887ac590fee7a0b3347be1))
+
 ## [0.4.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.3.0...timeclock-v0.4.0) (2026-10-05)
 
 
