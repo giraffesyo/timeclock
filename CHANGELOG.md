@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.3.0...timeclock-v0.4.0) (2026-10-05)
+
+
+### Features
+
+* a second step at sign-in, passkeys, and single sign-on per workspace ([#16](https://github.com/giraffesyo/timeclock/issues/16)) ([9db7986](https://github.com/giraffesyo/timeclock/commit/9db798600568628bf811dc4213b8f7c461304d18))
+* a standalone server's own accounts, with passwords, invitations and workspaces to switch between ([#15](https://github.com/giraffesyo/timeclock/issues/15)) ([71ba7e3](https://github.com/giraffesyo/timeclock/commit/71ba7e343d6faaaa5c1c3d27da36008e198a9bc1))
+* improve calendar editing and workspace entry requirements ([4565fce](https://github.com/giraffesyo/timeclock/commit/4565fcecffc2e536d3e449d5d32040fab8272d38))
+* themes from a few values, set by a workspace admin or a host, and a light/dark switch ([#12](https://github.com/giraffesyo/timeclock/issues/12)) ([9f42532](https://github.com/giraffesyo/timeclock/commit/9f42532191839ba823c7d92a248d001805ce3a5e))
+* workspaces, with every table and query scoped to one ([#14](https://github.com/giraffesyo/timeclock/issues/14)) ([179d6b7](https://github.com/giraffesyo/timeclock/commit/179d6b7237661e73e3598cf76a13fec778337326))
+
+
+### Bug Fixes
+
+* enforce required timer fields when stopping ([48bf0c8](https://github.com/giraffesyo/timeclock/commit/48bf0c81cf1aabf6192a64fb1fa627a6b4d0d370))
+
 ## [0.3.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.2.0...timeclock-v0.3.0) (2026-10-03)
 
 
