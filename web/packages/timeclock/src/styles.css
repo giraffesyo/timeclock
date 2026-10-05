@@ -97,6 +97,13 @@
   cursor: not-allowed;
   opacity: 0.5;
 }
+.tc-stop-error {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 0.25rem 0.75rem;
+  color: var(--tc-fg);
+  font-size: 0.875rem;
+}
 @media (min-width: 40rem) {
   .tc-note {
     flex-basis: 12rem;

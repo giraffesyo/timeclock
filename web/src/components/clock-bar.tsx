@@ -59,6 +59,9 @@ export function ClockBar() {
             choose: tp('choose'),
             search: tp('search'),
             noMatch: tp('noMatch'),
+            missingDescription: t('missingDescription'),
+            missingProject: t('missingProject'),
+            missingDescriptionAndProject: t('missingDescriptionAndProject'),
           }}
           onError={(err, action) => toast.error(failures[action], { description: errorMessage(asApiError(err)) })}
           onSwitched={(next: ClockEntry) =>

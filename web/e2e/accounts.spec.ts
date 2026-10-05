@@ -277,15 +277,17 @@ test('workspace project and description requirements control clocks and manual e
   await page.getByRole('link', { name: 'Timer', exact: true }).click();
   const clock = page.getByRole('form', { name: 'Clock' });
   const note = clock.getByRole('textbox', { name: 'What you are working on' });
-  await expect(note).toHaveAttribute('required', '');
+  await expect(note).not.toHaveAttribute('required');
   await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
-  await expect(clock.getByRole('timer')).toHaveCount(0);
-  // Whitespace must also be refused by the server.
+  await expect(clock.getByRole('timer')).toBeVisible();
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('alert')).toContainText('Add a description to stop the clock');
   await note.fill('   ');
-  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
-  await expect(page.getByText('Describe what you worked on.', { exact: true })).toBeVisible();
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('alert')).toContainText('Add a description to stop the clock');
+  const refused = await request.post('/api/v1/clock/out');
+  expect(refused.status()).toBe(422);
   await note.fill('Review the schedule');
-  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
   await expect(clock.getByRole('timer')).toBeVisible();
   await clock.getByRole('button', { name: /^Project the clock is running on:/ }).click();
   await page.getByRole('option', { name: 'Review', exact: true }).click();
@@ -319,5 +321,31 @@ test('workspace project and description requirements control clocks and manual e
   await expect(clock.getByRole('timer')).toBeVisible();
   await clock.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(clock.getByRole('timer')).toHaveCount(0);
+
+  // Both rules together: start empty, then fill each field while time keeps running.
+  const updated = await request.put('/api/v1/settings', { data: { ...(await settings()), requireDescription: true } });
+  expect(updated.ok()).toBeTruthy();
+  await page.reload();
+  await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect(clock.getByRole('timer')).toBeVisible();
+  const started = (await (await request.get('/api/v1/me')).json()).running;
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('alert')).toContainText('Add a description and choose a project');
+  await clock.getByRole('button', { name: /^Project the clock is running on:/ }).click();
+  await page.getByRole('option', { name: 'Review', exact: true }).click();
+  await expect(clock.getByRole('alert')).toHaveText('Add a description to stop the clock and save this time entry.');
+  await note.fill('Finish the review');
+  await clock.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(clock.getByRole('timer')).toHaveCount(0);
+  const entries = (
+    await (
+      await request.get(`/api/v1/entries?from=${started.startedAt.slice(0, 10)}&to=${started.startedAt.slice(0, 10)}`)
+    ).json()
+  ).entries;
+  expect(entries.find((entry: { id: string }) => entry.id === started.id)).toMatchObject({
+    startedAt: started.startedAt,
+    note: 'Finish the review',
+    endedAt: expect.any(String),
+  });
   await page.context().close();
 });

@@ -132,7 +132,7 @@ func checkDescription(cfg Settings, note string) error {
 	return nil
 }
 
-// ClockIn starts the actor's clock.
+// ClockIn starts the actor's clock. Required fields can be filled in while it runs.
 func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID, note string) (Entry, error) {
 	var out Entry
 	err := s.tx(ctx, actor.ID, func(tx querier) error {
@@ -147,10 +147,7 @@ func (s *Service) ClockIn(ctx context.Context, actor Actor, projectID *uuid.UUID
 		if running {
 			return ErrClockRunning.New("")
 		}
-		if err := checkDescription(cfg, note); err != nil {
-			return err
-		}
-		if err := checkProject(ctx, tx, cfg, projectID); err != nil {
+		if err := checkProject(ctx, tx, Settings{}, projectID); err != nil {
 			return err
 		}
 		start := s.now().Truncate(time.Second)
@@ -184,22 +181,23 @@ func (s *Service) Switch(ctx context.Context, actor Actor, projectID *uuid.UUID,
 		}
 		var id uuid.UUID
 		var start time.Time
-		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
+		var previousProject *uuid.UUID
+		var previousNote string
+		err = tx.QueryRow(ctx, `SELECT id, started_at, project_id, note FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start, &previousProject, &previousNote)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrClockNotRunning.New("")
 		}
 		if err != nil {
 			return fmt.Errorf("read running clock: %w", err)
 		}
-		if err := checkDescription(cfg, note); err != nil {
-			return err
-		}
-		if err := checkProject(ctx, tx, cfg, projectID); err != nil {
+		if err := checkProject(ctx, tx, Settings{}, projectID); err != nil {
 			return err
 		}
 		note = strings.TrimSpace(note)
 		now := s.now().Truncate(time.Second)
-		if now.Sub(start) < retagWithin {
+		// Filling in unfinished work keeps all the time already tracked.
+		// Only a complete stretch may be closed by switching to new work.
+		if now.Sub(start) < retagWithin || (cfg.RequireProject && previousProject == nil) || checkDescription(cfg, previousNote) != nil {
 			if _, err := tx.Exec(ctx, `UPDATE time_entries SET project_id = $2, note = $3, updated_at = now() WHERE id = $1 AND workspace_id = $W`, id, projectID, note); err != nil {
 				return fmt.Errorf("retag running clock: %w", err)
 			}
@@ -232,12 +230,20 @@ func (s *Service) ClockOut(ctx context.Context, actor Actor) (Entry, error) {
 		}
 		var id uuid.UUID
 		var start time.Time
-		err = tx.QueryRow(ctx, `SELECT id, started_at FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start)
+		var previousProject *uuid.UUID
+		var previousNote string
+		err = tx.QueryRow(ctx, `SELECT id, started_at, project_id, note FROM time_entries WHERE person_id = $1 AND workspace_id = $W AND ended_at IS NULL`, actor.ID).Scan(&id, &start, &previousProject, &previousNote)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrClockNotRunning.New("")
 		}
 		if err != nil {
 			return fmt.Errorf("read running clock: %w", err)
+		}
+		if err := checkDescription(cfg, previousNote); err != nil {
+			return err
+		}
+		if cfg.RequireProject && previousProject == nil {
+			return ErrProjectRequired.New("")
 		}
 		// A clock stopped the second it started still records a second.
 		end := s.now().Truncate(time.Second)
@@ -344,13 +350,20 @@ func (s *Service) UpdateEntry(ctx context.Context, actor Actor, id uuid.UUID, in
 		if in.EndedAt == nil && before.EndedAt != nil {
 			return requiredField("endedAt") // a finished entry can't be set running again
 		}
+		// Running entries can be filled in a field at a time. Closing one
+		// (including through this endpoint) enforces both requirements.
+		requirements := cfg
+		if in.EndedAt == nil {
+			requirements.RequireProject = false
+			requirements.RequireDescription = false
+		}
 		// A project that was fine when the entry was made is fine to keep.
 		if in.ProjectID == nil || before.ProjectID == nil || *in.ProjectID != *before.ProjectID {
-			if err := checkProject(ctx, tx, cfg, in.ProjectID); err != nil {
+			if err := checkProject(ctx, tx, requirements, in.ProjectID); err != nil {
 				return err
 			}
 		}
-		if err := checkDescription(cfg, in.Note); err != nil {
+		if err := checkDescription(requirements, in.Note); err != nil {
 			return err
 		}
 		if err := s.checkSpan(ctx, tx, cfg, p.ID, in.StartedAt, in.EndedAt); err != nil {

@@ -60,10 +60,10 @@
     "entries": {
       "title": "Time entries",
       "requireDescription": "Require a description on every entry",
-      "requireDescriptionOn": "People must describe their work when starting, adding, or editing time.",
+      "requireDescriptionOn": "People can start the timer without a description, but must add one before stopping it or saving completed time.",
       "requireDescriptionOff": "Off: time can be recorded without a description.",
       "requireProject": "Require a project on every entry",
-      "requireProjectOn": "No one can clock in or add time without choosing a project.",
+      "requireProjectOn": "People can start the timer without a project, but must choose one before stopping it or saving completed time.",
       "requireProjectOff": "Off: time can be recorded with no project, and shows as “No project” in reports.",
       "longEntry": "Long-entry limit (hours)",
       "longEntryHint": "An entry or a running clock longer than this is flagged as an exception, usually a forgotten clock-out."

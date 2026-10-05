@@ -27,12 +27,27 @@ test('the clock starts with a note and a project, and stops', async ({ me }) => 
   expect(entries[0].endedAt).toBeTruthy();
 });
 
-test('a project is required before the clock starts', async ({ me }) => {
-  const { page } = me;
+test('a project is required to stop, but not to start, the clock', async ({ me }) => {
+  const { page, api } = me;
   await page.goto('/');
   await page.getByRole('button', { name: 'Start the clock', exact: true }).click();
-  await expect(page.getByText('Couldn’t start the clock.')).toBeVisible();
-  await expect(page.getByRole('timer')).toHaveCount(0);
+  const bar = page.getByRole('form', { name: 'Clock' });
+  await expect(bar.getByRole('timer')).toBeVisible();
+  const started = (await api.get('/me')).running;
+  await page.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(bar.getByRole('alert')).toHaveText('Choose a project to stop the clock and save this time entry.');
+  await expect(bar.getByRole('timer')).toBeVisible();
+  expect((await api.get('/me')).running.id).toBe(started.id);
+  await note(page).fill('Unplanned work');
+  await picker(page, 'Project the clock is running on').click();
+  await pick(page, 'Platform');
+  await expect(bar.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Stop the clock' }).click();
+  await expect(bar.getByRole('timer')).toHaveCount(0);
+  const { entries } = await api.get(RECENT());
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({ id: started.id, startedAt: started.startedAt, note: 'Unplanned work' });
+  expect(entries[0].endedAt).toBeTruthy();
 });
 
 test('choosing another project moves the running clock without stopping it', async ({ me }) => {

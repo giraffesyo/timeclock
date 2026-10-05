@@ -139,17 +139,21 @@ function Form({
           <input type="time" className={controlClass} value={end} onChange={(e) => setEnd(e.target.value)} />
         </Field>
         <Field label={tc('project.label')} className="col-span-2">
-          <ProjectSelect value={projectId} onChange={setProjectId} required={settings.requireProject} />
+          <ProjectSelect
+            value={projectId}
+            onChange={setProjectId}
+            required={settings.requireProject && (!running || !!end)}
+          />
         </Field>
         <Field
           label={tc('note')}
-          hint={settings.requireDescription ? t('descriptionRequired') : undefined}
+          hint={settings.requireDescription && (!running || !!end) ? t('descriptionRequired') : undefined}
           className="col-span-2"
         >
           <textarea
             className={textareaClass}
             rows={2}
-            required={settings.requireDescription}
+            required={settings.requireDescription && (!running || !!end)}
             maxLength={2000}
             value={note}
             placeholder={t('notePlaceholder')}

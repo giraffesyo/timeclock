@@ -83,7 +83,10 @@ export function useClock(options: UseClockOptions = {}): Clock {
       }
       // A note typed just before choosing a project describes the work being
       // moved to, so it goes with the new stretch.
-      return store.switchTo({ projectId, note: noteEdited || state.requireDescription ? note : '' });
+      return store.switchTo({
+        projectId,
+        note: noteEdited || state.requireDescription || !running.projectId ? note : '',
+      });
     },
     saveNote,
     start: () => store.start({ projectId: current.projectId, note }),
@@ -391,6 +394,9 @@ export interface ClockBarLabels extends ProjectPickerLabels {
   locked: string;
   /** When the running stretch started, given the time as text. */
   since: (time: string) => string;
+  missingDescription: string;
+  missingProject: string;
+  missingDescriptionAndProject: string;
 }
 
 const barLabels: ClockBarLabels = {
@@ -403,6 +409,9 @@ const barLabels: ClockBarLabels = {
   switchProject: 'Project the clock is running on',
   locked: 'This pay period’s timesheet is submitted, so the clock is off.',
   since: (time) => `Running since ${time}`,
+  missingDescription: 'Add a description to stop the clock and save this time entry.',
+  missingProject: 'Choose a project to stop the clock and save this time entry.',
+  missingDescriptionAndProject: 'Add a description and choose a project to stop the clock and save this time entry.',
 };
 
 /** What the person was doing when something was refused. */
@@ -438,10 +447,24 @@ export function ClockBar({
   const { running } = clock;
   const now = useSecond(!!running);
   const bar = useRef<HTMLFormElement>(null);
+  const [stopAttempt, setStopAttempt] = useState<string | null>(null);
+  const errorId = useId();
   // Whether a press that began inside the bar is under way.
   const pressed = useRef(false);
 
   if (clock.status !== 'ready') return null;
+
+  const missingDescription = clock.requireDescription && !clock.note.trim();
+  const missingProject = clock.requireProject && !clock.projectId;
+  const missing =
+    missingDescription && missingProject
+      ? labels.missingDescriptionAndProject
+      : missingDescription
+        ? labels.missingDescription
+        : missingProject
+          ? labels.missingProject
+          : null;
+  const stopError = running && stopAttempt === running.id ? missing : null;
 
   const failed = (action: ClockAction) => (err: unknown) => onError?.(err, action);
   const choose = (projectId: string) => {
@@ -476,6 +499,11 @@ export function ClockBar({
       className={cx('tc-bar', className)}
       onSubmit={(e) => {
         e.preventDefault();
+        if (running && missing) {
+          setStopAttempt(running.id);
+          return;
+        }
+        setStopAttempt(null);
         if (running) clock.stop().then(onChanged, failed('stop'));
         else clock.start().then(onChanged, failed('start'));
       }}
@@ -495,7 +523,9 @@ export function ClockBar({
         placeholder={clock.locked ? labels.locked : labels.notePlaceholder}
         aria-label={labels.noteLabel}
         disabled={clock.locked}
-        required={clock.requireDescription}
+        aria-required={!!running && clock.requireDescription}
+        aria-invalid={!!stopError && missingDescription}
+        aria-describedby={stopError && missingDescription ? errorId : undefined}
         maxLength={2000}
         onChange={(e) => clock.setNote(e.target.value)}
         onBlur={running ? leaveNote : undefined}
@@ -528,7 +558,7 @@ export function ClockBar({
       )}
       <button
         type="submit"
-        formNoValidate={!!running}
+        aria-describedby={stopError ? errorId : undefined}
         aria-label={running ? labels.stop : labels.start}
         disabled={clock.locked || clock.busy}
         className={cx('tc-go', !!running && 'tc-go-stop')}
@@ -537,6 +567,11 @@ export function ClockBar({
           {running ? <rect x="4" y="4" width="8" height="8" rx="1" /> : <path d="M5.5 3.5v9l7-4.5z" />}
         </svg>
       </button>
+      {stopError && (
+        <p id={errorId} role="alert" className="tc-stop-error">
+          {stopError}
+        </p>
+      )}
     </form>
   );
 }

@@ -10,6 +10,9 @@
   "noteFailed": "Couldn’t save the note.",
   "inFailed": "Couldn’t start the clock.",
   "outFailed": "Couldn’t stop the clock.",
+  "missingDescription": "Add a description to stop the clock and save this time entry.",
+  "missingProject": "Choose a project to stop the clock and save this time entry.",
+  "missingDescriptionAndProject": "Add a description and choose a project to stop the clock and save this time entry.",
   "locked": "This pay period’s timesheet is submitted, so the clock is off.",
   "label": "Clock"
 }

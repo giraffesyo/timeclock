@@ -219,7 +219,10 @@ func TestProjectRules(t *testing.T) {
 	f := newFixture(t)
 	ctx := t.Context()
 
-	_, err := f.ClockIn(ctx, f.ada, nil, "")
+	if _, err := f.ClockIn(ctx, f.ada, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	_, err := f.ClockOut(ctx, f.ada)
 	wantProblem(t, err, "project_required")
 
 	if _, err := f.SaveCustomer(ctx, f.ada, [16]byte{}, "Acme", false); !problem.Denied(err) {
@@ -239,7 +242,7 @@ func TestProjectRules(t *testing.T) {
 	if proj.CustomerName != "Acme" {
 		t.Errorf("project = %+v", proj)
 	}
-	if _, err := f.ClockIn(ctx, f.ada, &proj.ID, ""); err != nil {
+	if _, err := f.Switch(ctx, f.ada, &proj.ID, ""); err != nil {
 		t.Fatal(err)
 	}
 	f.at("2026-10-02 18:00")
