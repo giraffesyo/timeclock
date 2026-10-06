@@ -8,15 +8,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const clientID = "timeclock-cli"
@@ -58,13 +61,15 @@ func randomURLToken() string {
 }
 
 func (o *options) authCommand(version string) *cobra.Command {
-	auth := &cobra.Command{Use: "auth", Short: "Sign in through your browser or sign out"}
-	var device, noBrowser bool
+	auth := &cobra.Command{Use: "auth", Short: "Sign in through your browser or with an API key, or sign out"}
+	var device, noBrowser, withToken bool
 	var wait time.Duration
 	login := &cobra.Command{
-		Use: "login [SERVER]", Short: "Authorize this CLI in your browser (OAuth with PKCE)",
-		Long:    "Authorize this CLI in your browser (OAuth with PKCE).\n\nSERVER is the Timeclock URL, including any mount path. A bare host such as time.example.com means HTTPS. Without SERVER, TIMECLOCK_URL or the saved server is used.",
-		Example: "  timeclock auth login time.example.com\n  timeclock auth login https://portal.example.com/timeclock --device",
+		Use: "login [SERVER]", Short: "Sign this CLI in through your browser, or with an API key",
+		Long: "Sign this CLI in. A standalone Timeclock server authorizes it in your browser (OAuth with PKCE). " +
+			"Where Timeclock runs inside another application that issues API keys, login opens the page for creating one and asks you to paste it.\n\n" +
+			"SERVER is the Timeclock URL, including any mount path. A bare host such as time.example.com means HTTPS. Without SERVER, TIMECLOCK_URL or the saved server is used.",
+		Example: "  timeclock auth login time.example.com\n  timeclock auth login https://portal.example.com/timeclock --device\n  timeclock auth login time.example.com --with-token < key.txt",
 		Args:    cobra.MaximumNArgs(1),
 	}
 	login.RunE = func(cmd *cobra.Command, args []string) error {
@@ -95,9 +100,26 @@ func (o *options) authCommand(version string) *cobra.Command {
 			return err
 		}
 		var t tokens
-		if device {
+		var who string
+		if !withToken {
+			if apiKey, keys := c.signIn(ctx); keys != "" {
+				withToken = true
+				cmd.PrintErrln(c.base.String() + " signs the CLI in with an API key. Create one at:")
+				cmd.PrintErrln(keys)
+				if !noBrowser {
+					_ = openBrowser(keys)
+				}
+			} else if apiKey {
+				withToken = true
+				cmd.PrintErrln(c.base.String() + " signs the CLI in with an API key from the application it runs in.")
+			}
+		}
+		switch {
+		case withToken:
+			t, who, err = c.apiKeyLogin(ctx, cmd)
+		case device:
 			t, err = c.deviceLogin(ctx, cmd, noBrowser)
-		} else {
+		default:
 			t, err = c.browserLogin(ctx, cmd, noBrowser)
 		}
 		if err != nil {
@@ -105,7 +127,7 @@ func (o *options) authCommand(version string) *cobra.Command {
 		}
 		err = o.withCredentials(ctx, c, cfg, func(s *credentialStore) error {
 			// Replacing a login revokes this installation's previous grant.
-			if old, loadErr := s.load(); loadErr == nil {
+			if old, loadErr := s.load(); loadErr == nil && old.RefreshToken != "" {
 				if _, err := c.form(ctx, "/auth/cli/revoke", url.Values{"token": {old.RefreshToken}}); err != nil {
 					return err
 				}
@@ -119,12 +141,18 @@ func (o *options) authCommand(version string) *cobra.Command {
 		})
 		if err != nil {
 			// A grant whose credentials couldn't be persisted is not left active.
-			_, _ = c.form(ctx, "/auth/cli/revoke", url.Values{"token": {t.RefreshToken}})
+			if t.RefreshToken != "" {
+				_, _ = c.form(ctx, "/auth/cli/revoke", url.Values{"token": {t.RefreshToken}})
+			}
 			return err
 		}
-		_, err = fmt.Fprintln(cmd.OutOrStdout(), "Signed in to "+c.base.String()+".")
+		if who != "" {
+			who = " as " + who
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), "Signed in to "+c.base.String()+who+".")
 		return err
 	}
+	login.Flags().BoolVar(&withToken, "with-token", false, "Read an API key from standard input instead of signing in through the browser")
 	login.Flags().BoolVar(&device, "device", false, "Use a device code for SSH or a headless machine")
 	login.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL without opening a browser")
 	login.Flags().DurationVar(&wait, "login-timeout", 10*time.Minute, "How long to wait for browser approval")
@@ -141,6 +169,7 @@ func (o *options) authCommand(version string) *cobra.Command {
 		if err != nil {
 			return err
 		}
+		apiKey := false
 		err = o.withCredentials(cmd.Context(), c, cfg, func(s *credentialStore) error {
 			t, err := s.load()
 			if errors.Is(err, errNoCredentials) {
@@ -149,7 +178,9 @@ func (o *options) authCommand(version string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err = c.form(cmd.Context(), "/auth/cli/revoke", url.Values{"token": {t.RefreshToken}}); err != nil {
+			if t.RefreshToken == "" {
+				apiKey = true
+			} else if _, err = c.form(cmd.Context(), "/auth/cli/revoke", url.Values{"token": {t.RefreshToken}}); err != nil {
 				return err
 			}
 			return s.delete()
@@ -157,10 +188,98 @@ func (o *options) authCommand(version string) *cobra.Command {
 		if err != nil {
 			return err
 		}
+		if apiKey {
+			// An API key belongs to the host; only it can revoke the key.
+			msg := "Signed out. Revoke the API key where you created it if you no longer need it"
+			if _, keys := c.signIn(cmd.Context()); keys != "" {
+				msg += ": " + keys
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), msg+".")
+			return err
+		}
 		_, err = fmt.Fprintln(cmd.OutOrStdout(), "Signed out.")
 		return err
 	}})
 	return auth
+}
+
+// signIn asks the server how the CLI signs in. Only a standalone server,
+// which has its own accounts, authorizes it in the browser. A host signs it
+// in with the host's API keys, and may name the page that creates one.
+func (c *client) signIn(ctx context.Context) (apiKey bool, apiKeysURL string) {
+	u := *c.base
+	u.Path = strings.TrimRight(u.Path, "/") + "/api/v1/info"
+	u.RawPath = ""
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return false, ""
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "timeclock/"+c.version)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		// Let the browser flow report what is wrong with the server.
+		return false, ""
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusUnauthorized {
+		// A standalone server's info is public, so a host is in front of it.
+		return true, ""
+	}
+	var info struct {
+		AccountsURL string `json:"accountsUrl"`
+		APIKeysURL  string `json:"apiKeysUrl"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&info) != nil {
+		return false, ""
+	}
+	if u, err := url.Parse(info.APIKeysURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		info.APIKeysURL = ""
+	}
+	return info.APIKeysURL != "" || info.AccountsURL == "", info.APIKeysURL
+}
+
+// apiKeyLogin reads an API key from standard input, without echoing it at a
+// terminal, and checks it with the server before it is saved.
+func (c *client) apiKeyLogin(ctx context.Context, cmd *cobra.Command) (tokens, string, error) {
+	var key string
+	if f, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+		cmd.PrintErr("Paste the API key: ")
+		b, err := term.ReadPassword(int(f.Fd()))
+		cmd.PrintErrln()
+		if err != nil {
+			return tokens{}, "", err
+		}
+		key = string(b)
+	} else {
+		b, err := io.ReadAll(io.LimitReader(cmd.InOrStdin(), 64<<10))
+		if err != nil {
+			return tokens{}, "", err
+		}
+		key = string(b)
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return tokens{}, "", errors.New("no API key given")
+	}
+	if strings.ContainsAny(key, " \t\r\n") {
+		return tokens{}, "", errors.New("the API key must be a single line")
+	}
+	c.token = key
+	data, err := c.request(ctx, http.MethodGet, "/api/v1/me", nil, nil)
+	if err != nil && strings.HasPrefix(err.Error(), "HTTP 401:") {
+		return tokens{}, "", errors.New("the server did not accept that API key")
+	}
+	if err != nil {
+		return tokens{}, "", fmt.Errorf("check API key: %w", err)
+	}
+	var me struct {
+		Person struct {
+			Email string `json:"email"`
+		} `json:"person"`
+	}
+	_ = json.Unmarshal(data, &me)
+	return tokens{AccessToken: key, TokenType: apiKeyType}, me.Person.Email, nil
 }
 
 func (c *client) browserLogin(ctx context.Context, cmd *cobra.Command, noBrowser bool) (tokens, error) {

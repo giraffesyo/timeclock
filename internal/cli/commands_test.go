@@ -240,3 +240,88 @@ func TestServerAddress(t *testing.T) {
 		t.Fatalf("missing server: %v", err)
 	}
 }
+
+func TestAPIKeyLogin(t *testing.T) {
+	const keys = "https://portal.example.com/settings/api-keys"
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/api/v1/info":
+			_, _ = io.WriteString(w, `{"apiKeysUrl":"`+keys+`"}`)
+		case strings.HasPrefix(r.URL.Path, "/auth/cli/"):
+			t.Errorf("API key sign-in used OAuth: %s", r.URL.Path)
+		case r.Header.Get("Authorization") != "Bearer key-1":
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, `{"title":"Unauthorized"}`)
+		default:
+			_, _ = io.WriteString(w, `{"person":{"email":"pat@example.com"}}`)
+		}
+	}))
+	defer s.Close()
+	t.Setenv("TIMECLOCK_TOKEN", "")
+	t.Setenv("TIMECLOCK_URL", "")
+	t.Setenv("TIMECLOCK_CREDENTIAL_STORE", "")
+	config := filepath.Join(t.TempDir(), "config.json")
+	run := func(stdin string, args ...string) (string, error) {
+		cmd := New("test")
+		var out bytes.Buffer
+		cmd.SetIn(strings.NewReader(stdin))
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		cmd.SetArgs(append([]string{"--config", config, "--credential-store=file"}, args...))
+		err := cmd.ExecuteContext(t.Context())
+		return out.String(), err
+	}
+
+	if out, err := run("wrong\n", "auth", "login", s.URL, "--no-browser"); err == nil || !strings.Contains(out, keys) {
+		t.Fatalf("a bad key was accepted: %q %v", out, err)
+	}
+	out, err := run("  key-1\n", "auth", "login", s.URL, "--no-browser")
+	if err != nil || !strings.Contains(out, keys) || !strings.Contains(out, "as pat@example.com") {
+		t.Fatalf("login: %q %v", out, err)
+	}
+	// The saved server and key are used without TIMECLOCK_URL or TIMECLOCK_TOKEN.
+	if out, err = run("", "status", "--json"); err != nil || !strings.Contains(out, "pat@example.com") {
+		t.Fatalf("status: %q %v", out, err)
+	}
+	if out, err = run("", "auth", "logout"); err != nil || !strings.Contains(out, keys) {
+		t.Fatalf("logout: %q %v", out, err)
+	}
+	if _, err = run("", "status"); err == nil {
+		t.Fatal("still signed in after logout")
+	}
+}
+
+func TestSignInMethod(t *testing.T) {
+	for info, want := range map[string]bool{
+		"":                                     false, // not Timeclock, or unreachable: the browser flow reports it
+		"401":                                  true,  // a host that refuses signed-out requests
+		`{"accountsUrl":"/auth"}`:              false, // standalone
+		`{}`:                                   true,  // a host without a key page
+		`{"apiKeysUrl":"javascript:alert(1)"}`: true,
+		`{"apiKeysUrl":"https://p.example/keys"}`: true,
+	} {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if info == "" {
+				http.NotFound(w, r)
+				return
+			}
+			if info == "401" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, info)
+		}))
+		o := &options{server: s.URL, configPath: filepath.Join(t.TempDir(), "config.json"), timeout: time.Second}
+		c, err := o.client(t.Context(), "test", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		apiKey, keys := c.signIn(t.Context())
+		if apiKey != want || (keys != "" && keys != "https://p.example/keys") {
+			t.Errorf("%s: apiKey=%v keys=%q", info, apiKey, keys)
+		}
+		s.Close()
+	}
+}

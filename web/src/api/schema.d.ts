@@ -868,6 +868,8 @@ export interface components {
              */
             readonly $schema?: string;
             accountsUrl?: string;
+            /** Format: uri */
+            apiKeysUrl?: string;
             homeLabel?: string;
             homeUrl?: string;
             signInUrl?: string;

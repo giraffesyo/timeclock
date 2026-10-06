@@ -57,9 +57,10 @@ func mounted(t *testing.T) http.Handler {
 			"pat": {ID: "pat", Name: "Pat Admin", Email: "pat@example.com", Admin: true},
 			"ada": {ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "pat", AvatarURL: "/avatars/ada.png"},
 		},
-		HomeURL:   "/",
-		HomeLabel: "Host",
-		SignInURL: "/login?next=",
+		HomeURL:    "/",
+		HomeLabel:  "Host",
+		SignInURL:  "/login?next=",
+		APIKeysURL: "https://portal.example.com/settings/api-keys",
 		Theme: host.Theme{
 			Light: &host.Scheme{Interface: host.ThemeSeed{Accent: "#06354f", Background: "#f3f4f6"}},
 			Dark:  &host.Scheme{Interface: host.ThemeSeed{Accent: "#2f81f7", Background: "#0d1117"}},
@@ -107,7 +108,8 @@ func TestMountedInAHost(t *testing.T) {
 		t.Fatalf("signed-out /me: %d %s", rec.Code, rec.Header().Get("Content-Type"))
 	}
 	rec, body := call(t, h, "", http.MethodGet, api+"/info", "")
-	if rec.Code != http.StatusOK || body["signInUrl"] != "/login?next=" || body["homeLabel"] != "Host" {
+	if rec.Code != http.StatusOK || body["signInUrl"] != "/login?next=" || body["homeLabel"] != "Host" ||
+		body["apiKeysUrl"] != "https://portal.example.com/settings/api-keys" {
 		t.Fatalf("/info: %d %v", rec.Code, body)
 	}
 	// Someone the host doesn't know is signed out too.
@@ -316,5 +318,18 @@ func TestIntegrationsRequireAdmin(t *testing.T) {
 	response, status := call(t, h, "pat", "GET", "/timeclock/api/v1/integrations/toggl", "")
 	if response.Code != 200 || status["available"] != false || status["connected"] != false {
 		t.Fatalf("unexpected disabled status: %s", response.Body.String())
+	}
+}
+
+func TestAPIKeysURLMustBeAbsolute(t *testing.T) {
+	for _, u := range []string{"/settings/api-keys", "javascript:alert(1)", "portal.example.com/keys"} {
+		_, err := timeclock.New(t.Context(), timeclock.Options{
+			Caller:     func(*http.Request) (string, bool) { return "", false },
+			Directory:  directory{},
+			APIKeysURL: u,
+		})
+		if err == nil || !strings.Contains(err.Error(), "APIKeysURL") {
+			t.Errorf("%q: %v", u, err)
+		}
 	}
 }

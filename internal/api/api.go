@@ -36,6 +36,9 @@ type Info struct {
 	// the workspaces to switch between, invitations and passwords. Empty
 	// when a host application has its own users.
 	AccountsURL string `json:"accountsUrl,omitempty"`
+	// APIKeysURL is where a person creates an API key for the CLI, when the
+	// host signs it in with one instead of through the browser.
+	APIKeysURL string `json:"apiKeysUrl,omitempty" format:"uri"`
 	// ThemeStorageKey is the localStorage key holding the host's light,
 	// dark or system choice, so Timeclock matches it.
 	ThemeStorageKey string `json:"themeStorageKey,omitempty"`

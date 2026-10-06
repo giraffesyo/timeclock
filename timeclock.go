@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -82,6 +83,12 @@ type Options struct {
 	// (workspaces to switch between, invitations, passwords). A host that
 	// has its own users leaves it empty.
 	AccountsURL string
+	// APIKeysURL is where a person creates an API key the host's Caller
+	// accepts, such as "https://portal.example.com/settings/api-keys". The
+	// CLI's auth login opens it, then asks for the key. The CLI reads it from
+	// /api/v1/info, so a host that refuses signed-out requests should let
+	// that one through; otherwise the CLI asks for a key without the link.
+	APIKeysURL string
 	// ThemeStorageKey is the localStorage key where the host keeps the
 	// person's light, dark or system choice, so Timeclock matches it.
 	// Without it, Timeclock follows the system.
@@ -125,6 +132,9 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		return nil, errors.New("timeclock: Options.Caller and Options.Directory are required")
 	}
 	base := "/" + strings.Trim(opts.BasePath, "/")
+	if u, err := url.Parse(opts.APIKeysURL); opts.APIKeysURL != "" && (err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "") {
+		return nil, fmt.Errorf("timeclock: APIKeysURL %q must be an absolute http(s) URL", opts.APIKeysURL)
+	}
 	for _, u := range []string{opts.SignInURL, opts.SignOutURL, opts.HomeURL} {
 		if u != "" && (!strings.HasPrefix(u, "/") || strings.HasPrefix(u, "//")) {
 			return nil, fmt.Errorf("timeclock: %q must be a path on the host", u)
@@ -179,6 +189,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
 		ThemeStorageKey: opts.ThemeStorageKey, AccountsURL: opts.AccountsURL,
+		APIKeysURL: opts.APIKeysURL,
 	}, HostTheme: opts.Theme}
 	h := server.New(server.Options{
 		Logger: logger,

@@ -44,6 +44,7 @@ tc, err := timeclock.New(ctx, timeclock.Options{
 	ThemeStorageKey: "portal-theme", // optional: follow the host's light/dark choice
 	Theme:           theme,          // optional: a host.Theme, so Timeclock matches the host's colors
 	Workspace:       workspaceOf,    // optional: func(*http.Request) (key string, ok bool), for a host with several organizations
+	APIKeysURL:      "https://portal.example.com/settings/api-keys", // optional: where the CLI sends people for an API key Caller accepts
 })
 if err != nil {
 	return err
@@ -134,7 +135,13 @@ Tokens live in the OS credential store: macOS Keychain, Windows Credential Manag
 
 Access tokens last ten minutes. Refresh tokens rotate automatically, with a thirty-day authorization lifetime; reusing a spent refresh token revokes the whole authorization. `auth logout` revokes the authorization at the server and removes the local credentials. Removing workspace membership, disabling the account, or changing/resetting its password also removes access. Browser logout is independent. CLI tokens cannot manage sign-in methods or approve another CLI.
 
-Browser and device authorization are provided by the **standalone server**. When Timeclock is embedded in a host, the host supplies authentication: set `TIMECLOCK_TOKEN` to a bearer token the host accepts and include the mount path in `TIMECLOCK_URL` (for example, `https://portal.example.com/timeclock`). That environment token overrides stored OAuth credentials. Production servers should use HTTPS; remote plain HTTP requires an explicit `--allow-http`.
+Browser and device authorization are provided by the **standalone server**. When Timeclock is embedded in a host, the host supplies authentication with its own API keys. `auth login` asks you to paste one (without echoing it), checks it, and saves it in the credential store like OAuth tokens. If the host sets `Options.APIKeysURL` (and lets signed-out requests reach `/api/v1/info`), it opens that page first so you can create the key:
+
+```sh
+timeclock auth login portal.example.com/timeclock
+```
+
+For scripts, `--with-token` reads the key from standard input without prompting: `timeclock auth login portal.example.com/timeclock --with-token < key.txt`. An API key isn't refreshed or revoked by the CLI; `auth logout` removes it locally, and you revoke it in the host. `TIMECLOCK_TOKEN` still works too, and overrides stored credentials. Production servers should use HTTPS; remote plain HTTP requires an explicit `--allow-http`.
 
 Use `--help` on any command. Date ranges include both `--from` and `--to`; manual entry timestamps require RFC3339 with an offset. `entries update` replaces the supplied entry's fields, so include its description and project to retain them. `--json` preserves the complete API response, CSV writes cleanly to stdout, and failures go to stderr with a nonzero exit status. Payroll CSV includes settled time by default; `--all` explicitly includes unsettled time. Shell completions are available through `timeclock completion bash|zsh|fish|powershell`.
 

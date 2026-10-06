@@ -17,6 +17,10 @@ import (
 
 var errNoCredentials = errors.New("not signed in; run timeclock auth login")
 
+// apiKeyType marks stored credentials that are a host's API key: used as a
+// bearer token as is, never refreshed, and revoked only by the host.
+const apiKeyType = "api_key"
+
 type tokens struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
@@ -87,7 +91,7 @@ func (s *credentialStore) load() (tokens, error) {
 	if err := json.Unmarshal(data, &out); err != nil {
 		return out, fmt.Errorf("read credentials: %w", err)
 	}
-	if out.AccessToken == "" || out.RefreshToken == "" {
+	if out.AccessToken == "" || (out.RefreshToken == "" && out.TokenType != apiKeyType) {
 		return out, errNoCredentials
 	}
 	return out, nil
