@@ -147,15 +147,17 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Display options' }).click();
       const display = page.getByRole('menu');
       await expect(display).toBeVisible();
-      await page.screenshot({ path: `/tmp/timeclock-people-display-${device}.png` });
+      await page.screenshot({ path: `/tmp/timeclock-team-profiles-people-display-${device}.png` });
       await testInfo.attach(`People display ${device}`, {
-        path: `/tmp/timeclock-people-display-${device}.png`,
+        path: `/tmp/timeclock-team-profiles-people-display-${device}.png`,
         contentType: 'image/png',
       });
-      await expect(page.getByRole('columnheader', { name: 'Email' })).toHaveCount(1);
-      await display.getByRole('button', { name: 'Email' }).click();
+      // Email starts hidden, as the profile card shows it, and can be turned on.
       await expect(page.getByRole('columnheader', { name: 'Email' })).toHaveCount(0);
       await expect(row.getByText(employee.email)).toHaveCount(0);
+      await display.getByRole('button', { name: 'Email' }).click();
+      await expect(page.getByRole('columnheader', { name: 'Email' })).toHaveCount(1);
+      await expect(row.getByText(employee.email)).toBeVisible();
     }
   });
 }

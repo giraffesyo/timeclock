@@ -310,7 +310,8 @@ export function People() {
     storageKey: 'timeclock.settings.people',
     columns: [
       { key: 'name', label: t('columns.name'), alwaysVisible: true },
-      { key: 'email', label: t('columns.email'), priority: 'low' },
+      // The profile card shows the email; the column is there to turn on.
+      { key: 'email', label: t('columns.email'), priority: 'low', defaultHidden: true },
       { key: 'manager', label: t('columns.manager') },
       { key: 'timezone', label: t('columns.timezone'), priority: 'medium' },
       { key: 'exempt', label: t('columns.exempt'), priority: 'low' },

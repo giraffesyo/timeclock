@@ -7,7 +7,7 @@ import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
 import { PeriodNav, usePeriodLabel } from '@/components/period-nav';
 import { PendingTimeOff, pendingRuns } from '@/components/team/pending-time-off';
 import { TeamTable, useTeamView } from '@/components/team/team-table';
-import { type PeriodSummary, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
+import { type PeriodSummary, type Person, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
 
@@ -82,9 +82,11 @@ function Approvals() {
     list.filter((m) => m.person.submitsTimesheets && (!m.timesheet || m.timesheet.status === 'rejected')).length;
 
   const runs = pendingRuns(pending.data ?? []);
-  const names = new Map<string, string>();
-  for (const p of people.data ?? []) names.set(p.id, p.name);
-  for (const m of members) names.set(m.person.id, m.person.name);
+  // Everyone the page names: the directory where the caller may read it, and the team either way.
+  const directory = new Map<string, Person>();
+  for (const p of people.data ?? []) directory.set(p.id, p);
+  for (const m of members) directory.set(m.person.id, m.person);
+  const everyone = [...directory.values()];
 
   const shortDay = (d: Day) => format.dateTime(dayToDate(d), { month: 'short', day: 'numeric' });
   const previousMembers = previous.data?.members ?? [];
@@ -141,7 +143,7 @@ function Approvals() {
           ) : runs.length === 0 ? (
             <Empty>{t('timeOff.empty')}</Empty>
           ) : (
-            <PendingTimeOff runs={runs} nameOf={(id) => names.get(id)} />
+            <PendingTimeOff runs={runs} people={everyone} />
           )}
         </Panel>
 
@@ -162,7 +164,7 @@ function Approvals() {
           ) : members.length === 0 ? (
             <Empty>{t('table.empty')}</Empty>
           ) : (
-            <TeamTable members={members} view={view} />
+            <TeamTable members={members} people={everyone} view={view} />
           )}
         </Panel>
       </div>

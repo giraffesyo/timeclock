@@ -2,8 +2,9 @@ import { useErrorMessage } from '@parallelworks/problem/react';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
+import { PersonIdentity } from '@/components/person-identity';
 import { groupRuns, type Run, useDayLabel, useHoursText } from '@/components/time-off/runs';
-import { type TimeOff, useDecideTimeOff } from '@/lib/queries';
+import { type Person, type TimeOff, useDecideTimeOff } from '@/lib/queries';
 import { decimalHours } from '@/lib/time';
 import { DecisionDialog } from './decision-dialog';
 
@@ -33,7 +34,14 @@ interface Target {
  * Time off waiting for the caller's decision. Each day is its own record;
  * a run of them is decided together, or day by day when only some can go.
  */
-export function PendingTimeOff({ runs, nameOf }: { runs: Run[]; nameOf: (personId: string) => string | undefined }) {
+export function PendingTimeOff({
+  runs,
+  people,
+}: {
+  runs: Run[];
+  /** Everyone the requests can name, with their profiles. */
+  people: Person[];
+}) {
   const t = useTranslations('team.timeOff');
   const tn = useTranslations('team.note');
   const tc = useTranslations('common');
@@ -45,9 +53,10 @@ export function PendingTimeOff({ runs, nameOf }: { runs: Run[]; nameOf: (personI
   const [target, setTarget] = useState<Target | null>(null);
   const [open, setOpen] = useState(false);
 
+  const personOf = (id: string) => people.find((p) => p.id === id);
   const ask = (run: Run, approve: boolean) => {
     setTarget({
-      name: nameOf(run.first.personId) ?? t('unknownPerson'),
+      name: personOf(run.first.personId)?.name ?? t('unknownPerson'),
       approve,
       days: run.days,
       total: run.days.length,
@@ -81,13 +90,16 @@ export function PendingTimeOff({ runs, nameOf }: { runs: Run[]; nameOf: (personI
       <ul className="divide-y divide-border">
         {runs.map((run) => {
           const { first } = run;
-          const name = nameOf(first.personId) ?? t('unknownPerson');
+          const person = personOf(first.personId);
+          const name = person?.name ?? t('unknownPerson');
           const multi = run.days.length > 1;
           const byDay = multi && expanded.includes(run.id);
           return (
             <li key={run.id} className="px-4 py-2.5">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="min-w-0 truncate text-sm font-medium sm:w-44">{name}</span>
+                <span className="min-w-0 truncate text-sm font-medium sm:w-44">
+                  {person ? <PersonIdentity person={person} people={people} /> : name}
+                </span>
                 <span className="text-sm">{tc(`kind.${first.kind}`)}</span>
                 <span className="tabular text-sm">{label.range(first.day, run.last.day)}</span>
                 <span className="tabular text-sm text-muted-foreground">

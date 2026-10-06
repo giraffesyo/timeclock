@@ -62,10 +62,10 @@ test('an admin changes several people at once from the selection or a right clic
   // A right click on a row outside the selection changes that person alone.
   const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${cal.name}` }) });
   // One item per setting, saying what it would do for who is selected.
-  const items = await menuItems(page, row.getByText(cal.email));
+  const items = await menuItems(page, row.getByRole('cell').first());
   expect(items).toContain('Mark not overtime exempt');
   expect(items).not.toContain('Mark overtime exempt');
-  await choose(page, row.getByText(cal.email), 'Mark not overtime exempt');
+  await choose(page, row.getByRole('cell').first(), 'Mark not overtime exempt');
   const menu = page.getByRole('menu');
   await expect(menu).toBeHidden();
   await expect.poll(() => exempt(cal)).toBe(false);
@@ -90,7 +90,7 @@ test('someone set to reports only has no timesheet to submit and is left out of 
   await page.goto('/settings?tab=people');
   const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${dee.name}` }) });
   await expect(row).toContainText('Submits');
-  await choose(page, row.getByText(dee.email), 'Reports only, not in payroll');
+  await choose(page, row.getByRole('cell').first(), 'Reports only, not in payroll');
   await expect(row).toContainText('Reports only');
 
   // Their own timesheet says so, and offers nothing to submit.
@@ -105,7 +105,7 @@ test('someone set to reports only has no timesheet to submit and is left out of 
   expect((rows as { person: { id: string } }[]).some((r) => r.person.id === dee.id)).toBe(false);
 
   // Back to the workspace default: they submit again.
-  await choose(page, row.getByText(dee.email), 'Use the workspace default for timesheets');
+  await choose(page, row.getByRole('cell').first(), 'Use the workspace default for timesheets');
   await expect(row).toContainText('Submits · default');
 });
 
@@ -125,7 +125,7 @@ test('an admin makes someone an admin from the row menu, and only grants made he
   // Fay is an admin on her own next request.
   await expect.poll(async () => (await fay.api.get('/me')).admin).toBe(true);
 
-  await choose(page, row.getByText(fay.email), 'Remove admin');
+  await choose(page, row.getByRole('cell').first(), 'Remove admin');
   await expect(row.getByText('Admin', { exact: true })).toHaveCount(0);
   await expect.poll(async () => (await fay.api.get('/me')).admin).toBe(false);
 

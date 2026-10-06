@@ -33,8 +33,22 @@ for (const mobile of [false, true]) {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/team?day=${week.day(1)}`);
     const row = (p: { name: string }) => page.getByRole('row').filter({ hasText: p.name });
+    // A cell away from the name, whose profile card would cover the menus.
+    const away = (p: { name: string }) => row(p).getByRole('cell').filter({ hasNotText: p.name }).first();
     await expect(row(me)).toContainText('Waiting for approval');
     await expect(row(other)).toContainText('Not submitted');
+
+    // Names are the same profiles as on People: a card with the email on hover.
+    const name = row(other).getByRole('button', { name: other.name, exact: true });
+    await name.hover();
+    await expect(page.getByText(other.email).first()).toBeVisible();
+    await page.screenshot({ path: `/tmp/timeclock-team-profiles-card-${device}.png` });
+    await testInfo.attach(`Team profile card ${device}`, {
+      path: `/tmp/timeclock-team-profiles-card-${device}.png`,
+      contentType: 'image/png',
+    });
+    await page.mouse.move(0, 0);
+    await expect(page.getByText(other.email)).toHaveCount(0);
 
     // Sorted by name, and the Display menu turns the order around.
     const names = async () => {
@@ -55,30 +69,24 @@ for (const mobile of [false, true]) {
     const fromButton = await menuItems(page, row(me).getByRole('button', { name: 'More actions' }));
     expect(fromButton).toEqual([`Open ${me.name}’s timesheet`, 'Approve', 'Send back']);
     await page.keyboard.press('Escape');
-    expect(await menuItems(page, row(me).getByRole('cell').first(), 'right')).toEqual(fromButton);
+    expect(await menuItems(page, away(me), 'right')).toEqual(fromButton);
     await page.screenshot({ path: `/tmp/timeclock-team-menu-${device}.png` });
     await testInfo.attach(`Team menu ${device}`, {
       path: `/tmp/timeclock-team-menu-${device}.png`,
       contentType: 'image/png',
     });
     await page.keyboard.press('Escape');
-    expect(await menuItems(page, row(other).getByRole('cell').first(), 'right')).toEqual([
-      `Open ${other.name}’s timesheet`,
-    ]);
+    expect(await menuItems(page, away(other), 'right')).toEqual([`Open ${other.name}’s timesheet`]);
     await page.keyboard.press('Escape');
 
     // The keyboard's menu key opens it too.
     await expect(async () => {
-      await row(me)
-        .getByRole('link', { name: `Open ${me.name}’s timesheet` })
-        .focus();
+      await row(me).getByRole('button', { name: me.name, exact: true }).focus();
       await page.keyboard.press('Shift+F10');
       await expect(page.getByRole('menu')).toBeVisible({ timeout: 1000 });
     }).toPass();
     await page.keyboard.press('Escape');
-    await row(me)
-      .getByRole('link', { name: `Open ${me.name}’s timesheet` })
-      .blur();
+    await row(me).getByRole('button', { name: me.name, exact: true }).blur();
 
     // Approve is pinned on the row (from 44rem up) and in the menu, and still asks first.
     if (!mobile) {
@@ -92,16 +100,18 @@ for (const mobile of [false, true]) {
       await row(me).getByRole('button', { name: 'Approve' }).click();
     } else {
       await expect(async () => {
-        await row(me).getByRole('cell').first().click({ button: 'right' });
+        await away(me).click({ button: 'right' });
         await page.getByRole('menu').getByRole('button', { name: 'Approve' }).click({ timeout: 1000 });
       }).toPass();
     }
     await page.getByRole('dialog').getByRole('button', { name: 'Approve' }).click();
     await expect(row(me)).toContainText('Approved');
-    expect(await menuItems(page, row(me).getByRole('cell').first(), 'right')).toEqual([`Open ${me.name}’s timesheet`]);
+    expect(await menuItems(page, away(me), 'right')).toEqual([`Open ${me.name}’s timesheet`]);
     await page.keyboard.press('Escape');
 
-    // The status filter.
+    // The status filter. Away from the names first: a focused or hovered name keeps its profile card open.
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.getByRole('button', { name: 'Filter' }).click();
     await page.getByRole('menu').getByRole('button', { name: 'Timesheet' }).click();
     await page.getByRole('button', { name: 'Not submitted', exact: true }).click();
