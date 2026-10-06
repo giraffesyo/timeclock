@@ -25,7 +25,8 @@ test('an admin changes several people at once from the selection or a right clic
   const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${cal.name}` }) });
   await row.getByText(cal.email).click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'Change 1 person' });
-  await expect(menu.getByRole('menuitem', { name: 'Mark overtime exempt' })).toBeDisabled();
+  // One item per setting, saying what it would do for who is selected.
+  await expect(menu.getByRole('menuitem', { name: 'Mark overtime exempt' })).toHaveCount(0);
   await menu.getByRole('menuitem', { name: 'Mark not overtime exempt' }).click();
   await expect(menu).toBeHidden();
   await expect.poll(() => exempt(cal)).toBe(false);
@@ -37,4 +38,34 @@ test('an admin changes several people at once from the selection or a right clic
   await expect(menu).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
+});
+
+test('someone set to reports only has no timesheet to submit and is left out of payroll', async ({
+  adminPerson,
+  someone,
+}) => {
+  const { page, api } = await adminPerson();
+  const dee = await someone('dee');
+  await page.goto('/settings?tab=people');
+  const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${dee.name}` }) });
+  await expect(row).toContainText('Submits');
+  await row.getByText(dee.email).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Reports only, not in payroll' }).click();
+  await expect(row).toContainText('Reports only');
+
+  // Their own timesheet says so, and offers nothing to submit.
+  await dee.page.goto('/timesheet');
+  await expect(dee.page.getByText('Your time is for reports only')).toBeVisible();
+  await expect(dee.page.getByRole('button', { name: 'Submit timesheet' })).toHaveCount(0);
+  const refused = await dee.page.request.post('/api/v1/timesheet/submit', {
+    data: { day: (await dee.api.get('/me')).today },
+  });
+  expect(refused.status()).toBe(409);
+  const { rows } = await api.get('/reports/payroll');
+  expect((rows as { person: { id: string } }[]).some((r) => r.person.id === dee.id)).toBe(false);
+
+  // Back to the workspace default: they submit again.
+  await row.getByText(dee.email).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Use the workspace default for timesheets' }).click();
+  await expect(row).toContainText('Submits · default');
 });

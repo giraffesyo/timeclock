@@ -67,6 +67,12 @@ var (
 		Title:  "Clock still running",
 		Doc:    "A timesheet can't be submitted while the person is clocked in during its pay period. Clock out first.",
 	})
+	ErrDoesNotSubmit = Problems.Define(problem.Type{
+		Code:   "does_not_submit_timesheets",
+		Status: http.StatusConflict,
+		Title:  "Doesn't submit timesheets",
+		Doc:    "This person's time is for reports only: they don't submit timesheets, and aren't in payroll. An admin can change that in Settings.",
+	})
 	ErrAlreadySubmitted = Problems.Define(problem.Type{
 		Code:   "already_submitted",
 		Status: http.StatusConflict,

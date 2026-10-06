@@ -30,6 +30,7 @@ function toDraft(s: Settings): Draft {
     payCycle: s.payCycle,
     cycleAnchor: s.cycleAnchor,
     weekStart: s.weekStart,
+    submitTimesheets: s.submitTimesheets,
     approveTimesheets: s.approveTimesheets,
     approveTimeOff: s.approveTimeOff,
     requireProject: s.requireProject,
@@ -66,6 +67,7 @@ export function PayrollSettings() {
     cycleAnchor: anchored ? draft.cycleAnchor : settings.cycleAnchor,
     weekStart: draft.weekStart,
     overtimeWeeklyHours: overtime,
+    submitTimesheets: draft.submitTimesheets,
     approveTimesheets: draft.approveTimesheets,
     approveTimeOff: draft.approveTimeOff,
     requireProject: draft.requireProject,
@@ -86,6 +88,7 @@ export function PayrollSettings() {
     next.timezone !== settings.timezone ||
     next.weekStart !== settings.weekStart ||
     next.overtimeWeeklyHours !== settings.overtimeWeeklyHours ||
+    next.submitTimesheets !== settings.submitTimesheets ||
     next.approveTimesheets !== settings.approveTimesheets ||
     next.approveTimeOff !== settings.approveTimeOff ||
     next.requireProject !== settings.requireProject ||
@@ -197,6 +200,12 @@ export function PayrollSettings() {
 
         <Panel title={t('approvals.title')}>
           <div className="space-y-4">
+            <SwitchRow
+              label={t('approvals.submit')}
+              hint={draft.submitTimesheets ? t('approvals.submitOn') : t('approvals.submitOff')}
+              value={draft.submitTimesheets}
+              onChange={(v) => set('submitTimesheets', v)}
+            />
             <SwitchRow
               label={t('approvals.timesheets')}
               hint={draft.approveTimesheets ? t('approvals.timesheetsOn') : t('approvals.timesheetsOff')}

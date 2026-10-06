@@ -179,6 +179,14 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 	}
 	var out PeriodSummary
 	err = s.tx(ctx, p.ID, func(tx querier) error {
+		// Read now, not from the caller's session: an admin may just have changed it.
+		current, err := person(ctx, tx, p.ID)
+		if err != nil {
+			return err
+		}
+		if !current.SubmitsTimesheets {
+			return ErrDoesNotSubmit.New("")
+		}
 		cfg, err := settings(ctx, tx)
 		if err != nil {
 			return err

@@ -178,7 +178,7 @@ function TimerPage() {
               </span>
             )}
             <span className="ml-auto flex items-center gap-3">
-              <SheetStatus timesheet={sheet.data.timesheet} />
+              <SheetStatus timesheet={sheet.data.timesheet} reportsOnly={!sheet.data.person.submitsTimesheets} />
               <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
                 {t('period.open')}
               </Link>

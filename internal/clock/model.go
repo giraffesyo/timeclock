@@ -13,6 +13,7 @@ type Settings struct {
 	CycleAnchor         Date     `json:"cycleAnchor" format:"date" doc:"The first day of some weekly or biweekly pay period."`
 	WeekStart           int      `json:"weekStart" minimum:"0" maximum:"6" doc:"The day the workweek starts, for overtime: 0 is Sunday."`
 	OvertimeWeeklyHours float64  `json:"overtimeWeeklyHours" minimum:"0" maximum:"168" doc:"Hours in a workweek beyond which time is overtime. 0 turns overtime off."`
+	SubmitTimesheets    bool     `json:"submitTimesheets" doc:"People submit a timesheet each pay period, unless set otherwise for them. Someone who doesn't tracks time for reports only, and is left out of payroll."`
 	ApproveTimesheets   bool     `json:"approveTimesheets" doc:"A submitted timesheet waits for the person's manager or an admin."`
 	ApproveTimeOff      bool     `json:"approveTimeOff" doc:"Time off waits for the person's manager or an admin."`
 	RequireDescription  bool     `json:"requireDescription" doc:"Every time entry has a description."`
@@ -65,6 +66,10 @@ type Person struct {
 	OvertimeExempt     bool   `json:"overtimeExempt"`
 	PayrollID          string `json:"payrollId" doc:"The person's id in the payroll system, for the export."`
 	Active             bool   `json:"active"`
+	// SubmitsTimesheets is what applies: their own choice, or else the workspace's.
+	SubmitsTimesheets bool `json:"submitsTimesheets" doc:"They submit timesheets and are in payroll. Without, their time is for reports only."`
+	// SubmitsTimesheetsOverride is their own choice; nil follows the workspace.
+	SubmitsTimesheetsOverride *bool `json:"submitsTimesheetsOverride" nullable:"true" doc:"Set for this person; null follows the workspace's setting."`
 }
 
 // Actor is the person making a request.

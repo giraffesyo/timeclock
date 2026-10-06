@@ -201,7 +201,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                       <Hours value={total(r)} strong />
                     </td>
                     <td className={td}>
-                      <SheetStatus timesheet={r.timesheet} />
+                      <SheetStatus timesheet={r.timesheet} reportsOnly={!r.person.submitsTimesheets} />
                     </td>
                     <td className={td}>
                       {r.ready ? (

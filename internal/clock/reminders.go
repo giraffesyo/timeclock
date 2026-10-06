@@ -60,12 +60,13 @@ func (s *Service) DueReminders(ctx context.Context) ([]Reminder, error) {
 		return nil, fmt.Errorf("find running clocks: %w", err)
 	}
 
-	// The pay period that ended most recently, for people with time or time
-	// off in it and no timesheet.
+	// The pay period that ended most recently, for people who submit
+	// timesheets, with time or time off in it and no timesheet.
 	last := PeriodBefore(cfg.PayCycle, cfg.CycleAnchor, cfg.PeriodOf(s.Today(cfg)))
 	loc := cfg.Location()
 	rows, err = s.pool.Query(ctx, `SELECT p.id FROM people p
 		WHERE p.workspace_id = $W AND p.active
+		AND coalesce(p.submits_timesheets, (SELECT submit_timesheets FROM settings WHERE workspace_id = $W))
 		AND NOT EXISTS (SELECT 1 FROM timesheets t WHERE t.workspace_id = $W AND t.person_id = p.id AND t.period_start = $1 AND t.status <> 'rejected')
 		AND (EXISTS (SELECT 1 FROM time_entries e WHERE e.workspace_id = $W AND e.person_id = p.id AND e.started_at >= $3 AND e.started_at < $4)
 			OR EXISTS (SELECT 1 FROM time_off o WHERE o.workspace_id = $W AND o.person_id = p.id AND o.day BETWEEN $1 AND $2))`,

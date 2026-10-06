@@ -60,6 +60,7 @@ function PersonRow({
         overtimeExempt: person.overtimeExempt,
         payrollId: person.payrollId,
         active: person.active,
+        submitsTimesheets: person.submitsTimesheetsOverride,
       };
   const busy = update.isPending;
 
@@ -72,6 +73,7 @@ function PersonRow({
       overtimeExempt: person.overtimeExempt,
       payrollId: person.payrollId,
       active: person.active,
+      submitsTimesheets: person.submitsTimesheetsOverride,
       ...patch,
     });
   };
@@ -137,7 +139,7 @@ function PersonRow({
         <td className={td}>
           {editing ? (
             <select
-              className={`${controlClass} w-48`}
+              className={`${controlClass} w-48 min-w-48`}
               aria-label={t('managerFor', { name: person.name })}
               value={shown.managerId}
               disabled={busy}
@@ -166,7 +168,7 @@ function PersonRow({
         <td className={td}>
           {editing ? (
             <select
-              className={`${controlClass} w-48`}
+              className={`${controlClass} w-48 min-w-48`}
               aria-label={t('timezoneFor', { name: person.name })}
               value={shown.timezone}
               disabled={busy}
@@ -196,8 +198,32 @@ function PersonRow({
         </td>
         <td className={td}>
           {editing ? (
+            <select
+              className={`${controlClass} w-40 min-w-40`}
+              aria-label={t('timesheetsFor', { name: person.name })}
+              value={shown.submitsTimesheets == null ? '' : String(shown.submitsTimesheets)}
+              disabled={busy}
+              onChange={(e) => save({ submitsTimesheets: e.target.value === '' ? null : e.target.value === 'true' })}
+            >
+              <option value="">
+                {t('timesheetsDefault', { value: settings.submitTimesheets ? t('submits') : t('reportsOnly') })}
+              </option>
+              <option value="true">{t('submits')}</option>
+              <option value="false">{t('reportsOnly')}</option>
+            </select>
+          ) : (
+            <span className="whitespace-nowrap">
+              {person.submitsTimesheets ? t('submits') : t('reportsOnly')}
+              {person.submitsTimesheetsOverride == null && (
+                <span className="text-muted-foreground"> · {t('byDefault')}</span>
+              )}
+            </span>
+          )}
+        </td>
+        <td className={td}>
+          {editing ? (
             <input
-              className={`${controlClass} w-36 font-mono`}
+              className={`${controlClass} w-36 min-w-36 font-mono`}
               aria-label={t('payrollIdFor', { name: person.name })}
               value={payrollDraft ?? shown.payrollId}
               maxLength={64}
@@ -276,7 +302,7 @@ function PersonRow({
       </tr>
       {update.isError && !deactivating && (
         <tr>
-          <td colSpan={9} className="px-4 pb-2">
+          <td colSpan={10} className="px-4 pb-2">
             <ErrorNote context={t('saveFailed', { name: person.name })} error={update.error} />
           </td>
         </tr>
@@ -324,8 +350,9 @@ export function People() {
     setMenu(at);
   };
 
-  const apply = (patch: Partial<PersonUpdate>, done: (count: number) => string) => {
-    const targets = chosen.filter((p) => Object.entries(patch).some(([k, v]) => p[k as keyof Person] !== v));
+  /** Applies the patch to the selected people it would change. */
+  const apply = (patch: Partial<PersonUpdate>, changes: (p: Person) => boolean, done: (count: number) => string) => {
+    const targets = chosen.filter(changes);
     if (targets.length === 0) return;
     bulk.mutate(
       targets.map((p) => ({
@@ -335,6 +362,7 @@ export function People() {
         overtimeExempt: p.overtimeExempt,
         payrollId: p.payrollId,
         active: p.active,
+        submitsTimesheets: p.submitsTimesheetsOverride,
         ...patch,
       })),
       {
@@ -349,28 +377,74 @@ export function People() {
       },
     );
   };
+  // One item per setting, saying what it would do: a mixed selection is
+  // brought into line, everyone already alike is switched over.
+  const allExempt = chosen.every((p) => p.overtimeExempt);
+  const allSubmit = chosen.every((p) => p.submitsTimesheets);
+  const allActive = chosen.every((p) => p.active);
   const actions = [
-    {
-      label: t('bulk.exempt'),
-      disabled: chosen.every((p) => p.overtimeExempt),
-      onSelect: () => apply({ overtimeExempt: true }, (count) => t('bulk.exempted', { count })),
-    },
-    {
-      label: t('bulk.notExempt'),
-      disabled: chosen.every((p) => !p.overtimeExempt),
-      onSelect: () => apply({ overtimeExempt: false }, (count) => t('bulk.unexempted', { count })),
-    },
-    {
-      label: t('bulk.activate'),
-      disabled: chosen.every((p) => p.active),
-      onSelect: () => apply({ active: true }, (count) => t('bulk.activated', { count })),
-    },
-    {
-      label: t('bulk.deactivate'),
-      danger: true,
-      disabled: chosen.every((p) => !p.active),
-      onSelect: () => setDeactivating(true),
-    },
+    allExempt
+      ? {
+          label: t('bulk.notExempt'),
+          onSelect: () =>
+            apply(
+              { overtimeExempt: false },
+              (p) => p.overtimeExempt,
+              (count) => t('bulk.unexempted', { count }),
+            ),
+        }
+      : {
+          label: t('bulk.exempt'),
+          onSelect: () =>
+            apply(
+              { overtimeExempt: true },
+              (p) => !p.overtimeExempt,
+              (count) => t('bulk.exempted', { count }),
+            ),
+        },
+    allSubmit
+      ? {
+          label: t('bulk.reportsOnly'),
+          onSelect: () =>
+            apply(
+              { submitsTimesheets: false },
+              (p) => p.submitsTimesheets,
+              (count) => t('bulk.madeReportsOnly', { count }),
+            ),
+        }
+      : {
+          label: t('bulk.submits'),
+          onSelect: () =>
+            apply(
+              { submitsTimesheets: true },
+              (p) => !p.submitsTimesheets,
+              (count) => t('bulk.madeSubmit', { count }),
+            ),
+        },
+    ...(chosen.some((p) => p.submitsTimesheetsOverride != null)
+      ? [
+          {
+            label: t('bulk.timesheetsDefault'),
+            onSelect: () =>
+              apply(
+                { submitsTimesheets: null },
+                (p) => p.submitsTimesheetsOverride != null,
+                (count) => t('bulk.followDefault', { count }),
+              ),
+          },
+        ]
+      : []),
+    allActive
+      ? { label: t('bulk.deactivate'), danger: true, onSelect: () => setDeactivating(true) }
+      : {
+          label: t('bulk.activate'),
+          onSelect: () =>
+            apply(
+              { active: true },
+              (p) => !p.active,
+              (count) => t('bulk.activated', { count }),
+            ),
+        },
   ];
 
   return (
@@ -409,7 +483,7 @@ export function People() {
                     key={a.label}
                     size="sm"
                     variant={a.danger ? 'danger' : 'outline'}
-                    disabled={a.disabled || bulk.isPending}
+                    disabled={bulk.isPending}
                     onClick={a.onSelect}
                   >
                     {a.label}
@@ -452,6 +526,9 @@ export function People() {
                     {t('columns.exempt')}
                   </th>
                   <th scope="col" className={th}>
+                    {t('columns.timesheets')}
+                  </th>
+                  <th scope="col" className={th}>
                     {t('columns.payrollId')}
                   </th>
                   <th scope="col" className={th}>
@@ -483,7 +560,7 @@ export function People() {
           at={menu}
           label={t('bulk.menu', { count: chosen.length })}
           heading={chosen.length === 1 ? chosen[0]?.name : t('bulk.selected', { count: chosen.length })}
-          items={actions.map((a) => ({ ...a, disabled: a.disabled || bulk.isPending }))}
+          items={actions.map((a) => ({ ...a, disabled: bulk.isPending }))}
           onClose={closeMenu}
         />
       )}
@@ -495,7 +572,13 @@ export function People() {
           description={t('deactivate.description')}
           confirmLabel={t('deactivate.action')}
           destructive
-          onConfirm={() => apply({ active: false }, (count) => t('bulk.deactivated', { count }))}
+          onConfirm={() =>
+            apply(
+              { active: false },
+              (p) => p.active,
+              (count) => t('bulk.deactivated', { count }),
+            )
+          }
         />
       )}
       <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
@@ -503,6 +586,7 @@ export function People() {
         <li>{t('notes.manager')}</li>
         <li>{t('notes.exempt')}</li>
         <li>{t('notes.payrollId')}</li>
+        <li>{t('notes.timesheets')}</li>
         <li>{t('notes.active')}</li>
       </ul>
     </>
