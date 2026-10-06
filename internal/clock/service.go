@@ -130,11 +130,11 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 // --- People ---
 
 const personColumns = `id, name, email, timezone, CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END,
-	overtime_exempt, payroll_id, active`
+	overtime_exempt, payroll_id, active, avatar_url, host_manager_id, manager_id`
 
 func scanPerson(row pgx.Row) (Person, error) {
 	var p Person
-	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.Timezone, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active)
+	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.Timezone, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active, &p.AvatarURL, &p.DirectoryManagerID, &p.ManagerOverrideID)
 	return p, err
 }
 
@@ -143,18 +143,18 @@ func scanPerson(row pgx.Row) (Person, error) {
 // table always has everyone who has used Timeclock.
 func (s *Service) Sync(ctx context.Context, hp host.Person) (Actor, error) {
 	p, err := scanPerson(s.pool.QueryRow(ctx, `
-		INSERT INTO people (id, workspace_id, name, email, host_manager_id) VALUES ($1, $W, $2, $3, $4)
+		INSERT INTO people (id, workspace_id, name, email, host_manager_id, avatar_url) VALUES ($1, $W, $2, $3, $4, $5)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email,
-			host_manager_id = EXCLUDED.host_manager_id, updated_at = now()
-		WHERE (people.name, people.email, people.host_manager_id) IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.email, EXCLUDED.host_manager_id)
-		RETURNING `+personColumns, hp.ID, hp.Name, hp.Email, hp.ManagerID))
+			host_manager_id = EXCLUDED.host_manager_id, avatar_url = EXCLUDED.avatar_url, updated_at = now()
+		WHERE (people.name, people.email, people.host_manager_id, people.avatar_url) IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.email, EXCLUDED.host_manager_id, EXCLUDED.avatar_url)
+		RETURNING `+personColumns, hp.ID, hp.Name, hp.Email, hp.ManagerID, hp.AvatarURL))
 	if errors.Is(err, pgx.ErrNoRows) { // nothing changed, so nothing was returned
 		p, err = scanPerson(s.pool.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1 AND workspace_id = $W`, hp.ID))
 	}
 	if err != nil {
 		return Actor{}, fmt.Errorf("sync person: %w", err)
 	}
-	return Actor{Person: p, Admin: hp.Admin, AvatarURL: hp.AvatarURL}, nil
+	return Actor{Person: p, Admin: hp.Admin}, nil
 }
 
 // SyncAll records everyone in the host's directory, so admins can assign

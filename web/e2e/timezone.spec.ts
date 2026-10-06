@@ -20,8 +20,9 @@ test('a browser in another zone is offered its own time, and times follow', asyn
   expect((await pat.api.get('/me')).person.timezone).toBe(PACIFIC);
 
   await page.getByRole('button', { name: 'Calendar' }).click();
-  await expect(page.getByRole('button', { name: `Times are in ${PACIFIC}. Change your time zone` })).toHaveText(
-    /^P[DS]T$/,
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await expect(page.getByRole('button', { name: `Times are in ${PACIFIC}. Change your time zone` })).toContainText(
+    'Los Angeles',
   );
 });
 

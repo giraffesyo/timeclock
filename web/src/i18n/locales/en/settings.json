@@ -147,10 +147,9 @@
       "exempt": "Overtime exempt",
       "payrollId": "Payroll ID",
       "active": "Active",
-      "status": "Saving",
-      "timezone": "Time zone"
+      "timezone": "Time zone",
+      "actions": "Actions"
     },
-    "managerDefault": "From the directory, or none",
     "managerFor": "Manager of {name}",
     "exemptFor": "{name} is overtime exempt",
     "payrollIdFor": "Payroll ID of {name}",
@@ -169,7 +168,19 @@
       "active": "Active: inactive people are left out of reports and exceptions."
     },
     "timezoneFor": "Time zone of {name}",
-    "timezoneDefault": "The organization’s"
+    "timezoneDefault": "The organization’s",
+    "managerDirectory": "From directory: {name}",
+    "adminApproves": "Admin approves",
+    "active": "Active",
+    "inactive": "Inactive",
+    "yes": "Yes",
+    "no": "No",
+    "notSet": "Not set",
+    "edit": "Edit",
+    "done": "Done",
+    "editFor": "Edit {name}",
+    "doneFor": "Done editing {name}",
+    "profileManager": "Manager: {name}"
   },
   "history": {
     "title": "Changes to payroll data",

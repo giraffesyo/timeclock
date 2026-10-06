@@ -12,7 +12,7 @@ import { browserZone, timeZones, useZone } from '@/lib/zone';
 export const zoneCity = (zone: string) => (zone.split('/').pop() ?? zone).replaceAll('_', ' ');
 
 /** Sets the caller's own time zone. */
-function ZoneDialog({ onClose }: { onClose: () => void }) {
+export function ZoneDialog({ onClose }: { onClose: () => void }) {
   const t = useTranslations('zone');
   const tc = useTranslations('common');
   const { person, settings } = useSession();

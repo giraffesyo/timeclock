@@ -54,21 +54,22 @@ func (s Settings) PeriodOf(d Date) Period { return PeriodContaining(s.PayCycle, 
 
 // Person is someone who tracks time.
 type Person struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	Timezone       string `json:"timezone" doc:"The IANA time zone their days and workweeks are cut in; empty uses the organization's." example:"America/Los_Angeles"`
-	ManagerID      string `json:"managerId" doc:"Who approves this person's time; empty when no one is assigned."`
-	OvertimeExempt bool   `json:"overtimeExempt"`
-	PayrollID      string `json:"payrollId" doc:"The person's id in the payroll system, for the export."`
-	Active         bool   `json:"active"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Email              string `json:"email"`
+	AvatarURL          string `json:"avatarUrl"`
+	Timezone           string `json:"timezone" doc:"The IANA time zone their days and workweeks are cut in; empty uses the organization's." example:"America/Los_Angeles"`
+	ManagerID          string `json:"managerId" doc:"Who approves this person's time; empty when no one is assigned."`
+	ManagerOverrideID  string `json:"managerOverrideId" doc:"The local manager override; empty follows the directory."`
+	DirectoryManagerID string `json:"directoryManagerId" doc:"The manager supplied by the host directory, used when no local override is set."`
+	OvertimeExempt     bool   `json:"overtimeExempt"`
+	PayrollID          string `json:"payrollId" doc:"The person's id in the payroll system, for the export."`
+	Active             bool   `json:"active"`
 }
 
 // Actor is the person making a request.
 type Actor struct {
 	Person
-	// AvatarURL comes fresh from the host directory, rather than payroll storage.
-	AvatarURL string
 	// Admin runs payroll.
 	Admin bool
 }
