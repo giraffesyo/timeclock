@@ -108,3 +108,20 @@ export const IntegrationsIcon = (p: Props) => (
     <path d="M6 2v3M10 2v3M4 5h8v2a4 4 0 0 1-4 4v3M4 5v2a4 4 0 0 0 4 4" />
   </Icon>
 );
+export const PeopleIcon = (p: Props) => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="12" height="10" rx="2" />
+    <circle cx="6" cy="7" r="1.5" />
+    <path d="M3.750 11c.400-1 1.200-1.500 2.250-1.500s1.850.500 2.250 1.500M10 7h2M10 9.500h2" />
+  </Icon>
+);
+export const ProjectsIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M2 4.500A1.500 1.500 0 0 1 3.500 3h2.600L7.500 4.500h5A1.500 1.500 0 0 1 14 6v5.500a1.500 1.500 0 0 1-1.500 1.500h-9A1.500 1.500 0 0 1 2 11.500Z" />
+  </Icon>
+);
+export const HistoryIcon = (p: Props) => (
+  <Icon {...p}>
+    <path d="M2.500 8a5.500 5.500 0 1 0 1.600-3.900M2.500 2.500V5H5M8 5v3l2 1.500" />
+  </Icon>
+);

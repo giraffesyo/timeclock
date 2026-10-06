@@ -9,10 +9,10 @@ for (const mobile of [false, true]) {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     const trigger = page.getByRole('button', { name: /: user menu$/ });
-    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeHidden();
+    await expect(page.locator('.popover').getByRole('link', { name: 'Settings', exact: true })).toBeHidden();
     await trigger.click({ button: 'left' });
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+    await expect(page.locator('.popover').getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Light or dark' })).toBeVisible();
     await page.screenshot({ path: `/tmp/timeclock-user-menu-${device}.png` });
@@ -29,7 +29,7 @@ for (const mobile of [false, true]) {
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await trigger.click();
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await page.locator('.popover').getByRole('link', { name: 'Settings', exact: true }).click();
     await expect(page).toHaveURL(/\/settings$/);
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
@@ -67,7 +67,7 @@ for (const mobile of [false, true]) {
         },
       }),
     );
-    await page.goto('/settings?tab=people');
+    await page.goto('/people');
     await page.bringToFront();
     const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Ada Lovelace', exact: true }) });
     await expect(row.getByRole('combobox')).toHaveCount(0);

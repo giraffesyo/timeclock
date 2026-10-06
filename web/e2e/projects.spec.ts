@@ -3,7 +3,7 @@ import { expect, RECENT, test } from './fixtures';
 test('an admin adds an internal project, and people record time on it', async ({ me, adminPerson }) => {
   const admin = await adminPerson();
   const name = `Holiday ${Date.now().toString(36)}`;
-  await admin.page.goto('/settings?tab=projects');
+  await admin.page.goto('/projects');
   const catalog = admin.page.getByRole('table');
   await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   const dialog = admin.page.getByRole('dialog', { name: 'Add project' });

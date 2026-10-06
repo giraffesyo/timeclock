@@ -63,7 +63,7 @@ test('people show their pictures wherever they are listed', async ({ me, someone
   const group = admin.page.locator('section').filter({ has: admin.page.getByRole('heading', { name: ada.name }) });
   await expect(picture(group, ada.name)).toBeVisible();
   // Choosing a person shows their picture too.
-  await admin.page.goto('/settings?tab=history');
+  await admin.page.goto('/history');
   const filter = admin.page.getByRole('button', { name: 'Show changes to one person’s time' });
   await filter.click();
   await picture(admin.page.getByRole('option', { name: ada.name }), ada.name).click();

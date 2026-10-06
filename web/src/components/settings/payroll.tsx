@@ -142,13 +142,14 @@ export function PayrollSettings() {
               </Field>
             )}
           </div>
-          <dl className="mt-4 grid gap-x-8 gap-y-2 rounded-md bg-muted px-3 py-2.5 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-muted-foreground">{t('preview.current')}</dt>
+          {/* A read-out of what the fields above make, not a control: plain text, no surface. */}
+          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-3 text-sm">
+            <div className="flex gap-1.5">
+              <dt className="text-muted-foreground">{t('preview.current')}</dt>
               <dd className="tabular font-medium">{current ? periodLabel(current) : t('preview.needAnchor')}</dd>
             </div>
-            <div>
-              <dt className="text-xs text-muted-foreground">{t('preview.next')}</dt>
+            <div className="flex gap-1.5">
+              <dt className="text-muted-foreground">{t('preview.next')}</dt>
               <dd className="tabular font-medium">{following ? periodLabel(following) : t('preview.needAnchor')}</dd>
             </div>
           </dl>

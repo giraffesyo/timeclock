@@ -12,8 +12,13 @@
     "groups": {
       "track": "Track",
       "yours": "Your time",
-      "payroll": "Payroll"
-    }
+      "payroll": "Payroll",
+      "manage": "Manage"
+    },
+    "people": "People",
+    "projects": "Projects",
+    "integrations": "Integrations",
+    "history": "History"
   },
   "home": "Back to {name}",
   "signOut": "Sign out",

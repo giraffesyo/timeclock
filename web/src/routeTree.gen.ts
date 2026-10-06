@@ -13,10 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CliRouteImport } from './routes/cli'
 import { Route as ForgotRouteImport } from './routes/forgot'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OverviewRouteImport } from './routes/overview'
+import { Route as PeopleRouteImport } from './routes/people'
+import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ResetRouteImport } from './routes/reset'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -44,6 +47,11 @@ const ForgotRoute = ForgotRouteImport.update({
   path: '/forgot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -62,6 +70,16 @@ const LoginRoute = LoginRouteImport.update({
 const OverviewRoute = OverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PeopleRoute = PeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -100,10 +118,13 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
+  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
+  '/people': typeof PeopleRoute
+  '/projects': typeof ProjectsRoute
   '/reports': typeof ReportsRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
@@ -116,10 +137,13 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
+  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
+  '/people': typeof PeopleRoute
+  '/projects': typeof ProjectsRoute
   '/reports': typeof ReportsRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
@@ -133,10 +157,13 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
+  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/overview': typeof OverviewRoute
+  '/people': typeof PeopleRoute
+  '/projects': typeof ProjectsRoute
   '/reports': typeof ReportsRoute
   '/reset': typeof ResetRoute
   '/settings': typeof SettingsRoute
@@ -151,10 +178,13 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
+    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
+    | '/people'
+    | '/projects'
     | '/reports'
     | '/reset'
     | '/settings'
@@ -167,10 +197,13 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
+    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
+    | '/people'
+    | '/projects'
     | '/reports'
     | '/reset'
     | '/settings'
@@ -183,10 +216,13 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
+    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
     | '/overview'
+    | '/people'
+    | '/projects'
     | '/reports'
     | '/reset'
     | '/settings'
@@ -200,10 +236,13 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CliRoute: typeof CliRoute
   ForgotRoute: typeof ForgotRoute
+  HistoryRoute: typeof HistoryRoute
   IntegrationsRoute: typeof IntegrationsRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   OverviewRoute: typeof OverviewRoute
+  PeopleRoute: typeof PeopleRoute
+  ProjectsRoute: typeof ProjectsRoute
   ReportsRoute: typeof ReportsRoute
   ResetRoute: typeof ResetRoute
   SettingsRoute: typeof SettingsRoute
@@ -242,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/integrations': {
       id: '/integrations'
       path: '/integrations'
@@ -268,6 +314,20 @@ declare module '@tanstack/react-router' {
       path: '/overview'
       fullPath: '/overview'
       preLoaderRoute: typeof OverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/people': {
+      id: '/people'
+      path: '/people'
+      fullPath: '/people'
+      preLoaderRoute: typeof PeopleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -320,10 +380,13 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   CliRoute: CliRoute,
   ForgotRoute: ForgotRoute,
+  HistoryRoute: HistoryRoute,
   IntegrationsRoute: IntegrationsRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   OverviewRoute: OverviewRoute,
+  PeopleRoute: PeopleRoute,
+  ProjectsRoute: ProjectsRoute,
   ReportsRoute: ReportsRoute,
   ResetRoute: ResetRoute,
   SettingsRoute: SettingsRoute,

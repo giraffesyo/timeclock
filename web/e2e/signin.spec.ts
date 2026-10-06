@@ -95,7 +95,7 @@ test.describe('email', () => {
     const admin = await join(browser, printed, 'Bo Boss', from());
 
     const email = address('ada');
-    await admin.goto('/settings?tab=people');
+    await admin.goto('/people');
     await admin.getByRole('textbox', { name: 'Email address to invite' }).fill(email);
     await admin.getByRole('button', { name: 'Invite', exact: true }).click();
     await expect(admin.getByRole('status')).toContainText(`${email} is invited.`);
@@ -272,7 +272,7 @@ test.describe('a workspace’s single sign-on', () => {
     await expect(page.getByRole('button', { name: 'Add a passkey' })).toBeDisabled();
 
     // The admin sees them among the workspace's people.
-    await ws.admin.goto('/settings?tab=people');
+    await ws.admin.goto('/people');
     await expect(ws.admin.getByRole('checkbox', { name: 'Select Ines Provider', exact: true })).toBeVisible();
 
     // Someone the provider knows but the workspace doesn't is turned away.
@@ -315,7 +315,7 @@ test.describe('a workspace’s single sign-on', () => {
     // They join as a member, not an admin.
     await expect(sections(page).getByRole('link', { name: 'Team' })).toHaveCount(0);
 
-    await ws.admin.goto('/settings?tab=people');
+    await ws.admin.goto('/people');
     await expect(ws.admin.getByRole('checkbox', { name: 'Select Nell Newcomer', exact: true })).toBeVisible();
 
     // Next time their address is offered the provider on the sign-in page.

@@ -47,7 +47,7 @@ test('an admin changes several people at once from the selection or a right clic
     ((await api.get('/people')).people as { id: string; overtimeExempt: boolean }[]).find((x) => x.id === p.id)
       ?.overtimeExempt;
 
-  await page.goto('/settings?tab=people');
+  await page.goto('/people');
   await page.getByRole('checkbox', { name: `Select ${bea.name}`, exact: true }).check();
   await page.getByRole('checkbox', { name: `Select ${cal.name}`, exact: true }).check();
   await expect(page.getByRole('status').filter({ hasText: '2 people selected' })).toBeVisible();
@@ -87,7 +87,7 @@ test('someone set to reports only has no timesheet to submit and is left out of 
 }) => {
   const { page, api } = await adminPerson();
   const dee = await someone('dee');
-  await page.goto('/settings?tab=people');
+  await page.goto('/people');
   const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${dee.name}` }) });
   await expect(row).toContainText('Submits');
   await choose(page, row.getByRole('cell').first(), 'Reports only, not in payroll');
@@ -115,7 +115,7 @@ test('an admin makes someone an admin from the row menu, and only grants made he
 }) => {
   const { page } = await adminPerson();
   const fay = await someone('fay');
-  await page.goto('/settings?tab=people');
+  await page.goto('/people');
   const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${fay.name}` }) });
   await expect(row.getByText('Admin', { exact: true })).toHaveCount(0);
 

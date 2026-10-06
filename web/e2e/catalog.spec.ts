@@ -33,7 +33,7 @@ for (const mobile of [false, true]) {
     const key = `${device}-${Date.now().toString(36)}`;
     const customer = `Globex ${key}`;
     const project = `Design ${key}`;
-    await page.goto('/settings?tab=projects');
+    await page.goto('/projects');
 
     await page.getByRole('button', { name: 'Add customer' }).click();
     const add = page.getByRole('dialog', { name: 'Add customer' });
