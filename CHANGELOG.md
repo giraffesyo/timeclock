@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.14.0...timeclock-v0.15.0) (2026-10-06)
+
+
+### Features
+
+* company holidays, paid to everyone with holiday pay ([#62](https://github.com/giraffesyo/timeclock/issues/62)) ([7f4168d](https://github.com/giraffesyo/timeclock/commit/7f4168da4209040841d779406a15983aff7495db))
+* map Toggl holiday, vacation and sick projects ([#64](https://github.com/giraffesyo/timeclock/issues/64)) ([986eb0d](https://github.com/giraffesyo/timeclock/commit/986eb0d7dd0e23a12e095ffbfe05760f2849ac41))
+
 ## [0.14.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.13.0...timeclock-v0.14.0) (2026-10-06)
 
 
