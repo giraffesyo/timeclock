@@ -13,15 +13,16 @@ import {
   useListView,
   useRowMenu,
 } from '@parallelworks/ui/list';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Hours } from '@/components/hours';
 import { Empty } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
+import { PersonIdentity } from '@/components/person-identity';
 import { SheetStatus } from '@/components/status';
 import { useHoursText } from '@/components/time-off/runs';
-import { type PeriodSummary, useDecideTimesheet } from '@/lib/queries';
+import { type PeriodSummary, type Person, useDecideTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { DecisionDialog } from './decision-dialog';
 
@@ -89,11 +90,14 @@ export function useTeamView(): ListView<PeriodSummary> {
 /** One person's period: their hours, where their timesheet stands, and the decision when it waits. */
 function TeamRow({
   member: m,
+  people,
   view,
   openMenu,
   onDecide,
 }: {
   member: PeriodSummary;
+  /** Everyone the profile cards can name, such as a person's manager. */
+  people: Person[];
   view: ListView<PeriodSummary>;
   openMenu: OpenMenu;
   onDecide: (approve: boolean) => void;
@@ -122,14 +126,7 @@ function TeamRow({
   const cells: Record<string, ReactNode> = {
     person: (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-        <Link
-          to="/timesheet"
-          search={{ person: m.person.id, day: m.period.start }}
-          aria-label={t('openSheet', { name: m.person.name })}
-          className="rounded-sm font-medium hover:underline"
-        >
-          {m.person.name}
-        </Link>
+        <PersonIdentity person={m.person} people={people} />
         {own && <span className="text-xs text-muted-foreground">{t('you')}</span>}
         {m.running && (
           <span
@@ -188,9 +185,19 @@ function TeamRow({
 /**
  * One pay period, a row per person: their hours, where their timesheet
  * stands, and the decision when it waits for the caller. ⋯ and a right click
- * open the person's menu; a click opens their timesheet.
+ * open the person's menu; a click opens their timesheet, except on their
+ * name, which shows their profile.
  */
-export function TeamTable({ members, view }: { members: PeriodSummary[]; view: ListView<PeriodSummary> }) {
+export function TeamTable({
+  members,
+  people,
+  view,
+}: {
+  members: PeriodSummary[];
+  /** Everyone the profile cards can name, such as a person's manager. */
+  people: Person[];
+  view: ListView<PeriodSummary>;
+}) {
   const t = useTranslations('team.table');
   const ts = useTranslations('team.sheet');
   const tn = useTranslations('team.note');
@@ -240,6 +247,7 @@ export function TeamTable({ members, view }: { members: PeriodSummary[]; view: L
                 <TeamRow
                   key={m.person.id}
                   member={m}
+                  people={people}
                   view={view}
                   openMenu={openRowMenu}
                   onDecide={(approve) => ask(m, approve)}
