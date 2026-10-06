@@ -6,11 +6,11 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
-import { controlClass } from '@/components/field';
+import { controlClass, Field } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PersonIdentity } from '@/components/person-identity';
 import { Invites } from '@/components/settings/invites';
-import { Switch } from '@/components/settings/switch';
+import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
 import { cn } from '@/lib/cn';
 import {
@@ -69,7 +69,110 @@ const toMenuItem = (a: Action): RowMenuItem => ({
   tooltip: a.tooltip,
 });
 
-/** One person. Each change is its own request, so the row carries its own pending and error states. */
+/** What an update leaves as it is. */
+const current = (p: Person): PersonUpdate => ({
+  timezone: p.timezone,
+  managerId: p.managerOverrideId,
+  overtimeExempt: p.overtimeExempt,
+  payrollId: p.payrollId,
+  active: p.active,
+  submitsTimesheets: p.submitsTimesheetsOverride,
+});
+
+/** One person's settings, saved together. */
+function PersonDialog({ person, people, onClose }: { person: Person; people: Person[]; onClose: () => void }) {
+  const t = useTranslations('settings.people');
+  const tc = useTranslations('common');
+  const update = useUpdatePerson();
+  const { settings } = useSession();
+  const [draft, setDraft] = useState(() => current(person));
+  const set = (patch: Partial<PersonUpdate>) => setDraft((d) => ({ ...d, ...patch }));
+
+  // The current manager stays choosable even when inactive or unknown here.
+  const managers = people.filter((p) => p.id !== person.id && (p.active || p.id === draft.managerId));
+  const directoryManager = people.find((p) => p.id === person.directoryManagerId);
+  const managerKnown = !draft.managerId || managers.some((p) => p.id === draft.managerId);
+
+  return (
+    <ConfirmModal
+      open
+      onClose={onClose}
+      title={t('editTitle', { name: person.name })}
+      confirmLabel={tc('save')}
+      closeOnConfirm={false}
+      onConfirm={async () => {
+        try {
+          await update.mutateAsync({ id: person.id, ...draft, payrollId: draft.payrollId.trim() });
+          onClose();
+        } catch {
+          // Shown below from update.error; the dialog stays open to fix it.
+        }
+      }}
+    >
+      <div className="space-y-3">
+        <Field label={t('columns.manager')} hint={t('managerHint')}>
+          <select className={controlClass} value={draft.managerId} onChange={(e) => set({ managerId: e.target.value })}>
+            <option value="">
+              {person.directoryManagerId
+                ? t('managerDirectory', {
+                    name: directoryManager?.name || directoryManager?.email || person.directoryManagerId,
+                  })
+                : t('adminApproves')}
+            </option>
+            {!managerKnown && <option value={draft.managerId}>{draft.managerId}</option>}
+            {managers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name || p.id}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('columns.timezone')}>
+          <select className={controlClass} value={draft.timezone} onChange={(e) => set({ timezone: e.target.value })}>
+            <option value="">{t('timezoneDefault')}</option>
+            {timeZones(draft.timezone).map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t('columns.timesheets')}>
+          <select
+            className={controlClass}
+            value={draft.submitsTimesheets == null ? '' : String(draft.submitsTimesheets)}
+            onChange={(e) => set({ submitsTimesheets: e.target.value === '' ? null : e.target.value === 'true' })}
+          >
+            <option value="">
+              {t('timesheetsDefault', { value: settings.submitTimesheets ? t('submits') : t('reportsOnly') })}
+            </option>
+            <option value="true">{t('submits')}</option>
+            <option value="false">{t('reportsOnly')}</option>
+          </select>
+        </Field>
+        <Field label={t('columns.payrollId')} hint={t('payrollIdHint')}>
+          <input
+            className={`${controlClass} font-mono`}
+            value={draft.payrollId}
+            maxLength={64}
+            onChange={(e) => set({ payrollId: e.target.value })}
+          />
+        </Field>
+        <SwitchRow
+          label={t('columns.exempt')}
+          hint={draft.overtimeExempt ? t('exemptOn') : t('exemptOff')}
+          value={draft.overtimeExempt}
+          onChange={(v) => set({ overtimeExempt: v })}
+        />
+      </div>
+      {update.isError && (
+        <ErrorNote className="mt-3" context={t('saveFailed', { name: person.name })} error={update.error} />
+      )}
+    </ConfirmModal>
+  );
+}
+
+/** One person. Changes go through the people menu, from ⋯ or a right click. */
 function PersonRow({
   person,
   people,
@@ -86,293 +189,80 @@ function PersonRow({
   onMenu: (at: { x: number; y: number }) => void;
 }) {
   const t = useTranslations('settings.people');
-  const update = useUpdatePerson();
   const { settings, info } = useSession();
-  const [editing, setEditing] = useState(false);
-  // The payroll id as typed, until it is saved; null shows the saved one.
-  const [payrollDraft, setPayrollDraft] = useState<string | null>(null);
-  const [deactivating, setDeactivating] = useState(false);
-
-  // While a change is on its way the row shows what was asked for.
-  const shown: PersonUpdate = update.isPending
-    ? update.variables
-    : {
-        timezone: person.timezone,
-        managerId: person.managerOverrideId,
-        overtimeExempt: person.overtimeExempt,
-        payrollId: person.payrollId,
-        active: person.active,
-        submitsTimesheets: person.submitsTimesheetsOverride,
-      };
-  const busy = update.isPending;
-
-  const change = (patch: Partial<PersonUpdate>) => {
-    if (busy) return Promise.resolve();
-    return update.mutateAsync({
-      id: person.id,
-      timezone: person.timezone,
-      managerId: person.managerOverrideId,
-      overtimeExempt: person.overtimeExempt,
-      payrollId: person.payrollId,
-      active: person.active,
-      submitsTimesheets: person.submitsTimesheetsOverride,
-      ...patch,
-    });
-  };
-  // A failure stays on the row, from update.error.
-  const save = (patch: Partial<PersonUpdate>) => {
-    change(patch).catch(() => {});
-  };
-  const savePayrollId = () => {
-    if (payrollDraft === null) return;
-    const value = payrollDraft.trim();
-    if (value === person.payrollId) {
-      setPayrollDraft(null);
-      return;
-    }
-    change({ payrollId: value })
-      .then(() => setPayrollDraft(null))
-      .catch(() => {});
-  };
-
-  // The current manager stays choosable even when inactive or unknown here.
-  const managers = people.filter((p) => p.id !== person.id && (p.active || p.id === shown.managerId));
-  const effectiveManagerId = shown.managerId || person.directoryManagerId;
+  const effectiveManagerId = person.managerOverrideId || person.directoryManagerId;
   const manager = people.find((p) => p.id === effectiveManagerId);
-  const directoryManager = people.find((p) => p.id === person.directoryManagerId);
-  const managerKnown = !shown.managerId || managers.some((p) => p.id === shown.managerId);
 
   return (
-    <>
-      <tr
-        className={cn(!person.active && 'text-muted-foreground', selected && 'bg-primary/8')}
-        aria-busy={busy}
-        onContextMenu={(e) => {
-          // Inside a field, the browser's own menu (copy, paste) is the useful one.
-          if (e.target instanceof HTMLInputElement && e.target.type !== 'checkbox') return;
-          if (e.target instanceof HTMLSelectElement) return;
-          e.preventDefault();
-          // The keyboard's menu key reports no pointer: open beside the row instead.
-          const box = e.currentTarget.getBoundingClientRect();
-          onMenu(e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: box.left + 24, y: box.bottom });
-        }}
-        onKeyDown={(e) => {
-          // Not every browser turns the menu keys into a contextmenu event.
-          if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
-          e.preventDefault();
-          const box = e.currentTarget.getBoundingClientRect();
-          onMenu({ x: box.left + 24, y: box.bottom });
-        }}
-      >
-        <td className={`${td} w-8 !pr-0`}>
-          <input
-            type="checkbox"
-            className="size-4 cursor-pointer accent-(--color-primary) align-middle"
-            aria-label={t('bulk.select', { name: person.name })}
-            checked={selected}
-            onClick={(e) => onSelect(e.shiftKey)}
-            onChange={() => {}}
-          />
-        </td>
-        <td className={`${td} whitespace-nowrap`}>
-          <span className="flex items-center gap-2">
-            <PersonIdentity person={person} people={people} />
-            {person.admin && (
-              <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
-                <span
-                  title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}
-                >
-                  {t('admin')}
-                </span>
-              </Chip>
-            )}
-          </span>
-        </td>
-        <td className={`${td} whitespace-nowrap text-muted-foreground`}>{person.email}</td>
-        <td className={td}>
-          {editing ? (
-            <select
-              className={`${controlClass} w-48 min-w-48`}
-              aria-label={t('managerFor', { name: person.name })}
-              value={shown.managerId}
-              disabled={busy}
-              onChange={(e) => save({ managerId: e.target.value })}
-            >
-              <option value="">
-                {person.directoryManagerId
-                  ? t('managerDirectory', {
-                      name: directoryManager?.name || directoryManager?.email || person.directoryManagerId,
-                    })
-                  : t('adminApproves')}
-              </option>
-              {!managerKnown && <option value={shown.managerId}>{shown.managerId}</option>}
-              {managers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name || p.id}
-                </option>
-              ))}
-            </select>
-          ) : manager ? (
-            <PersonIdentity person={manager} people={people} />
-          ) : (
-            <span>{effectiveManagerId || t('adminApproves')}</span>
+    <tr
+      className={cn(!person.active && 'text-muted-foreground', selected && 'bg-primary/8')}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        // The keyboard's menu key reports no pointer: open beside the row instead.
+        const box = e.currentTarget.getBoundingClientRect();
+        onMenu(e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: box.left + 24, y: box.bottom });
+      }}
+      onKeyDown={(e) => {
+        // Not every browser turns the menu keys into a contextmenu event.
+        if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+        e.preventDefault();
+        const box = e.currentTarget.getBoundingClientRect();
+        onMenu({ x: box.left + 24, y: box.bottom });
+      }}
+    >
+      <td className={`${td} w-8 !pr-0`}>
+        <input
+          type="checkbox"
+          className="size-4 cursor-pointer accent-(--color-primary) align-middle"
+          aria-label={t('bulk.select', { name: person.name })}
+          checked={selected}
+          onClick={(e) => onSelect(e.shiftKey)}
+          onChange={() => {}}
+        />
+      </td>
+      <td className={`${td} whitespace-nowrap`}>
+        <span className="flex items-center gap-2">
+          <PersonIdentity person={person} people={people} />
+          {person.admin && (
+            <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
+              <span title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}>
+                {t('admin')}
+              </span>
+            </Chip>
           )}
-        </td>
-        <td className={td}>
-          {editing ? (
-            <select
-              className={`${controlClass} w-48 min-w-48`}
-              aria-label={t('timezoneFor', { name: person.name })}
-              value={shown.timezone}
-              disabled={busy}
-              onChange={(e) => save({ timezone: e.target.value })}
-            >
-              <option value="">{t('timezoneDefault')}</option>
-              {timeZones(shown.timezone).map((z) => (
-                <option key={z} value={z}>
-                  {z}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="whitespace-nowrap">{shown.timezone || settings.timezone}</span>
-          )}
-        </td>
-        <td className={td}>
-          {editing ? (
-            <Switch
-              label={t('exemptFor', { name: person.name })}
-              value={shown.overtimeExempt}
-              onChange={(v) => save({ overtimeExempt: v })}
-            />
-          ) : (
-            <span>{shown.overtimeExempt ? t('yes') : t('no')}</span>
-          )}
-        </td>
-        <td className={td}>
-          {editing ? (
-            <select
-              className={`${controlClass} w-40 min-w-40`}
-              aria-label={t('timesheetsFor', { name: person.name })}
-              value={shown.submitsTimesheets == null ? '' : String(shown.submitsTimesheets)}
-              disabled={busy}
-              onChange={(e) => save({ submitsTimesheets: e.target.value === '' ? null : e.target.value === 'true' })}
-            >
-              <option value="">
-                {t('timesheetsDefault', { value: settings.submitTimesheets ? t('submits') : t('reportsOnly') })}
-              </option>
-              <option value="true">{t('submits')}</option>
-              <option value="false">{t('reportsOnly')}</option>
-            </select>
-          ) : (
-            <span className="whitespace-nowrap">
-              {person.submitsTimesheets ? t('submits') : t('reportsOnly')}
-              {person.submitsTimesheetsOverride == null && (
-                <span className="text-muted-foreground"> · {t('byDefault')}</span>
-              )}
-            </span>
-          )}
-        </td>
-        <td className={td}>
-          {editing ? (
-            <input
-              className={`${controlClass} w-36 min-w-36 font-mono`}
-              aria-label={t('payrollIdFor', { name: person.name })}
-              value={payrollDraft ?? shown.payrollId}
-              maxLength={64}
-              readOnly={busy}
-              onChange={(e) => setPayrollDraft(e.target.value)}
-              onBlur={savePayrollId}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') savePayrollId();
-                if (e.key === 'Escape') {
-                  setPayrollDraft(null);
-                  update.reset();
-                }
-              }}
-            />
-          ) : (
-            <span>{shown.payrollId || t('notSet')}</span>
-          )}
-        </td>
-        <td className={td}>
-          {editing ? (
-            <Switch
-              label={t('activeFor', { name: person.name })}
-              value={shown.active}
-              onChange={(v) => {
-                if (busy) return;
-                if (v) save({ active: true });
-                else setDeactivating(true);
-              }}
-            />
-          ) : (
-            <span>{shown.active ? t('active') : t('inactive')}</span>
-          )}
-        </td>
-        <td className={`${td} w-8 whitespace-nowrap`}>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            aria-label={t(editing ? 'doneFor' : 'editFor', { name: person.name })}
-            onClick={() => setEditing(!editing)}
-          >
-            {t(editing ? 'done' : 'edit')}
-          </Button>
-          <button
-            type="button"
-            className="ml-0.5 inline-flex size-7 cursor-pointer items-center justify-center rounded-md align-middle text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={t('rowMenu', { name: person.name })}
-            aria-haspopup="menu"
-            onClick={(e) => {
-              const box = e.currentTarget.getBoundingClientRect();
-              onMenu({ x: box.right, y: box.bottom });
-            }}
-          >
-            <MenuIcon aria-hidden className="size-4" />
-          </button>
-          {busy && (
-            <span role="status" aria-label={t('saving')}>
-              <LoaderIcon className="size-3.5 text-muted-foreground" aria-hidden />
-            </span>
-          )}
-          {deactivating && (
-            <ConfirmModal
-              open
-              onClose={() => {
-                setDeactivating(false);
-                update.reset();
-              }}
-              title={t('deactivate.title', { name: person.name })}
-              description={t('deactivate.description')}
-              confirmLabel={t('deactivate.action')}
-              destructive
-              closeOnConfirm={false}
-              onConfirm={async () => {
-                try {
-                  await change({ active: false });
-                  setDeactivating(false);
-                } catch {
-                  // Shown below from update.error.
-                }
-              }}
-            >
-              {update.isError ? (
-                <ErrorNote context={t('saveFailed', { name: person.name })} error={update.error} />
-              ) : null}
-            </ConfirmModal>
-          )}
-        </td>
-      </tr>
-      {update.isError && !deactivating && (
-        <tr>
-          <td colSpan={10} className="px-4 pb-2">
-            <ErrorNote context={t('saveFailed', { name: person.name })} error={update.error} />
-          </td>
-        </tr>
-      )}
-    </>
+        </span>
+      </td>
+      <td className={`${td} whitespace-nowrap text-muted-foreground`}>{person.email}</td>
+      <td className={td}>
+        {manager ? (
+          <PersonIdentity person={manager} people={people} />
+        ) : (
+          <span>{effectiveManagerId || t('adminApproves')}</span>
+        )}
+      </td>
+      <td className={`${td} whitespace-nowrap`}>{person.timezone || settings.timezone}</td>
+      <td className={td}>{person.overtimeExempt ? t('yes') : t('no')}</td>
+      <td className={`${td} whitespace-nowrap`}>
+        {person.submitsTimesheets ? t('submits') : t('reportsOnly')}
+        {person.submitsTimesheetsOverride == null && <span className="text-muted-foreground"> · {t('byDefault')}</span>}
+      </td>
+      <td className={td}>{person.payrollId || t('notSet')}</td>
+      <td className={td}>{person.active ? t('active') : t('inactive')}</td>
+      <td className={`${td} w-8`}>
+        <button
+          type="button"
+          className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md align-middle text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={t('rowMenu', { name: person.name })}
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            onMenu({ x: box.right, y: box.bottom });
+          }}
+        >
+          <MenuIcon aria-hidden className="size-4" />
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -390,6 +280,8 @@ export function People() {
   const me = useSession();
   // The action waiting to be confirmed.
   const [pending, setPending] = useState<Pending | null>(null);
+  // The person whose settings are open.
+  const [editing, setEditing] = useState<Person | null>(null);
 
   const list = people.data ?? [];
   // People who left the list (a sync, another admin) drop out of the selection.
@@ -503,7 +395,9 @@ export function People() {
     // Only grants made here can be taken back here, and never your own.
     const revocable = admin.filter((p) => !p.hostAdmin && p.id !== me.person.id);
     const others = (part: Person[]) => group.filter((p) => !part.includes(p));
+    const [only] = group;
     return [
+      ...(only && group.length === 1 ? [{ label: t('edit'), onSelect: () => setEditing(only) }] : []),
       exempt.length === group.length
         ? confirmed('notExempt', group, () =>
             apply(
@@ -696,6 +590,13 @@ export function People() {
         )}
       </Panel>
       {contextMenu}
+      {editing && (
+        <PersonDialog
+          person={list.find((p) => p.id === editing.id) ?? editing}
+          people={list}
+          onClose={() => setEditing(null)}
+        />
+      )}
       {pending && (
         <ConfirmModal
           open

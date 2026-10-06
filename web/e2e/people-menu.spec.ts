@@ -83,17 +83,58 @@ for (const mobile of [false, true]) {
     });
     await row.getByRole('button', { name: 'Grace Hopper', exact: true }).focus();
     await expect(page.getByText('Manager: Admin approves')).toBeVisible();
-    await row.getByRole('button', { name: 'Edit Ada Lovelace', exact: true }).click();
-    await expect(row.getByRole('combobox', { name: 'Manager of Ada Lovelace' })).toHaveValue('');
-    await expect(row.getByRole('option', { name: 'From directory: Grace Hopper' })).toHaveCount(1);
+    await row.getByRole('button', { name: 'Grace Hopper', exact: true }).blur();
+    await expect(page.getByText('Manager: Admin approves')).toHaveCount(0);
+    // The ⋯ button and a right click open the same menu, with Edit… first.
+    const menu = page.getByRole('menu');
+    // The menu closes on any scroll, and bringing the row into view may scroll: retry.
+    const open = async (target: typeof row, button?: 'right') => {
+      await target.scrollIntoViewIfNeeded();
+      let items: string[] = [];
+      await expect(async () => {
+        await target.click(button ? { button } : {});
+        await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
+        items = await menu.getByRole('button').allTextContents();
+      }).toPass();
+      return items;
+    };
+    const fromButton = await open(row.getByRole('button', { name: 'Actions for Ada Lovelace' }));
+    expect(fromButton[0]).toBe('Edit…');
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    expect(await open(row.getByText(employee.email), 'right')).toEqual(fromButton);
+    await page.screenshot({ path: `/tmp/timeclock-people-menu-${device}.png` });
+    await testInfo.attach(`People menu ${device}`, {
+      path: `/tmp/timeclock-people-menu-${device}.png`,
+      contentType: 'image/png',
+    });
+    await page.keyboard.press('Escape');
+    await expect(async () => {
+      await row.getByText(employee.email).click({ button: 'right' });
+      await menu.getByRole('button', { name: 'Edit…' }).click({ timeout: 1000 });
+    }).toPass();
+    const dialog = page.getByRole('dialog', { name: 'Edit Ada Lovelace' });
+    await expect(dialog.getByRole('combobox', { name: 'Manager' })).toHaveValue('');
+    await expect(dialog.getByRole('option', { name: 'From directory: Grace Hopper' })).toHaveCount(1);
+    // Editing happens in the dialog, so the table keeps its width.
+    await expect(row.getByRole('combobox')).toHaveCount(0);
+    if (!mobile) {
+      const table = page.getByRole('table').locator('..');
+      expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    await page.screenshot({ path: `/tmp/timeclock-people-edit-${device}.png` });
+    await testInfo.attach(`People edit ${device}`, {
+      path: `/tmp/timeclock-people-edit-${device}.png`,
+      contentType: 'image/png',
+    });
     const saved = page.waitForRequest(
       (request) => request.method() === 'PUT' && request.url().endsWith(`/people/${me.id}`),
     );
-    await row.getByRole('textbox', { name: 'Payroll ID of Ada Lovelace' }).fill('PAY-123');
-    await row.getByRole('textbox', { name: 'Payroll ID of Ada Lovelace' }).press('Tab');
-    expect((await saved).postDataJSON().managerId).toBe('');
-    await expect(row.getByRole('button', { name: 'Done editing Ada Lovelace' })).toBeEnabled();
-    await row.getByRole('button', { name: 'Done editing Ada Lovelace' }).click();
-    await expect(row.getByRole('combobox')).toHaveCount(0);
+    await dialog.getByRole('textbox', { name: 'Payroll ID' }).fill('PAY-123');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    const body = (await saved).postDataJSON();
+    expect(body.managerId).toBe('');
+    expect(body.payrollId).toBe('PAY-123');
+    await expect(dialog).toHaveCount(0);
   });
 }
