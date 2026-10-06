@@ -65,6 +65,7 @@
       "creation_uncertain": "Toggl may have created this entry before the connection failed. Link the existing entry, or confirm it is absent before retrying. New imports for this person wait until this is resolved.",
       "locked": "This entry touches a submitted or approved timesheet. Return the timesheet for changes before syncing it.",
       "project_required": "Timeclock requires a project. Add one in Toggl before syncing this entry.",
+      "project_unavailable": "This entry’s Toggl project was deleted or isn’t visible to the connected account. Restore the project, or move the entry to another project in Toggl, and it will sync.",
       "description_required": "Timeclock requires a description. Add one in Toggl before syncing this entry.",
       "invalid_entry": "This entry could not be synced. Check its dates, description and project. Outgoing entries must use a project imported from Toggl."
     },

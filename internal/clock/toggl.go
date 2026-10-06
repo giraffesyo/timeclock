@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -23,10 +24,11 @@ type Toggl struct {
 	box              cipher.AEAD
 	client           func(string) *toggl.Client
 	workspaceTimeout time.Duration
+	logger           *slog.Logger
 }
 
-func NewToggl(s *Service, key string) (*Toggl, error) {
-	t := &Toggl{svc: s, workspaceTimeout: 5 * time.Minute, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
+func NewToggl(s *Service, key string, logger *slog.Logger) (*Toggl, error) {
+	t := &Toggl{svc: s, workspaceTimeout: 5 * time.Minute, logger: logger, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
 	if key == "" {
 		return t, nil
 	}
@@ -396,7 +398,8 @@ func togglMessage(err error) string {
 	if e, ok := errors.AsType[*toggl.Error](err); ok {
 		return e.Error()
 	}
-	return "Sync could not finish. Check the connection and try again."
+	// Say what stopped it: an admin can often fix the cause in Toggl.
+	return "Sync could not finish: " + err.Error()
 }
 
 type togglState struct {

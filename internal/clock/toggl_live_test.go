@@ -2,6 +2,7 @@ package clock
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ func TestLiveTogglRoundTrip(t *testing.T) {
 	f := newFixture(t)
 	f.clock = time.Now().UTC()
 	f.settings(func(s *Settings) { s.RequireProject = false; s.RequireDescription = false })
-	b, err := NewToggl(f.Service, "isolated live test encryption key "+uuid.NewString())
+	b, err := NewToggl(f.Service, "isolated live test encryption key "+uuid.NewString(), slog.Default())
 	if err != nil {
 		t.Fatal(err)
 	}

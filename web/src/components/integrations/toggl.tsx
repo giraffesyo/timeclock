@@ -351,6 +351,7 @@ function Conflict({ issue, onResolved }: { issue: Issue; onResolved: () => Promi
     'creation_uncertain',
     'locked',
     'project_required',
+    'project_unavailable',
     'description_required',
     'invalid_entry',
   ] as const;

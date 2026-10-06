@@ -207,3 +207,49 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
   expect((await api.get('/integrations/toggl')).issues).toEqual([]);
   await disconnect();
 });
+
+for (const mobile of [false, true]) {
+  test(`an entry on a deleted Toggl project waits in Needs attention${mobile ? ' on mobile' : ''}`, async ({
+    adminPerson,
+    me,
+  }, testInfo) => {
+    const { page } = await adminPerson();
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+    await page.route('**/api/v1/integrations/toggl', (route) =>
+      route.fulfill({
+        json: {
+          available: true,
+          connected: true,
+          workspaceId: 42,
+          from: '1970-01-01',
+          lastSync: new Date().toISOString(),
+          nextSync: null,
+          error: '',
+          historyComplete: true,
+          historyThrough: '',
+          people: [{ personId: me.id, userId: 123 }],
+          issues: [
+            {
+              entryId: '01a11224-cd64-7720-ac03-c85b11e1f9e5',
+              personId: me.id,
+              remoteId: 103,
+              kind: 'project_unavailable',
+              version: 'v1',
+              local: { start: '0001-01-01T00:00:00Z', note: '', deleted: true },
+              remote: { start: '2024-02-01T15:00:00Z', end: '2024-02-01T16:00:00Z', note: 'Planning', deleted: false },
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto('/settings?tab=integrations');
+    await expect(page.getByText('Toggl project was deleted or isn’t visible to the connected account')).toBeVisible();
+    await expect(page.getByText('Historical scan complete', { exact: false })).toBeVisible();
+    const device = mobile ? 'mobile' : 'desktop';
+    await page.screenshot({ path: `/tmp/timeclock-toggl-unavailable-${device}.png`, fullPage: true });
+    await testInfo.attach(`Unavailable project ${device}`, {
+      path: `/tmp/timeclock-toggl-unavailable-${device}.png`,
+      contentType: 'image/png',
+    });
+  });
+}

@@ -168,7 +168,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 	}
 	svc := clock.New(pool)
 
-	toggl, err := clock.NewToggl(svc, opts.IntegrationSecretKey)
+	toggl, err := clock.NewToggl(svc, opts.IntegrationSecretKey, logger)
 	if err != nil {
 		pool.Close()
 		return nil, err

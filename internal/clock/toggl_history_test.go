@@ -2,6 +2,7 @@ package clock
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -344,5 +345,56 @@ func TestTogglStagedReportResumesAcrossMidnight(t *testing.T) {
 	var pages int
 	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM toggl_report_pages WHERE workspace_id=$W`).Scan(&pages); err != nil || pages != 0 {
 		t.Fatal("old report pages were abandoned after midnight")
+	}
+}
+
+// One entry Timeclock can't place must not stop the history import: before,
+// an entry on a deleted Toggl project failed every sync at the same window.
+func TestTogglHistoryContinuesPastUnavailableProjects(t *testing.T) {
+	f, b, fake := togglFixture(t)
+	seedToggl(f, fake)
+	project, deleted := int64(11), int64(99)
+	entry := func(id int64, user int64, p *int64, start string) {
+		at := f.time(start)
+		end := at.Add(time.Hour)
+		fake.entries[id] = toggl.Entry{ID: id, WorkspaceID: 42, UserID: user, ProjectID: p, Start: at, Stop: &end, Duration: 3600, Description: fmt.Sprint("entry ", id)}
+	}
+	entry(103, 1, &deleted, "2024-02-01 09:00")
+	entry(104, 1, &project, "2024-03-01 09:00")
+	entry(105, 0, &project, "2024-04-01 09:00") // a report row with no user
+	if err := b.Configure(t.Context(), f.Service, f.admin, TogglSetup{Token: "fake", WorkspaceID: 42, People: []TogglMapping{{PersonID: f.ada.ID, UserID: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	for range 6 {
+		requireSync(t, f, b)
+	}
+	status, err := b.Status(t.Context(), f.Service, f.admin)
+	if err != nil || !status.HistoryComplete {
+		t.Fatalf("history did not finish: %+v %v", status, err)
+	}
+	var imported int
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM time_entries WHERE workspace_id=$W AND source='toggl'`).Scan(&imported); err != nil || imported != 2 {
+		t.Fatalf("the recent entry and the one after the unavailable project must import: %d %v", imported, err)
+	}
+	if len(status.Issues) != 1 || status.Issues[0].Kind != "project_unavailable" || *status.Issues[0].RemoteID != 103 {
+		t.Fatalf("the entry on the deleted project waits for an admin: %+v", status.Issues)
+	}
+
+	// Once the project is back in Toggl's catalog, the next sweep imports it.
+	fake.projects = append(fake.projects, toggl.Project{ID: deleted, WorkspaceID: 42, Name: "Restored", Active: false})
+	for range 6 {
+		requireSync(t, f, b)
+	}
+	if status, err = b.Status(t.Context(), f.Service, f.admin); err != nil || len(status.Issues) != 0 {
+		t.Fatalf("the restored project clears the issue: %+v %v", status.Issues, err)
+	}
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM time_entries WHERE workspace_id=$W AND source='toggl'`).Scan(&imported); err != nil || imported != 3 {
+		t.Fatalf("the entry imports with its project: %d %v", imported, err)
+	}
+}
+
+func TestTogglSyncErrorSaysWhy(t *testing.T) {
+	if got := togglMessage(errors.New("Toggl did not preserve the entry")); got != "Sync could not finish: Toggl did not preserve the entry" {
+		t.Fatal(got)
 	}
 }
