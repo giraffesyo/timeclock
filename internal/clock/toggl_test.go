@@ -40,6 +40,10 @@ func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			To   string `json:"end_date"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.From < "2006-01-01" {
+			http.Error(w, "start_date must be on or after 2006-01-01", http.StatusBadRequest)
+			return
+		}
 		groups := []any{}
 		for _, e := range f.entries {
 			date := e.Start.Format(time.DateOnly)
