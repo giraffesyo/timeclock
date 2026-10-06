@@ -392,6 +392,9 @@ func TestTogglRateLimitBackoff(t *testing.T) {
 	if !again.next.Equal(c.next) {
 		t.Fatal("manual sync bypassed backoff")
 	}
+	if status, err := b.Status(t.Context(), f.Service, f.admin); err != nil || status.RateLimitedUntil == nil || !status.RateLimitedUntil.Equal(c.next) {
+		t.Fatalf("the status says until when the limit holds: %+v %v", status.RateLimitedUntil, err)
+	}
 }
 func TestTogglStateEquality(t *testing.T) {
 	now := time.Now()
@@ -470,5 +473,39 @@ func TestTogglDisconnectWaitsForWorkspaceSync(t *testing.T) {
 	status, err := b.Status(t.Context(), f.Service, f.admin)
 	if err != nil || status.Connected {
 		t.Fatalf("disconnect failed: %v", err)
+	}
+}
+
+// Sync now waits out Toggl's API limit, but nothing else: after a timeout or
+// an outage an admin can try again without waiting for the hourly retry.
+func TestTogglSyncNowAfterOtherErrors(t *testing.T) {
+	f, b, _ := togglFixture(t)
+	setupToggl(t, f, b)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(503)
+	}))
+	defer server.Close()
+	b.client = func(token string) *toggl.Client {
+		return &toggl.Client{Token: token, BaseURL: server.URL, HTTP: server.Client()}
+	}
+	if _, err := f.pool.Exec(t.Context(), `UPDATE toggl_workspaces SET next_sync=$1 WHERE workspace_id=$W`, f.clock.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.run(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	status, err := b.Status(t.Context(), f.Service, f.admin)
+	if err != nil || status.Error == "" || status.RateLimitedUntil != nil {
+		t.Fatalf("an outage is an error, not a rate limit: %+v %v", status, err)
+	}
+	if err = b.RequestSync(t.Context(), f.Service, f.admin); err != nil {
+		t.Fatal(err)
+	}
+	c, err := b.config(t.Context(), f.Service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.next.After(time.Now()) {
+		t.Fatalf("sync now waited for the hourly retry: %v", c.next)
 	}
 }

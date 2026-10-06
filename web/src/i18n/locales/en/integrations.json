@@ -14,6 +14,7 @@
     "lastSync": "Last completed sync",
     "awaitingSync": "Waiting for the first sync",
     "retryAt": "Next attempt: {time}",
+    "rateLimited": "Sync now is available after {time}.",
     "syncNow": "Sync now",
     "queued": "Sync requested. The background worker will pick it up shortly.",
     "manage": "Manage connection",

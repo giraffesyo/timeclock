@@ -355,3 +355,48 @@ for (const mobile of [false, true]) {
     });
   });
 }
+
+for (const mobile of [false, true]) {
+  test(`Sync now waits only for Toggl's API limit${mobile ? ' on mobile' : ''}`, async ({
+    adminPerson,
+    me,
+  }, testInfo) => {
+    const { page } = await adminPerson();
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+    const until = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    let status = {
+      available: true,
+      connected: true,
+      workspaceId: 42,
+      from: '1970-01-01',
+      lastSync: new Date().toISOString(),
+      nextSync: until,
+      error: 'Sync could not finish: toggl could not be reached: timeout',
+      historyComplete: false,
+      historyThrough: '2023-09-28',
+      people: [{ personId: me.id, userId: 123 }],
+      issues: [],
+    } as Record<string, unknown>;
+    await page.route('**/api/v1/integrations/toggl', (route) => route.fulfill({ json: status }));
+    await page.goto('/settings?tab=integrations');
+    const syncNow = page.getByRole('button', { name: 'Sync now' });
+    // Any other failure can be retried at once.
+    await expect(syncNow).toBeEnabled();
+    const device = mobile ? 'mobile' : 'desktop';
+    await page.screenshot({ path: `/tmp/timeclock-sync-now-error-${device}.png`, fullPage: true });
+    await testInfo.attach(`Sync now after an error ${device}`, {
+      path: `/tmp/timeclock-sync-now-error-${device}.png`,
+      contentType: 'image/png',
+    });
+    // Toggl's API limit holds it back, and says until when.
+    status = { ...status, error: 'Toggl’s API limit was reached. Sync will retry later.', rateLimitedUntil: until };
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Sync now' })).toBeDisabled();
+    await expect(page.getByText(/Sync now is available after/)).toBeVisible();
+    await page.screenshot({ path: `/tmp/timeclock-sync-now-limited-${device}.png`, fullPage: true });
+    await testInfo.attach(`Sync now while rate-limited ${device}`, {
+      path: `/tmp/timeclock-sync-now-limited-${device}.png`,
+      contentType: 'image/png',
+    });
+  });
+}

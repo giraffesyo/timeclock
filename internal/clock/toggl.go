@@ -77,16 +77,18 @@ type TogglProject struct {
 	Active bool   `json:"active"`
 }
 type TogglStatus struct {
-	HistoryComplete bool           `json:"historyComplete"`
-	HistoryThrough  string         `json:"historyThrough"`
-	Available       bool           `json:"available"`
-	Connected       bool           `json:"connected"`
-	WorkspaceID     int64          `json:"workspaceId"`
-	From            string         `json:"from"`
-	LastSync        *time.Time     `json:"lastSync,omitempty"`
-	NextSync        *time.Time     `json:"nextSync,omitempty"`
-	Error           string         `json:"error"`
-	People          []TogglMapping `json:"people"`
+	HistoryComplete bool       `json:"historyComplete"`
+	HistoryThrough  string     `json:"historyThrough"`
+	Available       bool       `json:"available"`
+	Connected       bool       `json:"connected"`
+	WorkspaceID     int64      `json:"workspaceId"`
+	From            string     `json:"from"`
+	LastSync        *time.Time `json:"lastSync,omitempty"`
+	NextSync        *time.Time `json:"nextSync,omitempty"`
+	Error           string     `json:"error"`
+	// RateLimitedUntil is when Toggl's API limit allows Sync now again.
+	RateLimitedUntil *time.Time     `json:"rateLimitedUntil,omitempty"`
+	People           []TogglMapping `json:"people"`
 	TogglRoles
 	HolidayFrom  string       `json:"holidayFrom,omitempty"`
 	VacationFrom string       `json:"vacationFrom,omitempty"`
@@ -460,8 +462,10 @@ func (t *Toggl) RequestSync(ctx context.Context, s *Service, actor Actor) error 
 	if !actor.Admin {
 		return forbidden("only an admin manages integrations")
 	}
-	// Do not let a button bypass persisted rate-limit backoff.
-	_, err := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=now() WHERE workspace_id=$W AND token IS NOT NULL AND last_error=''`)
+	// A button must not bypass Toggl's rate limit, but any other failure (a
+	// timeout, an outage that has passed, a fix just deployed) can be retried.
+	_, err := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=now() WHERE workspace_id=$W AND token IS NOT NULL
+    AND (rate_limited_until IS NULL OR rate_limited_until <= $1)`, s.now())
 	return err
 }
 func (t *Toggl) Status(ctx context.Context, s *Service, actor Actor) (TogglStatus, error) {
@@ -473,9 +477,9 @@ func (t *Toggl) Status(ctx context.Context, s *Service, actor Actor) (TogglStatu
 	var history *time.Time
 	var roles [3]*int64
 	var froms [3]*time.Time
-	err := s.pool.QueryRow(ctx, `SELECT remote_id,token IS NOT NULL,sync_from,last_sync,next_sync,last_error,history_cursor,history_complete,
+	err := s.pool.QueryRow(ctx, `SELECT remote_id,token IS NOT NULL,sync_from,last_sync,next_sync,last_error,rate_limited_until,history_cursor,history_complete,
     holiday_project,holiday_from,vacation_project,vacation_from,sick_project,sick_from FROM toggl_workspaces WHERE workspace_id=$W`).Scan(
-		&out.WorkspaceID, &out.Connected, &from, &out.LastSync, &out.NextSync, &out.Error, &history, &out.HistoryComplete,
+		&out.WorkspaceID, &out.Connected, &from, &out.LastSync, &out.NextSync, &out.Error, &out.RateLimitedUntil, &history, &out.HistoryComplete,
 		&roles[0], &froms[0], &roles[1], &froms[1], &roles[2], &froms[2])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, nil

@@ -47,6 +47,8 @@ export function TogglIntegration() {
   if (status.isPending) return <Loading />;
   if (status.isError) return <ErrorNote error={status.error} />;
   const saved = status.data;
+  // Only Toggl's API limit holds Sync now back; any other failure can be retried.
+  const limited = !!saved.rateLimitedUntil && new Date(saved.rateLimitedUntil) > new Date();
   return (
     <Panel title={t('title')}>
       <div className="space-y-5">
@@ -86,21 +88,31 @@ export function TogglIntegration() {
                 {saved.error && (
                   <div role="status" className="space-y-1 text-sm">
                     <p>{saved.error}</p>
-                    {saved.nextSync && (
+                    {limited ? (
                       <p className="text-muted-foreground">
-                        {t('retryAt', {
-                          time: format.dateTime(new Date(saved.nextSync), { dateStyle: 'medium', timeStyle: 'short' }),
+                        {t('rateLimited', {
+                          time: format.dateTime(new Date(saved.rateLimitedUntil ?? ''), {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }),
                         })}
                       </p>
+                    ) : (
+                      saved.nextSync && (
+                        <p className="text-muted-foreground">
+                          {t('retryAt', {
+                            time: format.dateTime(new Date(saved.nextSync), {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            }),
+                          })}
+                        </p>
+                      )
                     )}
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    loading={sync.isPending}
-                    disabled={!!saved.error || !saved.available}
-                    onClick={() => sync.mutate()}
-                  >
+                  <Button loading={sync.isPending} disabled={limited || !saved.available} onClick={() => sync.mutate()}>
                     {t('syncNow')}
                   </Button>
                   <Button disabled={!saved.available} onClick={() => setEditing(!editing)}>

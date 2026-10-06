@@ -1635,6 +1635,8 @@ export interface components {
             /** Format: date-time */
             nextSync?: string;
             people: components["schemas"]["TogglMapping"][] | null;
+            /** Format: date-time */
+            rateLimitedUntil?: string;
             sickFrom?: string;
             sickName?: string;
             /**
