@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { DateTime } from 'luxon';
+import { ZONE } from '../playwright.config';
 import { column, drag, expect, hourPoint, instant, lastWeek, test } from './fixtures';
 
 // The full day is rendered, initially scrolled to working hours.
@@ -31,6 +33,8 @@ test('the calendar fills the space above payroll at different window heights', a
 
 test('the calendar opens around now and keeps the chosen scroll position', async ({ me }) => {
   const { page } = me;
+  // Midday today, so "now" is never at the very top or bottom of the day.
+  await page.clock.install({ time: DateTime.now().setZone(ZONE).set({ hour: 12, minute: 0 }).toJSDate() });
   await page.goto('/');
   const hours = page.getByRole('region', { name: 'Calendar hours' });
   const now = page.locator('.tl-now');
@@ -45,7 +49,6 @@ test('the calendar opens around now and keeps the chosen scroll position', async
   await page.mouse.wheel(0, -1000);
   await expect.poll(() => hours.evaluate((el) => el.scrollTop)).toBeLessThan(initial);
   const position = await hours.evaluate((el) => el.scrollTop);
-  await page.clock.install();
   await page.clock.fastForward(31_000);
   expect(await hours.evaluate((el) => el.scrollTop)).toBe(position);
 });
@@ -329,7 +332,11 @@ test('the entry actions delete time on desktop and mobile, while cancel preserve
 
 test('a failed deletion can be retried and deleting running time clears the clock', async ({ me }) => {
   const { page, api } = me;
-  const entry = await api.clockInAgo('Acme / Platform', 30, 'Running to delete');
+  // Started today, so the running block doesn't reach back into yesterday's column.
+  const sinceMidnight = Math.floor(
+    DateTime.now().setZone(ZONE).diff(DateTime.now().setZone(ZONE).startOf('day'), 'minutes').minutes,
+  );
+  const entry = await api.clockInAgo('Acme / Platform', Math.min(30, sinceMidnight), 'Running to delete');
   await page.goto('/');
   await page.getByRole('button', { name: /^Edit Running to delete/ }).press('Enter');
   const edit = dialog(page, 'Edit time');

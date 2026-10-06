@@ -1084,6 +1084,9 @@ func TestAdminsGrantedInTimeclock(t *testing.T) {
 	}
 	if !pat.Admin || !pat.HostAdmin {
 		t.Errorf("host admin without a grant = %+v", pat)
+	}
+}
+
 func TestOvertimeIsNotAnException(t *testing.T) {
 	f := newFixture(t)
 	f.settings(func(s *Settings) { s.RequireProject = false })
