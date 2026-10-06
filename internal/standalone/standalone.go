@@ -362,6 +362,13 @@ func (a *Auth) session(r *http.Request) (session, bool) {
 
 // Caller returns the signed-in account of a request.
 func (a *Auth) Caller(r *http.Request) (string, bool) {
+	if r.Header.Get("Authorization") != "" {
+		s, ok := a.cliBearer(r)
+		if !ok {
+			return "", false
+		}
+		return s.account.String(), true
+	}
 	if a.devID != "" {
 		// In development a request can name who it is from, which is how
 		// the end-to-end tests are several people at once.
@@ -379,6 +386,10 @@ func (a *Auth) Caller(r *http.Request) (string, bool) {
 
 // Workspace returns the workspace the request's session is looking at.
 func (a *Auth) Workspace(r *http.Request) (string, bool) {
+	if r.Header.Get("Authorization") != "" {
+		s, ok := a.cliBearer(r)
+		return s.workspace, ok
+	}
 	if a.devID != "" {
 		return "", false
 	}

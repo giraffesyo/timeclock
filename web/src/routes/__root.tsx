@@ -18,7 +18,7 @@ export const Route = createRootRoute({
 });
 
 // Pages for someone who isn't signed in yet: they render without a session.
-const PUBLIC = ['/login', '/invite', '/forgot', '/reset'];
+const PUBLIC = ['/login', '/invite', '/forgot', '/reset', '/cli'];
 
 function Root() {
   const path = useRouterState({ select: (s) => s.location.pathname });

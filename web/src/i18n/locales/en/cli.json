@@ -1,0 +1,21 @@
+{
+  "title": "Authorize Timeclock CLI",
+  "intro": "Connect your terminal to this workspace.",
+  "account": "Signed in as",
+  "workspace": "Workspace",
+  "noWorkspace": "No workspace selected",
+  "permissions": "The CLI can view and change time, projects, timesheets, and reports according to your account permissions. It cannot change your password or sign-in methods. Authorization lasts up to 30 days; signing out of the CLI ends it sooner.",
+  "code": "Code from your terminal",
+  "codePlaceholder": "ABCD-EFGH",
+  "confirmBrowser": "Approve only if you just started signing in from your own terminal.",
+  "confirmDevice": "Check that this code matches your terminal. Never approve a code someone else sent you.",
+  "approve": "Authorize CLI",
+  "deny": "Deny",
+  "approved": "CLI authorized",
+  "denied": "Authorization denied",
+  "returnToTerminal": "Return to your terminal to continue.",
+  "closeTab": "You can close this tab.",
+  "failed": "Authorization failed. Start sign-in again from your terminal.",
+  "unavailable": "CLI sign-in is unavailable here. Check the server address in your terminal and try again.",
+  "changeWorkspace": "To authorize another workspace, switch workspaces in Timeclock and reload this page."
+}

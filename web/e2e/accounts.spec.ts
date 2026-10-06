@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { DateTime } from 'luxon';
 import { ACCOUNTS_ENV } from '../playwright.config';
 import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
+import { installation } from './cli';
 import { lastWeek } from './fixtures';
 
 // A server with its own accounts: nobody is signed in until they accept an
@@ -222,6 +223,25 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
   await expect(page.getByRole('complementary').getByText('Pia', { exact: true })).toBeVisible();
+
+  // The CLI uses the same browser passkey ceremony, then asks for approval.
+  await page.context().clearCookies();
+  const cli = installation();
+  const login = cli.start();
+  try {
+    await expect.poll(() => login.output()).toContain('/auth/cli/authorize?');
+    await page.goto(login.output().match(/http:\/\/\S+/)?.[0] as string);
+    await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+    await expect(page.getByRole('heading', { name: 'Authorize Timeclock CLI' })).toBeVisible();
+    await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
+    expect(await login.finished, login.output()).toBe(0);
+    await expect(page.getByText('Authorization received. Return to your terminal.')).toBeVisible();
+    expect(JSON.parse(cli.run(['status', '--json'])).person.email).toBe(email);
+    cli.run(['auth', 'logout']);
+  } finally {
+    login.child.kill();
+    cli.clean();
+  }
 
   // Removed, it no longer signs in.
   await page.goto('/account');

@@ -5,6 +5,8 @@ web/dist/*
 .env
 /timeclock-server
 /example-host
+/timeclock
+/dist/
 web/test-results
 web/playwright-report
 web/packages/*/dist
