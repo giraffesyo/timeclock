@@ -43,7 +43,7 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   await expect(page.getByRole('link', { name: 'Back to Example Portal' }).first()).toHaveAttribute('href', '/');
   await expect(page.getByRole('link', { name: 'Account and sign-in' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
-  await expect(sections(page).getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await expect(sections(page).getByRole('link', { name: 'Settings' })).toBeVisible();
 
   // The clock works, against the API under the same path.
   await page.getByRole('textbox', { name: 'What you are working on' }).fill('Site visit');
@@ -89,9 +89,11 @@ test('it wears the host’s colors, until the workspace chooses its own', async 
   // The host's sidebar and page backgrounds, in light and in dark.
   await expect.poll(() => ground(page)).toBe('rgb(243, 239, 228)');
   expect(await sheet(page)).toBe('rgb(255, 253, 248)');
-  await page.getByRole('button', { name: 'Dark', exact: true }).click();
+  await page.goto('/timeclock/settings?tab=appearance');
+  const preference = page.getByRole('group', { name: 'Color theme' });
+  await preference.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect.poll(() => sheet(page)).toBe('rgb(16, 32, 29)');
-  await page.getByRole('button', { name: 'Light', exact: true }).click();
+  await preference.getByRole('button', { name: 'Light', exact: true }).click();
 
   await page.goto('/timeclock/settings?tab=appearance');
   await page.getByRole('button', { name: 'Navy' }).click();

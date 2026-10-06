@@ -29,12 +29,6 @@
     "label": "Notifications",
     "close": "Close"
   },
-  "mode": {
-    "label": "Light or dark",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "Match the system"
-  },
   "workspace": {
     "switch": "{name}: switch workspace",
     "failed": "Couldn’t switch workspace."

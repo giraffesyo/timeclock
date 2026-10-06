@@ -1,5 +1,5 @@
 import { deriveTheme, isDarkColor, THEME_PRESETS } from '@parallelworks/ui/theme';
-import { type CSSProperties, useEffect, useState } from 'react';
+import { type CSSProperties, useEffect, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
@@ -9,7 +9,7 @@ import { Segmented } from '@/components/segmented';
 import { SwitchRow } from '@/components/settings/switch';
 import { useSaveTheme } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { currentMode, previewTheme } from '@/lib/theme';
+import { currentMode, onThemeChange, previewTheme, readPreference, setPreference } from '@/lib/theme';
 import {
   contrastFailures,
   DEFAULT_THEME,
@@ -117,11 +117,42 @@ function SeedRows({
 const draftOf = (theme: Theme): Draft => ({ light: schemeFor(theme, 'light'), dark: schemeFor(theme, 'dark') });
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Everyone chooses their own mode; only admins edit the workspace's colors. */
+export function Appearance() {
+  const t = useTranslations('settings.appearance');
+  const { admin } = useSession();
+  const preference = useSyncExternalStore(onThemeChange, readPreference);
+  const [previewing, setPreviewing] = useState(false);
+  return (
+    <div className="max-w-2xl space-y-6">
+      <Panel title={t('preference.title')}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{t('preference.hint')}</p>
+          <Segmented
+            label={t('preference.title')}
+            value={preference}
+            onChange={(value) => {
+              setPreviewing(false);
+              previewTheme(null);
+              setPreference(value);
+            }}
+            options={(['light', 'dark', 'system'] as const).map((value) => ({
+              value,
+              label: t(`preference.${value}`),
+            }))}
+          />
+        </div>
+      </Panel>
+      {admin && <WorkspaceAppearance previewing={previewing} onPreview={() => setPreviewing(true)} />}
+    </div>
+  );
+}
+
 /**
  * The workspace's look. A few values per mode, and everything else follows:
  * the page shows the draft as it changes, and saving gives it to everyone.
  */
-export function Appearance() {
+function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; onPreview: () => void }) {
   const t = useTranslations('settings.appearance');
   const tc = useTranslations('common');
   const { info } = useSession();
@@ -133,13 +164,17 @@ export function Appearance() {
   const dirty = !same(draft, saved);
   const custom = !!info.workspaceTheme.light?.interface?.accent || !!info.workspaceTheme.dark?.interface?.accent;
 
-  // The page wears the draft while this tab is open.
+  // Preview workspace edits, without overriding someone's personal theme choice.
   useEffect(() => {
-    previewTheme({ theme: draft, mode });
+    previewTheme(previewing ? { theme: draft, mode } : null);
     return () => previewTheme(null);
-  }, [draft, mode]);
+  }, [draft, mode, previewing]);
 
-  const set = (next: Scheme) => setDraft({ ...draft, [mode]: next });
+  const edit = (next: Draft) => {
+    onPreview();
+    setDraft(next);
+  };
+  const set = (next: Scheme) => edit({ ...draft, [mode]: next });
   const problems = MODES.flatMap((m) => {
     const s = draft[m];
     const out: string[] = [];
@@ -164,6 +199,7 @@ export function Appearance() {
 
   return (
     <div className="max-w-2xl space-y-4">
+      <h2 className="text-base font-semibold">{t('workspaceTitle')}</h2>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {custom ? t('isCustom') : info.homeLabel ? t('isHost', { name: info.homeLabel }) : t('isOwn')}
@@ -171,7 +207,10 @@ export function Appearance() {
         <Segmented<Mode>
           label={t('mode.label')}
           value={mode}
-          onChange={setMode}
+          onChange={(value) => {
+            onPreview();
+            setMode(value);
+          }}
           options={MODES.map((m) => ({ value: m, label: t(`mode.${m}`) }))}
         />
       </div>
@@ -220,7 +259,7 @@ export function Appearance() {
                   } as CSSProperties
                 }
                 onClick={() => {
-                  setDraft(p.dark ? { light: p.seed, dark: p.dark } : { ...draft, [to]: p.seed });
+                  edit(p.dark ? { light: p.seed, dark: p.dark } : { ...draft, [to]: p.seed });
                   if (!p.dark) setMode(to);
                 }}
               >
@@ -274,7 +313,7 @@ export function Appearance() {
                   const pasted = JSON.parse(text) as Theme;
                   if (!pasted.light?.interface?.accent && !pasted.dark?.interface?.accent)
                     throw new Error('not a theme');
-                  setDraft({ light: schemeFor(pasted, 'light'), dark: schemeFor(pasted, 'dark') });
+                  edit({ light: schemeFor(pasted, 'light'), dark: schemeFor(pasted, 'dark') });
                 } catch {
                   toast.error(t('pasteFailed'));
                 }

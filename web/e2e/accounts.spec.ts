@@ -67,7 +67,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
   const ada = await join(browser, new URL(link).pathname + new URL(link).search, 'Ada Lovelace');
   const nav = ada.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Settings' })).toBeVisible();
 
   // The invitation is used: it is gone from the list, and its link no longer works.
   await admin.reload();

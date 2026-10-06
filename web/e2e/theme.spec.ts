@@ -7,21 +7,75 @@ const sheet = (page: Page) => page.locator('.shell-sheet').evaluate((el) => getC
 // The workspace's theme is one thing everyone shares, so its tests take turns.
 test.describe.configure({ mode: 'serial' });
 
-test('a person chooses light or dark, and it stays', async ({ me }) => {
-  const { page } = me;
-  await page.goto('/');
-  const html = page.locator('html');
-  await page.getByRole('button', { name: 'Dark', exact: true }).click();
-  await expect(html).toHaveClass(/dark/);
-  expect(await sheet(page)).toBe('rgb(23, 24, 29)');
+for (const mobile of [false, true]) {
+  test(`a person chooses their theme in Settings${mobile ? ' on mobile' : ''}`, async ({ me }) => {
+    const { page } = me;
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Dark', exact: true })).toHaveCount(0);
+    await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Settings' }).click();
+    const html = page.locator('html');
+    const preference = page.getByRole('group', { name: 'Color theme' });
+    await expect(page.getByRole('heading', { name: 'Workspace colors' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link')).toHaveCount(1);
+    await preference.getByRole('button', { name: 'Dark', exact: true }).click();
+    await expect(html).toHaveClass(/dark/);
+    expect(await sheet(page)).toBe('rgb(23, 24, 29)');
 
+    await page.reload();
+    await expect(html).toHaveClass(/dark/);
+    await expect(preference.getByRole('button', { name: 'Dark', exact: true })).toHaveAttribute('aria-pressed', 'true');
+
+    await preference.getByRole('button', { name: 'Light', exact: true }).click();
+    await expect(html).not.toHaveClass(/dark/);
+    expect(await sheet(page)).toBe('rgb(255, 255, 255)');
+    await expect(preference.getByRole('button', { name: 'Light', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.screenshot({
+      path: `/tmp/timeclock-appearance-${mobile ? 'mobile' : 'desktop'}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+
+    await preference.getByRole('button', { name: 'System', exact: true }).click();
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(html).toHaveClass(/dark/);
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(html).not.toHaveClass(/dark/);
+    await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Timer' }).click();
+    await page.reload();
+    await expect(html).not.toHaveClass(/dark/);
+
+    // Personal preferences do not grant access to workspace administration.
+    await page.goto('/settings?tab=people');
+    await expect(page.getByText('An admin manages payroll settings, projects and people.')).toBeVisible();
+  });
+}
+
+test('an admin can change their theme without losing a workspace draft', async ({ adminPerson }) => {
+  const { page } = await adminPerson();
+  await page.goto('/settings?tab=appearance');
+  const preference = page.getByRole('group', { name: 'Color theme' });
+  const html = page.locator('html');
+  await preference.getByRole('button', { name: 'Dark', exact: true }).click();
+  await expect(html).toHaveClass(/dark/);
   await page.reload();
   await expect(html).toHaveClass(/dark/);
-  await expect(page.getByRole('button', { name: 'Dark', exact: true })).toHaveAttribute('aria-pressed', 'true');
-
-  await page.getByRole('button', { name: 'Light', exact: true }).click();
+  await preference.getByRole('button', { name: 'System', exact: true }).click();
+  await page.emulateMedia({ colorScheme: 'light' });
   await expect(html).not.toHaveClass(/dark/);
-  expect(await sheet(page)).toBe('rgb(255, 255, 255)');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(html).toHaveClass(/dark/);
+  await page.getByRole('button', { name: 'Navy' }).click();
+  await expect(page.getByRole('textbox', { name: 'Accent' }).first()).toHaveValue(/^#06354f$/i);
+  await preference.getByRole('button', { name: 'Light', exact: true }).click();
+  await expect(html).not.toHaveClass(/dark/);
+  await expect(page.getByRole('textbox', { name: 'Accent' }).first()).toHaveValue(/^#06354f$/i);
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await page.screenshot({ path: '/tmp/timeclock-appearance-admin.png', fullPage: true, animations: 'disabled' });
 });
 
 test('an admin sets the workspace’s look from a few values, and everyone gets it', async ({ me, adminPerson }) => {

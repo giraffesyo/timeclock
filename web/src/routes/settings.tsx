@@ -26,9 +26,10 @@ export const Route = createFileRoute('/settings')({
 function SettingsPage() {
   const t = useTranslations('settings');
   const { admin } = useSession();
-  const { tab = 'payroll' } = Route.useSearch();
+  const { tab: requestedTab } = Route.useSearch();
+  const tab = requestedTab ?? (admin ? 'payroll' : 'appearance');
 
-  if (!admin) {
+  if (!admin && tab !== 'appearance') {
     return (
       <Page title={t('title')}>
         <p className="text-sm text-muted-foreground">{t('adminOnly')}</p>
@@ -39,7 +40,7 @@ function SettingsPage() {
   return (
     <Page title={t('title')} description={t('description')} wide={tab === 'people' || tab === 'history'}>
       <nav aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
-        {TABS.map((name) => (
+        {TABS.filter((name) => admin || name === 'appearance').map((name) => (
           <Link
             key={name}
             to="/settings"
