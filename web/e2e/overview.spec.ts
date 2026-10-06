@@ -25,6 +25,13 @@ test('the overview adds up a team’s week by day and project, and shows who is 
   // Every project shows all the time recorded on it, overlap included.
   await expect(page.locator('section').filter({ hasText: /^Hours by day/ })).toContainText('10.50 h');
   await expect(page.getByText(/^Monday, .+: 7\.00 hours$/)).toBeAttached();
+  // Hovering a day's bar says what each part of it is.
+  const monday = page.locator('[data-day]').first();
+  await monday.locator('.project-fill').first().hover();
+  const tip = page.locator('#day-chart');
+  await expect(tip).toContainText(/Monday, .+7\.00 h/);
+  await expect(tip).toContainText('Acme / Platform6.00 h');
+  await expect(tip).toContainText('Meetings1.00 h');
 
   // Only the manager's own time.
   await page.getByRole('button', { name: 'Mine' }).click();

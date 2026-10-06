@@ -12,8 +12,7 @@
     "title": "Hours by day",
     "total": "{hours} h",
     "caption": "Hours recorded on each day of the week, by project.",
-    "day": "{date}: {hours} hours",
-    "segment": "{project}: {hours} h"
+    "day": "{date}: {hours} hours"
   },
   "projects": {
     "title": "Projects",

@@ -7,6 +7,7 @@ import { api, type Schemas, unwrap } from '@/api/client';
 import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Loading, Panel } from '@/components/page';
+import { PersonSelect, personChoices } from '@/components/person-select';
 import { usePeople, useProjects } from '@/lib/queries';
 import { dayToDate } from '@/lib/time';
 
@@ -323,27 +324,21 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
                   .filter((u) => !u.inactive)
                   .map((u) => (
                     <Field key={u.user_id} label={u.name || u.email} hint={u.name ? u.email : undefined}>
-                      <select
-                        className={controlClass}
+                      <PersonSelect
+                        label={u.name || u.email}
                         value={matches[String(u.user_id)] ?? ''}
                         disabled={(saved.people ?? []).some((p) => p.userId === u.user_id)}
-                        onChange={(e) => setMatches({ ...matches, [String(u.user_id)]: e.target.value })}
-                      >
-                        <option value="">{t('doNotSync')}</option>
-                        {people.data
-                          ?.filter((p) => p.active)
-                          .map((p) => (
-                            <option
-                              key={p.id}
-                              value={p.id}
-                              disabled={Object.entries(matches).some(
-                                ([id, person]) => Number(id) !== u.user_id && person === p.id,
-                              )}
-                            >
-                              {p.name || p.email}
-                            </option>
-                          ))}
-                      </select>
+                        onChange={(id) => setMatches({ ...matches, [String(u.user_id)]: id })}
+                        choices={[
+                          { value: '', label: t('doNotSync') },
+                          ...personChoices((people.data ?? []).filter((p) => p.active)).map((c) => ({
+                            ...c,
+                            disabled: Object.entries(matches).some(
+                              ([id, person]) => Number(id) !== u.user_id && person === c.value,
+                            ),
+                          })),
+                        ]}
+                      />
                     </Field>
                   ))}
                 {(preview.users ?? []).length === 0 && <p className="text-sm">{t('noPeople')}</p>}

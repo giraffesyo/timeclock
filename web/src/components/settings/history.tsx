@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
-import { controlClass } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
+import { PersonSelect, personChoices } from '@/components/person-select';
 import { isDay } from '@/components/settings/periods';
 import { type AuditEntry, useAudit, usePeople } from '@/lib/queries';
 import { dayToDate } from '@/lib/time';
@@ -101,19 +101,13 @@ export function History() {
       flush
       title={t('title')}
       actions={
-        <select
-          className={`${controlClass} w-52`}
-          aria-label={t('filter')}
+        <PersonSelect
+          className="w-52"
+          label={t('filter')}
           value={personId}
-          onChange={(e) => setPersonId(e.target.value)}
-        >
-          <option value="">{t('everyone')}</option>
-          {(people.data ?? []).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name || p.id}
-            </option>
-          ))}
-        </select>
+          onChange={setPersonId}
+          choices={[{ value: '', label: t('everyone') }, ...personChoices(people.data ?? [])]}
+        />
       }
     >
       {audit.isError ? (

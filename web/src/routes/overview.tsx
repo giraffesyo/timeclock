@@ -1,5 +1,7 @@
+import { Avatar } from '@parallelworks/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
+import { Tooltip } from 'react-tooltip';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
 import { ProjectDot, useProjectName } from '@/components/project-select';
@@ -29,6 +31,8 @@ export const Route = createFileRoute('/overview')({
     scope: search.scope === 'mine' ? 'mine' : undefined,
   }),
 });
+
+const DAY_TOOLTIP = 'day-chart';
 
 const fill = (projectId: string) => (projectId ? ({ '--hue': projectHue(projectId) } as CSSProperties) : undefined);
 
@@ -80,7 +84,12 @@ function DayChart({ week, rows, order }: { week: Day[]; rows: DayProjectHours[];
           ))}
           <ul className="relative grid h-full grid-cols-7 items-end gap-2 px-1 sm:gap-4 sm:px-3">
             {days.map((d) => (
-              <li key={d.day} className="flex h-full flex-col justify-end">
+              <li
+                key={d.day}
+                className="flex h-full flex-col justify-end"
+                data-tooltip-id={d.total > 0 ? DAY_TOOLTIP : undefined}
+                data-day={d.day}
+              >
                 <span className="sr-only">
                   {t('day', {
                     date: format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'long', day: 'numeric' }),
@@ -102,7 +111,6 @@ function DayChart({ week, rows, order }: { week: Day[]; rows: DayProjectHours[];
                       key={r.projectId}
                       className={cn('project-fill min-h-px w-full', !r.projectId && 'project-fill-none')}
                       style={{ ...fill(r.projectId), flexGrow: r.hours, flexBasis: 0 }}
-                      title={t('segment', { project: projectName(r.projectId), hours: decimalHours(r.hours) })}
                     />
                   ))}
                 </div>
@@ -128,6 +136,33 @@ function DayChart({ week, rows, order }: { week: Day[]; rows: DayProjectHours[];
           ))}
         </div>
       </div>
+      <Tooltip
+        id={DAY_TOOLTIP}
+        className="config-tips z-[10000] text-left normal-case"
+        opacity={1}
+        place="right"
+        render={({ activeAnchor }) => {
+          const d = days.find((x) => x.day === activeAnchor?.getAttribute('data-day'));
+          if (!d) return null;
+          return (
+            <div className="min-w-44 space-y-1.5">
+              <p className="flex justify-between gap-4 font-medium">
+                <span>{format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+                <span className="tabular">{t('total', { hours: decimalHours(d.total) })}</span>
+              </p>
+              <ul className="space-y-1">
+                {[...d.rows].reverse().map((r) => (
+                  <li key={r.projectId} className="flex items-center gap-2">
+                    <ProjectDot projectId={r.projectId} />
+                    <span className="min-w-0 flex-1 truncate">{projectName(r.projectId)}</span>
+                    <span className="tabular">{t('total', { hours: decimalHours(r.hours) })}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        }}
+      />
     </figure>
   );
 }
@@ -172,15 +207,12 @@ function Tracking({ people }: { people: Activity[] }) {
     <ul className="grid divide-y divide-border sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3">
       {people.map((p) => (
         <li key={p.person.id} className="flex items-center gap-3 px-4 py-3">
-          <span
-            aria-hidden
-            className={cn(
-              'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-              p.running ? 'bg-success-subtle text-success' : 'bg-muted text-muted-foreground',
-            )}
-          >
-            {p.person.name.slice(0, 1).toUpperCase()}
-          </span>
+          <Avatar
+            src={p.person.avatarUrl}
+            name={p.person.name}
+            status={p.running ? 'online' : undefined}
+            className="shrink-0"
+          />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{p.person.name}</span>
             {p.running ? (

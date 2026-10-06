@@ -22,6 +22,7 @@ import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PersonIdentity } from '@/components/person-identity';
+import { PersonSelect, personChoices } from '@/components/person-select';
 import { Invites } from '@/components/settings/invites';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
@@ -124,21 +125,23 @@ function PersonDialog({ person, people, onClose }: { person: Person; people: Per
     >
       <div className="space-y-3">
         <Field label={t('columns.manager')} hint={t('managerHint')}>
-          <select className={controlClass} value={draft.managerId} onChange={(e) => set({ managerId: e.target.value })}>
-            <option value="">
-              {person.directoryManagerId
-                ? t('managerDirectory', {
-                    name: directoryManager?.name || directoryManager?.email || person.directoryManagerId,
-                  })
-                : t('adminApproves')}
-            </option>
-            {!managerKnown && <option value={draft.managerId}>{draft.managerId}</option>}
-            {managers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name || p.id}
-              </option>
-            ))}
-          </select>
+          <PersonSelect
+            label={t('columns.manager')}
+            value={draft.managerId}
+            onChange={(managerId) => set({ managerId })}
+            choices={[
+              {
+                value: '',
+                label: person.directoryManagerId
+                  ? t('managerDirectory', {
+                      name: directoryManager?.name || directoryManager?.email || person.directoryManagerId,
+                    })
+                  : t('adminApproves'),
+              },
+              ...(managerKnown ? [] : [{ value: draft.managerId, label: draft.managerId }]),
+              ...personChoices(managers),
+            ]}
+          />
         </Field>
         <Field label={t('columns.timezone')}>
           <select className={controlClass} value={draft.timezone} onChange={(e) => set({ timezone: e.target.value })}>

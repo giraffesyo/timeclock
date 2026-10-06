@@ -1,3 +1,4 @@
+import { Avatar } from '@parallelworks/ui';
 import { AlertCircleIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -6,7 +7,7 @@ import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PeriodNav } from '@/components/period-nav';
 import { Chip, type Tone } from '@/components/status';
 import { cn } from '@/lib/cn';
-import { type Exception, useExceptions } from '@/lib/queries';
+import { type Exception, useExceptions, usePeople } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayToDate } from '@/lib/time';
 import { TimesheetLink, useStickyPeriod } from './shared';
@@ -65,8 +66,10 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
   const t = useTranslations('reports.exceptions');
   const tr = useTranslations('reports');
   const format = useFormatter();
-  const { today, period: current, admin } = useSession();
+  const { today, period: current, admin, manager } = useSession();
   const exceptions = useExceptions(day);
+  const people = usePeople(admin || manager);
+  const avatarOf = (id: string) => people.data?.find((p) => p.id === id)?.avatarUrl;
   const period = useStickyPeriod(exceptions.data?.period ?? (day ? undefined : current));
   const [chosen, setChosen] = useState<Kind | 'all'>('all');
 
@@ -124,7 +127,12 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
               <Panel
                 key={g.id}
                 flush
-                title={g.name}
+                title={
+                  <span className="flex items-center gap-2">
+                    <Avatar src={avatarOf(g.id)} name={g.name} size="sm" className="shrink-0" />
+                    {g.name}
+                  </span>
+                }
                 actions={
                   <>
                     <span className="text-xs text-muted-foreground">{t('count', { count: g.items.length })}</span>
