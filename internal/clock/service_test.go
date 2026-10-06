@@ -1036,3 +1036,53 @@ func TestPeopleWhoDontSubmitTimesheets(t *testing.T) {
 		t.Errorf("ada submits by her own choice: %v", err)
 	}
 }
+
+func TestAdminsGrantedInTimeclock(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+	asAda := func() Actor {
+		t.Helper()
+		a, err := f.Sync(ctx, host.Person{ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "boss"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+
+	// Only an admin makes admins.
+	if _, err := f.SetAdmin(ctx, f.bob, "ada", true); err == nil {
+		t.Fatal("bob made ada an admin")
+	}
+	ada, err := f.SetAdmin(ctx, f.admin, "ada", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ada.Admin || ada.HostAdmin {
+		t.Errorf("granted ada = %+v", ada)
+	}
+	// The grant holds though the host still says she isn't one.
+	if a := asAda(); !a.Admin {
+		t.Error("ada isn't an admin on her next request")
+	}
+	// No one takes away their own admin; another admin can.
+	if _, err := f.SetAdmin(ctx, asAda(), "ada", false); err == nil {
+		t.Error("ada took away her own admin")
+	}
+	if _, err := f.SetAdmin(ctx, f.admin, "ada", false); err != nil {
+		t.Fatal(err)
+	}
+	if a := asAda(); a.Admin {
+		t.Error("ada is still an admin after the grant was taken back")
+	}
+	// Someone the host makes an admin stays one, whatever is granted here.
+	if _, err := f.SetAdmin(ctx, f.admin, "ada", true); err != nil {
+		t.Fatal(err)
+	}
+	pat, err := f.SetAdmin(ctx, asAda(), "admin", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pat.Admin || !pat.HostAdmin {
+		t.Errorf("host admin without a grant = %+v", pat)
+	}
+}

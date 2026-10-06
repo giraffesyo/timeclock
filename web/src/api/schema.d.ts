@@ -350,6 +350,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/people/{id}/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Make someone an admin in Timeclock, or take it back */
+        put: operations["set-person-admin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -1042,10 +1059,14 @@ export interface components {
              */
             readonly $schema?: string;
             active: boolean;
+            /** @description Runs payroll and manages Timeclock. */
+            admin: boolean;
             avatarUrl: string;
             /** @description The manager supplied by the host directory, used when no local override is set. */
             directoryManagerId: string;
             email: string;
+            /** @description The host application makes them an admin; only the host can take that away. */
+            hostAdmin: boolean;
             id: string;
             /** @description Who approves this person's time; empty when no one is assigned. */
             managerId: string;
@@ -1210,6 +1231,16 @@ export interface components {
              * @example America/Los_Angeles
              */
             timezone: string;
+        };
+        "Set-person-adminRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Set-person-adminRequest.json
+             */
+            readonly $schema?: string;
+            /** @description Grant admin here. Someone the host makes an admin stays one either way. */
+            admin: boolean;
         };
         Settings: {
             /**
@@ -2285,6 +2316,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PersonUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "set-person-admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Set-person-adminRequest"];
             };
         };
         responses: {

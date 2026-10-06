@@ -171,6 +171,24 @@ func registerPeople(a huma.API, d Deps) {
 			}
 			return &struct{ Body clock.Person }{out}, nil
 		})
+
+	huma.Register(a, op(http.MethodPut, "/people/{id}/admin", "set-person-admin", "Make someone an admin in Timeclock, or take it back", "People"),
+		func(ctx context.Context, in *struct {
+			ID   string `path:"id"`
+			Body struct {
+				Admin bool `json:"admin" doc:"Grant admin here. Someone the host makes an admin stays one either way."`
+			}
+		}) (*struct{ Body clock.Person }, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := d.clock(ctx).SetAdmin(ctx, actor, in.ID, in.Body.Admin)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body clock.Person }{out}, nil
+		})
 }
 
 // --- Customers and projects ---
