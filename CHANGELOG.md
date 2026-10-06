@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.15.0...timeclock-v0.16.0) (2026-10-06)
+
+
+### Features
+
+* show profiles on the Team page and hide People's email column ([#67](https://github.com/giraffesyo/timeclock/issues/67)) ([c2538f4](https://github.com/giraffesyo/timeclock/commit/c2538f48fbd1e175efb30775a640740b951c85a9))
+* show the manager on a profile card as a person ([#68](https://github.com/giraffesyo/timeclock/issues/68)) ([c5727b1](https://github.com/giraffesyo/timeclock/commit/c5727b14010d3094c41482e9c714b50327e8604c))
+
 ## [0.15.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.14.0...timeclock-v0.15.0) (2026-10-06)
 
 
