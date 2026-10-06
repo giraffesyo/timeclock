@@ -58,7 +58,7 @@ mux.Handle("/timeclock/", tc)   // requests arrive with the base path still on t
 
 `host.Directory` is two methods: `Person(ctx, id)` and `People(ctx)`. A `host.Person` has an id, a name, an email, whether they are an admin (run payroll), and optionally their manager's id; an admin can set managers in Timeclock too, which takes precedence.
 
-Set `host.Person.AvatarURL` to the user's profile image to show it beside their name. The caller's current image comes from the directory on each session fetch; absent or unavailable images fall back to initials. Use a same-origin image path or an image URL allowed by the host's content security policy.
+Set `host.Person.AvatarURL` to the user's profile image to show it beside their name. The caller's current image comes from the directory on each session fetch; absent or unavailable images fall back to initials. Use a same-origin image path, or list the images' origin in `Options.ImageSources` (for example `https://*.googleusercontent.com` for Google Workspace photos) so Timeclock's content security policy allows it.
 
 Timeclock keeps its tables, and [hopper](https://github.com/parallelworks/hopper)'s job tables, in its own schema (`timeclock` by default) and migrates it at startup under an advisory lock, so replicas can start together and it can share the host's database. `Options.SkipMigrations` leaves migrating to the host.
 
