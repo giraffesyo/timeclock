@@ -120,7 +120,7 @@ test('an admin makes someone an admin from the row menu, and only grants made he
   await expect(row.getByText('Admin', { exact: true })).toHaveCount(0);
 
   // The ⋮ button opens the same menu as a right click.
-  await choose(page, row.getByRole('button', { name: `Actions for ${fay.name}` }), 'Make admin', 'click');
+  await choose(page, row.getByRole('button', { name: 'More actions' }), 'Make admin', 'click');
   await expect(row.getByText('Admin', { exact: true })).toBeVisible();
   // Fay is an admin on her own next request.
   await expect.poll(async () => (await fay.api.get('/me')).admin).toBe(true);
@@ -132,9 +132,9 @@ test('an admin makes someone an admin from the row menu, and only grants made he
   // The workspace's own admin comes from the server, so it can't be removed here.
   const own = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: 'Select admin', exact: true }) });
   await expect(own.getByText('Admin', { exact: true })).toBeVisible();
-  await own.getByRole('button', { name: 'Actions for admin' }).scrollIntoViewIfNeeded();
+  await own.getByRole('button', { name: 'More actions' }).scrollIntoViewIfNeeded();
   await expect(async () => {
-    await own.getByRole('button', { name: 'Actions for admin' }).click();
+    await own.getByRole('button', { name: 'More actions' }).click();
     await expect(page.getByRole('menu').getByRole('button', { name: 'Remove admin' })).toHaveAttribute(
       'aria-disabled',
       'true',
