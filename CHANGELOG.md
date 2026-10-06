@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.16.0...timeclock-v0.17.0) (2026-10-06)
+
+
+### Features
+
+* show people's pictures in lists and pickers, and explain the day chart ([#73](https://github.com/giraffesyo/timeclock/issues/73)) ([9fdb039](https://github.com/giraffesyo/timeclock/commit/9fdb039666ce5b35de9e8b4f906627869f186316))
+* upgrade @parallelworks/ui to 0.23.0 so profile cards copy the email ([#71](https://github.com/giraffesyo/timeclock/issues/71)) ([ed6990d](https://github.com/giraffesyo/timeclock/commit/ed6990df08cda1055fb2f19cdd0caf4bf3010847))
+
+
+### Bug Fixes
+
+* narrow Toggl history windows that time out ([#70](https://github.com/giraffesyo/timeclock/issues/70)) ([b4ee23a](https://github.com/giraffesyo/timeclock/commit/b4ee23a74499980f8592d427c759d1f7b00601c4))
+
 ## [0.16.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.15.0...timeclock-v0.16.0) (2026-10-06)
 
 
