@@ -575,3 +575,171 @@ export function ClockBar({
     </form>
   );
 }
+
+// --- The clock as a button ---
+
+export interface ClockButtonLabels extends ClockBarLabels {
+  /** The button's text while the clock is stopped. */
+  clockIn: string;
+  /** The button's name while stopped, for assistive tech. */
+  stopped: string;
+  /** The button's name while running, given the project's name (or noProject). */
+  running: (project: string) => string;
+  noProject: string;
+  /** The link to the full Timeclock under the bar, when there is one. */
+  open: string;
+}
+
+const buttonLabels: ClockButtonLabels = {
+  ...barLabels,
+  clockIn: 'Clock in',
+  stopped: 'Timeclock: clock stopped',
+  running: (project) => `Timeclock: clock running on ${project}`,
+  noProject: 'no project',
+  open: 'Open Timeclock',
+};
+
+/**
+ * The clock as a small button for a host's header: it shows whether the
+ * clock runs and for how long, and opens the ClockBar beneath it to start,
+ * stop or move it. Until Timeclock answers it holds its place, so the
+ * header doesn't move when it appears; it draws nothing for someone
+ * Timeclock doesn't know, or when Timeclock can't be reached.
+ */
+export function ClockButton({
+  basePath,
+  store,
+  labels: given,
+  className,
+  href,
+  onError,
+  onSwitched,
+  onChanged,
+}: UseClockOptions & {
+  labels?: Partial<ClockButtonLabels>;
+  /** Added to the button, to match the host's other header buttons. */
+  className?: string;
+  /** The full Timeclock, linked beneath the bar. */
+  href?: string;
+  onError?: (error: ClockError | unknown, action: ClockAction) => void;
+  onSwitched?: (entry: Entry) => void;
+  onChanged?: () => void;
+}) {
+  const labels = { ...buttonLabels, ...given };
+  const clock = useClock({ basePath, store });
+  const { running } = clock;
+  // Minutes only: the bar inside shows the seconds, on its own clock.
+  const now = useSecond(!!running);
+  const panelId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+
+  // The button is the popover's invoker, so the browser toggles it, and
+  // Escape or a press elsewhere closes it, without the press on the button
+  // counting as one outside. (Set here: React 18 and 19 spell it differently.)
+  useLayoutEffect(() => {
+    trigger.current?.setAttribute('popovertarget', panelId);
+  });
+  useLayoutEffect(() => {
+    const el = panel.current;
+    const button = trigger.current;
+    if (!open || !el || !button) return;
+    const position = () => {
+      const rect = button.getBoundingClientRect();
+      el.style.left = `${Math.max(8, Math.min(rect.right - el.offsetWidth, window.innerWidth - el.offsetWidth - 8))}px`;
+      el.style.top = `${rect.bottom + 6}px`;
+    };
+    position();
+    el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    const observer = new ResizeObserver(position);
+    observer.observe(el);
+    window.addEventListener('resize', position);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+    };
+  }, [open]);
+
+  if (clock.status === 'loading') {
+    return (
+      <span aria-hidden className={cx('tc-clock-button', 'tc-clock-button-loading', className)}>
+        <svg viewBox="0 0 16 16" className="tc-clock-icon" />
+        <span className="tc-clock-label">{labels.clockIn}</span>
+      </span>
+    );
+  }
+  if (clock.status !== 'ready') return null;
+  const project = running && clock.projects.find((p) => p.id === running.projectId);
+  const minutes = running ? Math.max(0, Math.floor((now - Date.parse(running.startedAt)) / 60000)) : 0;
+
+  return (
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={running ? labels.running(project ? projectLabel(project) : labels.noProject) : labels.stopped}
+        className={cx('tc-clock-button', running ? 'tc-clock-button-running' : undefined, className)}
+      >
+        {running ? (
+          <>
+            <span
+              className={cx('tc-clock-pulse', !running.projectId && 'tc-clock-pulse-none')}
+              style={running.projectId ? ({ '--tc-hue': projectHue(running.projectId) } as CSSProperties) : undefined}
+              aria-hidden
+            >
+              <ProjectDot projectId={running.projectId} />
+            </span>
+            <span className="tc-clock-elapsed">{`${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`}</span>
+          </>
+        ) : (
+          <>
+            <svg
+              aria-hidden
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="tc-clock-icon"
+            >
+              <circle cx="8" cy="8" r="6.25" />
+              <path d="M8 4.5V8l2.25 1.5" strokeLinecap="round" />
+            </svg>
+            <span className="tc-clock-label">{labels.clockIn}</span>
+          </>
+        )}
+      </button>
+      <div
+        ref={panel}
+        id={panelId}
+        popover="auto"
+        role="dialog"
+        aria-label={labels.clock}
+        className="tc-clock-panel"
+        onToggle={(e) => {
+          // The project picker inside is a popover of its own.
+          if (e.target === e.currentTarget) setOpen(e.newState === 'open');
+        }}
+      >
+        {open && (
+          <ClockBar
+            store={clock.store}
+            labels={labels}
+            onError={onError}
+            onSwitched={onSwitched}
+            onChanged={onChanged}
+          />
+        )}
+        {href && (
+          <div className="tc-clock-footer">
+            <a href={href} className="tc-clock-open">
+              {labels.open}
+            </a>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

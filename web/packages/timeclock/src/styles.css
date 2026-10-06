@@ -247,3 +247,123 @@
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--tc-muted);
 }
+
+/* ClockButton: a header button, and the bar in a panel beneath it. */
+.tc-clock-button,
+.tc-clock-panel {
+  --tc-bg: var(--theme-panel-bg, #fff);
+  --tc-fg: var(--theme-panel, #16181d);
+  --tc-muted: var(--theme-muted-text-color, #5d6370);
+  --tc-border: var(--theme-border, #d9dce3);
+  --tc-hover: var(--theme-hover, #eef0f4);
+  --tc-accent: var(--theme-accent, #474fd4);
+  --tc-accent-fg: var(--theme-accent-text, #fff);
+  --tc-stop: var(--danger, #d92d20);
+  --tc-radius: 0.5rem;
+  box-sizing: border-box;
+}
+.tc-clock-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: transparent;
+  color: var(--tc-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+.tc-clock-button:hover,
+.tc-clock-button[aria-expanded="true"] {
+  background: var(--tc-hover);
+  color: var(--tc-fg);
+}
+.tc-clock-button-loading {
+  visibility: hidden;
+}
+.tc-clock-button-running {
+  color: var(--tc-fg);
+}
+.tc-clock-icon {
+  width: 1rem;
+  height: 1rem;
+}
+.tc-clock-elapsed {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.tc-clock-pulse {
+  position: relative;
+  display: inline-flex;
+}
+.tc-clock-pulse .tc-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+.tc-clock-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: oklch(0.64 0.15 var(--tc-hue, 150));
+  animation: tc-clock-pulse 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.tc-clock-pulse-none::after {
+  background: var(--tc-muted);
+}
+@keyframes tc-clock-pulse {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tc-clock-pulse::after {
+    animation: none;
+    display: none;
+  }
+}
+@media (max-width: 40rem) {
+  .tc-clock-label {
+    display: none;
+  }
+}
+.tc-clock-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(44rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  border: 1px solid var(--tc-border);
+  border-radius: 0.625rem;
+  background: var(--tc-bg);
+  color: var(--tc-fg);
+  box-shadow:
+    0 10px 28px -10px rgb(0 0 0 / 0.3),
+    0 2px 6px -2px rgb(0 0 0 / 0.12);
+}
+.tc-clock-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--tc-border);
+}
+.tc-clock-open {
+  border-radius: 0.25rem;
+  color: var(--tc-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.tc-clock-open:hover {
+  color: var(--tc-fg);
+}

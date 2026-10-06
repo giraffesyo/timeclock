@@ -30,6 +30,26 @@ import '@giraffesyo/timeclock/styles.css';
 
 `ProjectPicker` and `ProjectDot` are exported too.
 
+## The button
+
+For a header with no room for the bar: a small button that says "Clock in", or shows the project's color and the time while the clock runs (`1:23`), and opens the bar in a panel beneath it.
+
+```tsx
+import { ClockButton } from '@giraffesyo/timeclock/react';
+import '@giraffesyo/timeclock/styles.css';
+
+<ClockButton
+  basePath="/timeclock"
+  href="https://clock.example.com/"
+  className="my-header-button"
+  onError={(err, action) => notify(`Couldn't ${action}: ${err.message}`)}
+/>;
+```
+
+- It keeps its place while Timeclock is loading, so the header doesn't shift when it appears.
+- `className` goes on the button, to match the header's other buttons; `href` adds an "Open Timeclock" link under the bar.
+- The panel is a native popover: Escape or a click elsewhere closes it. It takes the bar's callbacks and labels, plus `clockIn`, `stopped`, `running`, `noProject` and `open`.
+
 ## The hook
 
 The clock with no look, to draw your own:
