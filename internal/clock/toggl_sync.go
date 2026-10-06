@@ -73,6 +73,7 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 				err = t.sync(jobCtx, s, c, t.client(string(plain)))
 			}
 			delay, message := 10*time.Minute, ""
+			var limited *time.Time
 			if !c.historyComplete {
 				delay = time.Minute
 			}
@@ -84,6 +85,10 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 					if e.RetryAfter > delay {
 						delay = e.RetryAfter
 					}
+					if e.Status == 429 {
+						until := s.now().Add(delay)
+						limited = &until
+					}
 				} else if !c.historyComplete && errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
 					// A large initial import can span several bounded attempts.
 					// Its durable progress must resume without an hourly backoff.
@@ -92,8 +97,8 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 				}
 			}
 			// A cancelled job must not erase its durable attempt markers.
-			_, saveErr := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=$1,last_error=$2,
-    last_sync=CASE WHEN $2='' THEN now() ELSE last_sync END WHERE workspace_id=$W`, s.now().Add(delay), message)
+			_, saveErr := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=$1,last_error=$2,rate_limited_until=$3,
+    last_sync=CASE WHEN $2='' THEN now() ELSE last_sync END WHERE workspace_id=$W`, s.now().Add(delay), message, limited)
 			return saveErr
 		})
 		if ctx.Err() != nil {
@@ -941,7 +946,8 @@ func (t *Toggl) Resolve(ctx context.Context, s *Service, actor Actor, id uuid.UU
 			if err != nil {
 				return err
 			}
-			if _, err = q.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=now() WHERE workspace_id=$W AND last_error=''`); err != nil {
+			if _, err = q.Exec(ctx, `UPDATE toggl_workspaces SET next_sync=now() WHERE workspace_id=$W
+    AND (rate_limited_until IS NULL OR rate_limited_until <= $1)`, s.now()); err != nil {
 				return err
 			}
 			return audit(ctx, q, actor, "toggl.resolve", l.person, map[string]any{"entryId": id, "choice": in.Choice})

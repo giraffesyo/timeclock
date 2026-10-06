@@ -2333,6 +2333,10 @@
               "null"
             ]
           },
+          "rateLimitedUntil": {
+            "format": "date-time",
+            "type": "string"
+          },
           "sickFrom": {
             "type": "string"
           },
