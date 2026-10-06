@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.9.0...timeclock-v0.10.0) (2026-10-06)
+
+
+### Features
+
+* compact time editor ([#41](https://github.com/giraffesyo/timeclock/issues/41)) ([a963367](https://github.com/giraffesyo/timeclock/commit/a9633674667aafbb17f27a10beb25e5b1d35841e))
+
+
+### Bug Fixes
+
+* keep shared queries loading after a save ([#39](https://github.com/giraffesyo/timeclock/issues/39)) ([fa083f7](https://github.com/giraffesyo/timeclock/commit/fa083f7b10a05ea2316832f1b5b66d92047322b8))
+
 ## [0.9.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.8.0...timeclock-v0.9.0) (2026-10-06)
 
 
