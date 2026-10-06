@@ -11,3 +11,4 @@ web/test-results
 web/playwright-report
 web/packages/*/dist
 .devstack
+/tmp/
