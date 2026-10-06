@@ -1,6 +1,7 @@
 import { ChevronLeftIcon, ChevronRightIcon } from '@parallelworks/ui/icons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
+import { cn } from '@/lib/cn';
 import type { Period } from '@/lib/queries';
 import { addDays, type Day, dayToDate } from '@/lib/time';
 
@@ -48,11 +49,17 @@ export function PeriodNav({
       >
         <ChevronRightIcon aria-hidden />
       </Button>
-      {!isCurrent && (
-        <Button variant="outline" size="sm" onClick={() => onChange(undefined)}>
-          {t('current')}
-        </Button>
-      )}
+      {/* Always there, so leaving the current one doesn't shift the nav; hidden while on it. */}
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(isCurrent && 'invisible')}
+        aria-hidden={isCurrent || undefined}
+        tabIndex={isCurrent ? -1 : undefined}
+        onClick={() => onChange(undefined)}
+      >
+        {t('current')}
+      </Button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { ChevronLeftIcon, ChevronRightIcon } from '@parallelworks/ui/icons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
+import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate, weekStartOf } from '@/lib/time';
 
@@ -48,11 +49,17 @@ export function WeekNav({
       >
         <ChevronRightIcon aria-hidden />
       </Button>
-      {!current && (
-        <Button variant="outline" size="sm" onClick={() => onChange(undefined)}>
-          {t('this')}
-        </Button>
-      )}
+      {/* Always there, so leaving the current one doesn't shift the nav; hidden while on it. */}
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(current && 'invisible')}
+        aria-hidden={current || undefined}
+        tabIndex={current ? -1 : undefined}
+        onClick={() => onChange(undefined)}
+      >
+        {t('this')}
+      </Button>
     </div>
   );
 }

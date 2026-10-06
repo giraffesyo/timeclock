@@ -39,12 +39,15 @@ export function Panel({
   actions,
   children,
   className,
+  bodyClassName,
   flush,
 }: {
   title?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** For the content, as when it should fill a panel stretched by its row. */
+  bodyClassName?: string;
   /** No padding around the content, for a table that runs edge to edge. */
   flush?: boolean;
 }) {
@@ -56,7 +59,7 @@ export function Panel({
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
       )}
-      <div className={flush ? undefined : 'p-4'}>{children}</div>
+      <div className={cn(!flush && 'p-4', bodyClassName)}>{children}</div>
     </section>
   );
 }

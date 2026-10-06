@@ -16,14 +16,15 @@
   },
   "projects": {
     "title": "Projects",
-    "empty": "Nothing recorded this week."
+    "empty": "Nothing recorded this week.",
+    "more": "Show {count, plural, one {# more project} other {# more projects}}",
+    "fewer": "Show fewer"
   },
   "tracking": {
     "title": "On the clock",
     "count": "{tracking} of {people} tracking",
-    "idle": "Not tracking",
     "hours": "{today} h today · {week} h this week",
-    "empty": "No one to show.",
+    "empty": "No one is on the clock right now.",
     "loadFailed": "Couldn’t load who is tracking."
   }
 }

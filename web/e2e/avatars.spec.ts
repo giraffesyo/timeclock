@@ -40,9 +40,8 @@ test('people show their pictures wherever they are listed', async ({ me, someone
   const bobRow = tracking.getByRole('listitem').filter({ hasText: bob.name });
   await expect(picture(bobRow, bob.name)).toHaveAttribute('src', `/test-avatar/${bob.id}.svg`);
   await expect(bobRow.getByTestId('online-indicator')).toBeVisible();
-  const adaRow = tracking.getByRole('listitem').filter({ hasText: ada.name });
-  await expect(picture(adaRow, ada.name)).toBeVisible();
-  await expect(adaRow.getByTestId('online-indicator')).toHaveCount(0);
+  // Only running clocks are listed.
+  await expect(tracking.getByRole('listitem').filter({ hasText: ada.name })).toHaveCount(0);
 
   // The team's sheets, and the time off waiting on the manager.
   await page.goto(`/team?day=${week.day(0)}`);
