@@ -720,10 +720,73 @@
     position: fixed;
     inset: auto;
     margin: 0;
-    width: min(23rem, calc(100vw - 1rem));
+    width: min(27rem, calc(100vw - 1rem));
     max-height: calc(100dvh - 1rem);
     overflow-y: auto;
-    padding: 1rem;
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  /* The time editor: what you worked on as the large field, then its
+   * project and day, then when, how long, and Save. */
+  .entry-note {
+    display: block;
+    width: 100%;
+    min-height: 3rem;
+    max-height: 10rem;
+    padding: 0.6875rem 0.875rem;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--color-muted);
+    color: var(--color-foreground);
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    resize: none;
+    field-sizing: content;
+    outline: none;
+  }
+  .entry-note::placeholder {
+    color: var(--color-muted-foreground);
+  }
+  .entry-note:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+  .entry-day {
+    height: 2.25rem;
+    padding: 0 0.5rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-muted-foreground);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .entry-day:hover,
+  .entry-day:focus-visible {
+    background: var(--color-muted);
+    color: var(--color-foreground);
+    outline: none;
+  }
+  .entry-time {
+    width: 7.25rem;
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    text-align: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--theme-input-bg);
+    color: var(--color-foreground);
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  /* Times are typed; the native clock button only crowds them. */
+  .entry-time::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+  .entry-time:focus-visible {
+    border-color: var(--color-ring);
+    box-shadow: 0 0 0 1px var(--color-ring);
   }
 }
 

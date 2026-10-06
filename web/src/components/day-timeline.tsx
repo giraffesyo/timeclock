@@ -209,12 +209,14 @@ export function DayTimeline({
     openEntry(entry);
   };
   const openNew = (s: Span) => {
-    // The stretch is drawn first, so the dialog can open out of it.
+    // The stretch is drawn first, so the editor can open beside it on the
+    // calendar, or the dialog out of it on a narrow day.
     flushSync(() => {
       setDrag(null);
       setAdding(s);
     });
-    morph(() => setAddOpen(true), draftEl);
+    if (column) setAddOpen(true);
+    else morph(() => setAddOpen(true), draftEl);
   };
   const closeNew = () => {
     setAddOpen(false);
@@ -640,6 +642,7 @@ export function DayTimeline({
         personId={personId}
         start={adding ? timeInput(iso(adding.start), zone) : undefined}
         end={adding ? timeInput(iso(adding.end), zone) : undefined}
+        anchor={column && addOpen ? draftEl() : undefined}
       />
     </div>
   );

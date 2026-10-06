@@ -1,14 +1,14 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { ConfirmModal } from '@parallelworks/ui';
-import { CloseIcon, CopyIcon, MenuIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { BareModal, modalPanelClasses } from '@parallelworks/ui';
+import { ArrowRightIcon, CloseIcon, CopyIcon, MenuIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { useContinue } from '@/components/clock-bar';
-import { controlClass, Field, textareaClass } from '@/components/field';
 import { ErrorNote } from '@/components/page';
 import { ProjectSelect, useProjectName } from '@/components/project-select';
+import { cn } from '@/lib/cn';
 import { type Entry, useDeleteEntry, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, at, type Day, dayOf, hoursMinutes, timeInput } from '@/lib/time';
@@ -94,10 +94,23 @@ function Form({
   const [invalid, setInvalid] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const cancelDelete = useRef<HTMLButtonElement>(null);
-  const actions = useRef<HTMLButtonElement>(null);
+  const actionsButton = useRef<HTMLButtonElement>(null);
+  const noteField = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     if (deleting) cancelDelete.current?.focus({ preventScroll: true });
   }, [deleting]);
+  // What you worked on comes first, as the field to type into. A frame
+  // later, once the popover shows and the modal has noted what to return
+  // focus to on close.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => noteField.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const time = (iso: string) => format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
+  const range = (e: Entry) =>
+    e.endedAt
+      ? t('range', { start: time(e.startedAt), end: time(e.endedAt) })
+      : t('rangeRunning', { start: time(e.startedAt) });
 
   const running = !!entry && !entry.endedAt;
   const startedAt = at(date, start, zone);
@@ -126,207 +139,228 @@ function Form({
     }
   };
 
-  const fields = (
+  const actions = entry && (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={t('day')} className="col-span-2">
-          <input type="date" className={controlClass} value={date} onChange={(e) => setDate(e.target.value)} />
-        </Field>
-        <Field label={t('start')}>
-          <input type="time" className={controlClass} value={start} onChange={(e) => setStart(e.target.value)} />
-        </Field>
-        <Field
-          label={running ? t('endRunning') : t('end')}
-          hint={
-            length && (
-              <>
-                {t('length', length)}
-                {overnight && ` · ${t('nextDay')}`}
-              </>
-            )
-          }
-        >
-          <input type="time" className={controlClass} value={end} onChange={(e) => setEnd(e.target.value)} />
-        </Field>
-        <Field label={tc('project.label')} className="col-span-2">
-          <ProjectSelect
-            value={projectId}
-            onChange={setProjectId}
-            required={settings.requireProject && (!running || !!end)}
-          />
-        </Field>
-        <Field
-          label={tc('note')}
-          hint={settings.requireDescription && (!running || !!end) ? t('descriptionRequired') : undefined}
-          className="col-span-2"
-        >
-          <textarea
-            className={textareaClass}
-            rows={2}
-            required={settings.requireDescription && (!running || !!end)}
-            maxLength={2000}
-            value={note}
-            placeholder={t('notePlaceholder')}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </Field>
-      </div>
-      {invalid && (
-        <p role="alert" className="mt-3 text-sm text-danger">
-          {t('invalid')}
-        </p>
+      {entry.endedAt && (
+        <Button
+          variant="primary"
+          className="!size-9 !rounded-full !p-0"
+          aria-label={t('continue')}
+          title={t('continue')}
+          icon={<StartIcon aria-hidden className="!size-5" />}
+          disabled={deleting}
+          onClick={() => {
+            void again.start(entry);
+            onClose();
+          }}
+        />
       )}
-      {save.isError && <ErrorNote className="mt-3" context={t('saveFailed')} error={save.error} />}
-      {duplicate.isError && <ErrorNote className="mt-3" context={t('saveFailed')} error={duplicate.error} />}
+      {entry.endedAt && (
+        <Button
+          variant="ghost"
+          className="!size-9 !p-0"
+          aria-label={t('duplicate')}
+          title={t('duplicate')}
+          icon={<CopyIcon aria-hidden className="!size-5" />}
+          loading={duplicate.isPending}
+          disabled={deleting}
+          onClick={async () => {
+            if (!startedAt || !endedAt) {
+              setInvalid(true);
+              return;
+            }
+            try {
+              await duplicate.mutateAsync({ projectId: projectId || undefined, startedAt, endedAt, note });
+              onClose();
+            } catch {
+              /* The panel stays open and shows the error. */
+            }
+          }}
+        />
+      )}
+      <Menu as="div" className="relative">
+        <MenuButton
+          ref={actionsButton}
+          className={buttonClass('ghost', 'md', '!size-9 !p-0')}
+          aria-label={t('actions')}
+          title={t('actions')}
+          disabled={deleting || save.isPending || duplicate.isPending}
+        >
+          <MenuIcon aria-hidden className="!size-5" />
+        </MenuButton>
+        <MenuItems modal={false} className="popover absolute left-0 top-full z-10 mt-1 min-w-40 p-1 focus:outline-none">
+          <MenuItem>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger data-focus:bg-danger-subtle"
+              onClick={() => setDeleting(true)}
+            >
+              <TrashIcon aria-hidden className="size-4" />
+              {t('delete')}
+            </button>
+          </MenuItem>
+        </MenuItems>
+      </Menu>
     </>
   );
 
-  if (anchor && entry) {
-    const time = (iso: string) =>
-      format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
-    const range = entry.endedAt
-      ? t('range', { start: time(entry.startedAt), end: time(entry.endedAt) })
-      : t('rangeRunning', { start: time(entry.startedAt) });
-    return (
-      <EntryPopover anchor={anchor} onClose={onClose} title={t('editTitle')}>
-        <div className="mb-3 flex items-center gap-2">
-          {entry.endedAt && (
-            <Button
-              variant="primary"
-              className="!size-10 !rounded-full !p-0"
-              aria-label={t('continue')}
-              title={t('continue')}
-              icon={<StartIcon aria-hidden className="!size-6" />}
-              disabled={deleting}
+  const requireNote = settings.requireDescription && (!running || !!end);
+
+  const content = (
+    <>
+      <div className="mb-2 flex min-h-8 items-center gap-1">
+        {actions}
+        <span className="flex-1" />
+        <Button
+          variant="ghost"
+          className="!size-8 !p-0"
+          aria-label={t('close')}
+          title={t('close')}
+          icon={<CloseIcon aria-hidden className="!size-4" />}
+          onClick={onClose}
+        />
+      </div>
+      {deleting && entry ? (
+        <section aria-labelledby="entry-delete-title">
+          <h2 id="entry-delete-title" className="text-base font-semibold">
+            {t('deleteTitle')}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t('deleteDescription', { range: range(entry), project: projectName(entry.projectId) })}
+          </p>
+          {remove.isError && <ErrorNote className="mt-3" context={t('deleteFailed')} error={remove.error} />}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              className={buttonClass()}
+              ref={cancelDelete}
+              disabled={remove.isPending}
               onClick={() => {
-                void again.start(entry);
-                onClose();
+                setDeleting(false);
+                remove.reset();
+                requestAnimationFrame(() => actionsButton.current?.focus({ preventScroll: true }));
               }}
-            />
-          )}
-          {entry.endedAt && (
+            >
+              {tc('cancel')}
+            </button>
             <Button
-              variant="ghost"
-              className="!size-9 !p-0"
-              aria-label={t('duplicate')}
-              title={t('duplicate')}
-              icon={<CopyIcon aria-hidden className="!size-5" />}
-              loading={duplicate.isPending}
-              disabled={deleting}
+              variant="danger"
+              loading={remove.isPending}
               onClick={async () => {
-                if (!startedAt || !endedAt) {
-                  setInvalid(true);
-                  return;
-                }
                 try {
-                  await duplicate.mutateAsync({ projectId: projectId || undefined, startedAt, endedAt, note });
+                  await remove.mutateAsync(entry.id);
                   onClose();
                 } catch {
-                  /* The popover stays open and shows the error. */
+                  // Keep the confirmation open so deletion can be retried.
                 }
               }}
-            />
-          )}
-          <Menu as="div" className="relative">
-            <MenuButton
-              ref={actions}
-              className={buttonClass('ghost', 'md', '!size-9 !p-0')}
-              aria-label={t('actions')}
-              title={t('actions')}
-              disabled={deleting || save.isPending || duplicate.isPending}
             >
-              <MenuIcon aria-hidden className="!size-5" />
-            </MenuButton>
-            <MenuItems
-              modal={false}
-              className="popover absolute left-0 top-full z-10 mt-1 min-w-40 p-1 focus:outline-none"
-            >
-              <MenuItem>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-danger data-focus:bg-danger-subtle"
-                  onClick={() => setDeleting(true)}
-                >
-                  <TrashIcon aria-hidden className="size-4" />
-                  {t('delete')}
-                </button>
-              </MenuItem>
-            </MenuItems>
-          </Menu>
-          <span className="flex-1" />
-          <Button variant="ghost" size="sm" aria-label={t('close')} onClick={onClose}>
-            <CloseIcon aria-hidden />
-          </Button>
-        </div>
-        {deleting ? (
-          <section aria-labelledby="entry-delete-title">
-            <h2 id="entry-delete-title" className="text-base font-semibold">
-              {t('deleteTitle')}
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t('deleteDescription', { range, project: projectName(entry.projectId) })}
-            </p>
-            {remove.isError && <ErrorNote className="mt-3" context={t('deleteFailed')} error={remove.error} />}
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className={buttonClass()}
-                ref={cancelDelete}
-                disabled={remove.isPending}
-                onClick={() => {
-                  setDeleting(false);
-                  remove.reset();
-                  requestAnimationFrame(() => actions.current?.focus({ preventScroll: true }));
-                }}
-              >
-                {tc('cancel')}
-              </button>
-              <Button
-                variant="danger"
-                loading={remove.isPending}
-                onClick={async () => {
-                  try {
-                    await remove.mutateAsync(entry.id);
-                    onClose();
-                  } catch {
-                    // Keep the confirmation open so deletion can be retried.
-                  }
-                }}
-              >
-                {t('delete')}
-              </Button>
-            </div>
-          </section>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
+              {t('delete')}
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <form
+          // The server's own reasons are shown, as on the clock, rather than the browser's.
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <textarea
+            ref={noteField}
+            className="entry-note"
+            aria-label={tc('note')}
+            rows={1}
+            required={requireNote}
+            maxLength={2000}
+            value={note}
+            placeholder={requireNote ? t('notePlaceholderRequired') : t('notePlaceholder')}
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter saves, as in a one-line field; Shift+Enter breaks the line.
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
             }}
-          >
-            {fields}
-            <div className="mt-3 flex justify-end">
-              <Button type="submit" variant="primary" loading={save.isPending}>
-                {tc('save')}
-              </Button>
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <ProjectSelect
+              className="min-w-0 max-w-[65%]"
+              value={projectId}
+              onChange={setProjectId}
+              required={settings.requireProject && (!running || !!end)}
+            />
+            <span className="flex-1" />
+            <input
+              type="date"
+              className="entry-day"
+              aria-label={t('day')}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                className="entry-time"
+                aria-label={t('start')}
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+              />
+              <ArrowRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+              <input
+                type="time"
+                className="entry-time"
+                aria-label={running ? t('endRunning') : t('end')}
+                title={running ? t('endRunning') : undefined}
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+              />
             </div>
-          </form>
-        )}
+            <span className="flex min-w-0 flex-1 flex-col px-1 leading-tight">
+              <span className="text-sm font-medium whitespace-nowrap tabular-nums">
+                {length ? t('length', length) : ''}
+              </span>
+              {overnight && <span className="text-xs text-muted-foreground">{t('nextDay')}</span>}
+            </span>
+            <Button type="submit" variant="primary" className="!h-10 !px-5" loading={save.isPending}>
+              {tc('save')}
+            </Button>
+          </div>
+          {invalid && (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {t('invalid')}
+            </p>
+          )}
+          {save.isError && <ErrorNote className="mt-3" context={t('saveFailed')} error={save.error} />}
+          {duplicate.isError && <ErrorNote className="mt-3" context={t('saveFailed')} error={duplicate.error} />}
+        </form>
+      )}
+    </>
+  );
+
+  const title = entry ? t('editTitle') : t('addTitle');
+  if (anchor) {
+    return (
+      <EntryPopover anchor={anchor} onClose={onClose} title={title}>
+        {content}
       </EntryPopover>
     );
   }
-
   return (
-    <ConfirmModal
+    <BareModal
       open
       onClose={onClose}
-      title={entry ? t('editTitle') : t('addTitle')}
-      confirmLabel={tc('save')}
-      onConfirm={submit}
-      closeOnConfirm={false}
+      ariaLabel={title}
+      preventClose={save.isPending || remove.isPending}
+      className={cn(modalPanelClasses, 'w-[27rem] max-w-full px-4 pt-3 pb-4')}
     >
-      {fields}
-    </ConfirmModal>
+      {content}
+    </BareModal>
   );
 }
 
@@ -362,7 +396,6 @@ function EntryPopover({
       if (e.target instanceof Node && !el.contains(e.target)) position();
     };
     window.addEventListener('scroll', followScroll, true);
-    el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', position);

@@ -28,7 +28,7 @@ test('a timesheet day opens to its time, drawn by the hour', async ({ me }) => {
   await row.getByRole('button', { name: /^Edit Standup, Meetings/ }).click();
   const edit = page.getByRole('dialog', { name: 'Edit time' });
   await expect(edit.locator('input[type=time]').first()).toHaveValue('10:00');
-  await edit.getByRole('button', { name: 'Cancel' }).click();
+  await edit.getByRole('button', { name: 'Close entry' }).click();
 
   // Submitted, the day's time is shown but no longer changes.
   await api.post('/timesheet/submit', { day: week.day(1) });
