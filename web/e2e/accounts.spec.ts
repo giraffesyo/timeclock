@@ -92,11 +92,11 @@ test('someone in two workspaces switches between them, and each has its own time
 
   // A project in the first workspace.
   await page.goto('/settings?tab=projects');
-  const internal = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Internal' }) });
-  await internal.getByRole('button', { name: 'Add project' }).click();
+  const catalog = page.getByRole('table');
+  await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   await page.getByRole('dialog', { name: 'Add project' }).getByLabel('Name').fill(`Only here ${key}`);
   await page.getByRole('dialog', { name: 'Add project' }).getByRole('button', { name: 'Save' }).click();
-  await expect(internal).toContainText(`Only here ${key}`);
+  await expect(catalog).toContainText(`Only here ${key}`);
 
   // They already have an account, so the invitation asks for its password.
   await page.goto(invite);
@@ -287,8 +287,8 @@ test('workspace project and description requirements control clocks and manual e
   const settings = async () => (await (await request.get('/api/v1/me')).json()).settings;
   expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
   await page.goto('/settings?tab=projects');
-  const internal = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Internal' }) });
-  await internal.getByRole('button', { name: 'Add project' }).click();
+  const catalog = page.getByRole('table');
+  await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   const project = page.getByRole('dialog', { name: 'Add project' });
   await project.getByLabel('Name', { exact: true }).fill('Review');
   await project.getByRole('button', { name: 'Save', exact: true }).click();

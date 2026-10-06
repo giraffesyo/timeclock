@@ -1,13 +1,27 @@
 import { toApiError } from '@parallelworks/problem';
-import { ConfirmModal } from '@parallelworks/ui';
+import { ConfirmModal, Table } from '@parallelworks/ui';
 import { AddIcon, ArchiveIcon, EditIcon, TrashIcon } from '@parallelworks/ui/icons';
-import { useState } from 'react';
+import {
+  ListColumns,
+  ListDisplayMenu,
+  ListFilterMenu,
+  ListRow,
+  ListRowActionsProvider,
+  listTableProps,
+  type OpenMenu,
+  type RowMenuItem,
+  useListNavigate,
+  useListView,
+  useRowMenu,
+} from '@parallelworks/ui/list';
+import { type ReactNode, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Loading, Panel } from '@/components/page';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
+import { cn } from '@/lib/cn';
 import {
   type Customer,
   type Project,
@@ -145,9 +159,31 @@ function ProjectDialog({
   );
 }
 
+/** Where a menu opens: at the pointer, or beside what has focus when the keyboard opened it. */
+const menuAt =
+  (openMenu: OpenMenu): OpenMenu =>
+  (x, y, items, onClose) => {
+    if (!x && !y && document.activeElement) {
+      const box = document.activeElement.getBoundingClientRect();
+      [x, y] = [box.left + 24, box.bottom];
+    }
+    openMenu(x, y, items, onClose);
+  };
+
+/** A row without a menu still keeps the actions column, so the cells line up. */
+function PlainRow({ actions, children }: { actions: boolean; children: ReactNode }) {
+  return (
+    <tr>
+      {children}
+      {actions && <Table.Item />}
+    </tr>
+  );
+}
+
 /**
- * Customers with their projects under them. Archiving keeps the recorded
- * time and stops new time; deleting works only for what was never used.
+ * Customers with their projects under them, on the UI package's list view:
+ * ⋯ and a right click open the same menu on every row. Archiving keeps the
+ * recorded time and stops new time; deleting works only for what was never used.
  */
 export function Catalog() {
   const t = useTranslations('settings.catalog');
@@ -158,14 +194,44 @@ export function Catalog() {
   const saveProject = useSaveProject();
   const deleteCustomer = useDeleteCustomer();
   const deleteProject = useDeleteProject();
+  const goTo = useListNavigate();
+  const { openMenu, contextMenu } = useRowMenu();
 
-  const [showArchived, setShowArchived] = useState(false);
   const [customerDialog, setCustomerDialog] = useState<{ customer?: Customer } | null>(null);
   const [projectDialog, setProjectDialog] = useState<{ project?: Project; customerId: string } | null>(null);
   const [archiving, setArchiving] = useState<Target | null>(null);
   const [deleting, setDeleting] = useState<Target | null>(null);
   // What the last archive or unarchive was for, to say so if it fails.
   const [archiveName, setArchiveName] = useState('');
+
+  const allCustomers = customers.data ?? [];
+  const allProjects = projects.data ?? [];
+  const archivedCount =
+    allCustomers.filter((c) => c.archived).length +
+    allProjects.filter((p) => p.archived && !allCustomers.find((c) => c.id === p.customerId)?.archived).length;
+
+  const view = useListView<Customer | Project>({
+    storageKey: 'timeclock.settings.catalog',
+    columns: [
+      { key: 'name', label: t('columns.name'), alwaysVisible: true },
+      { key: 'code', label: t('columns.code'), priority: 'low' },
+      { key: 'billable', label: t('columns.billable'), priority: 'medium' },
+      { key: 'status', label: t('columns.status'), priority: 'medium' },
+    ],
+    // Archived things are hidden until the filter asks for them, as the old toggle did.
+    facets: [
+      {
+        key: 'archived',
+        label: t('archived'),
+        options: [{ value: 'show', label: t('showArchived', { count: archivedCount }) }],
+        matches: () => true,
+      },
+    ],
+    // Room for the pinned Add project button on customers.
+    actionCount: 1,
+    defaultShowColumnHeaders: true,
+  });
+  const showArchived = (view.filters.archived?.length ?? 0) > 0;
 
   const setArchived = (target: Target, archived: boolean) => {
     setArchiveName(targetName(target));
@@ -190,11 +256,6 @@ export function Catalog() {
   };
   const archivePending = saveCustomer.isPending || saveProject.isPending;
   const archiveError = saveCustomer.error ?? saveProject.error;
-  const pendingId = saveCustomer.isPending
-    ? saveCustomer.variables?.id
-    : saveProject.isPending
-      ? saveProject.variables?.id
-      : undefined;
 
   const remove = deleting?.type === 'customer' ? deleteCustomer : deleteProject;
   const inUse = remove.isError && toApiError(remove.error).code === 'in_use';
@@ -205,11 +266,6 @@ export function Catalog() {
     deleteProject.reset();
   };
 
-  const allCustomers = customers.data ?? [];
-  const allProjects = projects.data ?? [];
-  const archivedCount =
-    allCustomers.filter((c) => c.archived).length +
-    allProjects.filter((p) => p.archived && !allCustomers.find((c) => c.id === p.customerId)?.archived).length;
   const shownCustomers = allCustomers.filter((c) => showArchived || !c.archived);
   // Internal work has no customer: it is listed first, as a group of its own.
   const groups: (Customer & { internal?: boolean })[] = [
@@ -217,11 +273,92 @@ export function Catalog() {
     ...shownCustomers,
   ];
 
-  const addCustomer = (
-    <Button variant="primary" size="sm" icon={<AddIcon aria-hidden />} onClick={() => setCustomerDialog({})}>
-      {t('customer.add')}
-    </Button>
-  );
+  // Each menu: what changes it first, what can't be undone last.
+  const customerMenu = (c: Customer & { internal?: boolean }): RowMenuItem[] => {
+    const target: Target = { type: 'customer', customer: c };
+    if (c.archived)
+      return [
+        { kind: 'action', label: t('unarchive'), disabled: archivePending, onSelect: () => unarchive(target) },
+        { kind: 'divider' },
+        { kind: 'action', label: t('menu.delete'), destructive: true, onSelect: () => setDeleting(target) },
+      ];
+    const add: RowMenuItem = {
+      kind: 'action',
+      label: t('menu.addProject'),
+      icon: <AddIcon />,
+      onSelect: () => setProjectDialog({ customerId: c.id }),
+    };
+    if (c.internal) return [add];
+    return [
+      add,
+      {
+        kind: 'action',
+        label: t('menu.rename'),
+        icon: <EditIcon />,
+        onSelect: () => setCustomerDialog({ customer: c }),
+      },
+      { kind: 'action', label: t('menu.archive'), icon: <ArchiveIcon />, onSelect: () => setArchiving(target) },
+      { kind: 'divider' },
+      {
+        kind: 'action',
+        label: t('menu.delete'),
+        icon: <TrashIcon />,
+        destructive: true,
+        onSelect: () => setDeleting(target),
+      },
+    ];
+  };
+  const projectMenu = (p: Project): RowMenuItem[] => {
+    const target: Target = { type: 'project', project: p };
+    const del: RowMenuItem = {
+      kind: 'action',
+      label: t('menu.delete'),
+      icon: <TrashIcon />,
+      destructive: true,
+      onSelect: () => setDeleting(target),
+    };
+    if (p.archived)
+      return [
+        { kind: 'action', label: t('unarchive'), disabled: archivePending, onSelect: () => unarchive(target) },
+        { kind: 'divider' },
+        del,
+      ];
+    return [
+      {
+        kind: 'action',
+        label: t('menu.edit'),
+        icon: <EditIcon />,
+        onSelect: () => setProjectDialog({ project: p, customerId: p.customerId ?? '' }),
+      },
+      { kind: 'action', label: t('menu.archive'), icon: <ArchiveIcon />, onSelect: () => setArchiving(target) },
+      { kind: 'divider' },
+      del,
+    ];
+  };
+
+  const archivedChip = <Chip tone="neutral">{t('archived')}</Chip>;
+  const customerCells = (c: Customer): Record<string, ReactNode> => ({
+    name: <span className={cn('font-semibold', c.archived && 'text-muted-foreground')}>{c.name}</span>,
+    status: c.archived && archivedChip,
+  });
+  const projectCells = (p: Project, underArchived: boolean): Record<string, ReactNode> => ({
+    name: <span className={cn('block pl-4', p.archived ? 'text-muted-foreground' : 'font-medium')}>{p.name}</span>,
+    code: p.code && <span className="font-mono text-xs text-muted-foreground">{p.code}</span>,
+    billable: (
+      <Chip tone={p.billable ? 'info' : 'neutral'}>
+        {p.billable ? t('project.billable') : t('project.notBillable')}
+      </Chip>
+    ),
+    // Under an archived customer every project reads as archived; the customer's chip says so.
+    status: p.archived && !underArchived && archivedChip,
+  });
+  const cellsOf = (cells: Record<string, ReactNode>) =>
+    view.visibleColumns.map((col) => (
+      <Table.Item key={col.key} className="py-2">
+        {cells[col.key]}
+      </Table.Item>
+    ));
+  const width = view.visibleColumns.length + (view.showActions ? 1 : 0);
 
   return (
     <>
@@ -230,12 +367,11 @@ export function Catalog() {
         title={t('title')}
         actions={
           <>
-            {archivedCount > 0 && (
-              <Button variant="ghost" size="sm" aria-pressed={showArchived} onClick={() => setShowArchived((v) => !v)}>
-                {showArchived ? t('hideArchived') : t('showArchived', { count: archivedCount })}
-              </Button>
-            )}
-            {addCustomer}
+            {archivedCount > 0 && <ListFilterMenu view={view} />}
+            <ListDisplayMenu view={view} />
+            <Button variant="primary" size="sm" icon={<AddIcon aria-hidden />} onClick={() => setCustomerDialog({})}>
+              {t('customer.add')}
+            </Button>
           </>
         }
       >
@@ -247,142 +383,87 @@ export function Catalog() {
         ) : customers.isPending || projects.isPending ? (
           <Loading />
         ) : (
-          <ul className="divide-y divide-border">
-            {groups.map((c) => {
-              const own = allProjects.filter((p) => (p.customerId ?? '') === c.id && (showArchived || !p.archived));
-              return (
-                <li key={c.id}>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-muted px-4 py-2">
-                    <h3
-                      className={`min-w-0 flex-1 truncate text-sm font-semibold ${c.archived ? 'text-muted-foreground' : ''}`}
+          // Not every browser turns the menu keys into a contextmenu event: send the row one.
+          // biome-ignore lint/a11y/noStaticElementInteractions: forwards the menu keys to the focused row
+          <div
+            className="@container"
+            onKeyDown={(e) => {
+              if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+              const row = (e.target as HTMLElement).closest('tbody tr');
+              if (!row) return;
+              e.preventDefault();
+              row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            }}
+          >
+            <ListRowActionsProvider view={view}>
+              <Table {...listTableProps} wrapperClassName="overflow-x-auto" tbodyClassName="divide-y divide-border">
+                {view.showColumnHeaders && <ListColumns view={view} />}
+                {groups.flatMap((c) => {
+                  const own = allProjects.filter((p) => (p.customerId ?? '') === c.id && (showArchived || !p.archived));
+                  const rename = !c.internal && !c.archived ? () => setCustomerDialog({ customer: c }) : undefined;
+                  const header = (
+                    <ListRow
+                      key={`customer-${c.id}`}
+                      href={null}
+                      onActivate={rename}
+                      items={customerMenu(c)}
+                      goTo={goTo}
+                      openMenu={menuAt(openMenu)}
+                      pinnedActions={
+                        c.archived
+                          ? undefined
+                          : [
+                              {
+                                key: 'add',
+                                label: t('project.addTo', { name: c.name }),
+                                icon: <AddIcon />,
+                                onSelect: () => setProjectDialog({ customerId: c.id }),
+                              },
+                            ]
+                      }
+                      className="bg-muted"
                     >
-                      {c.name}
-                    </h3>
-                    {c.archived && <Chip tone="neutral">{t('archived')}</Chip>}
-                    <div className="flex flex-wrap items-center gap-0.5">
-                      {c.archived ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          loading={pendingId === c.id}
-                          disabled={archivePending}
-                          onClick={() => unarchive({ type: 'customer', customer: c })}
-                        >
-                          {t('unarchive')}
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<AddIcon aria-hidden />}
-                            onClick={() => setProjectDialog({ customerId: c.id })}
-                          >
-                            {t('project.add')}
-                          </Button>
-                          {!c.internal && (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => setCustomerDialog({ customer: c })}>
-                                {t('customer.rename')}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setArchiving({ type: 'customer', customer: c })}
-                              >
-                                {t('archive')}
-                              </Button>
-                            </>
-                          )}
-                        </>
-                      )}
-                      {!c.internal && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={t('customer.delete', { name: c.name })}
-                          onClick={() => setDeleting({ type: 'customer', customer: c })}
-                        >
-                          <TrashIcon aria-hidden />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {own.length === 0 ? (
-                    <p className="px-4 py-2.5 text-sm text-muted-foreground">
-                      {c.archived ? t('project.noneArchived') : t('project.none')}
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {own.map((p) => (
-                        <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 pr-4 pl-8">
-                          <span className="min-w-0 flex-1">
-                            <span
-                              className={`block truncate text-sm ${p.archived ? 'text-muted-foreground' : 'font-medium'}`}
-                            >
-                              {p.name}
-                            </span>
-                            {p.code && (
-                              <span className="block truncate font-mono text-xs text-muted-foreground">{p.code}</span>
-                            )}
-                          </span>
-                          <Chip tone={p.billable ? 'info' : 'neutral'}>
-                            {p.billable ? t('project.billable') : t('project.notBillable')}
-                          </Chip>
-                          {/* Under an archived customer every project reads as archived; the customer's chip says so. */}
-                          {p.archived && !c.archived && <Chip tone="neutral">{t('archived')}</Chip>}
-                          {!c.archived && (
-                            <span className="flex items-center gap-0.5">
-                              {p.archived ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  loading={pendingId === p.id}
-                                  disabled={archivePending}
-                                  onClick={() => unarchive({ type: 'project', project: p })}
-                                >
-                                  {t('unarchive')}
-                                </Button>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    aria-label={t('project.edit', { name: p.name })}
-                                    onClick={() => setProjectDialog({ project: p, customerId: p.customerId ?? '' })}
-                                  >
-                                    <EditIcon aria-hidden />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    aria-label={t('project.archive', { name: p.name })}
-                                    onClick={() => setArchiving({ type: 'project', project: p })}
-                                  >
-                                    <ArchiveIcon aria-hidden />
-                                  </Button>
-                                </>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                aria-label={t('project.delete', { name: p.name })}
-                                onClick={() => setDeleting({ type: 'project', project: p })}
-                              >
-                                <TrashIcon aria-hidden />
-                              </Button>
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                      {cellsOf(customerCells(c))}
+                    </ListRow>
+                  );
+                  const rows = own.map((p) =>
+                    c.archived ? (
+                      <PlainRow key={p.id} actions={view.showActions}>
+                        {cellsOf(projectCells(p, true))}
+                      </PlainRow>
+                    ) : (
+                      <ListRow
+                        key={p.id}
+                        href={null}
+                        onActivate={
+                          p.archived
+                            ? undefined
+                            : () => setProjectDialog({ project: p, customerId: p.customerId ?? '' })
+                        }
+                        items={projectMenu(p)}
+                        goTo={goTo}
+                        openMenu={menuAt(openMenu)}
+                      >
+                        {cellsOf(projectCells(p, false))}
+                      </ListRow>
+                    ),
+                  );
+                  if (own.length === 0)
+                    rows.push(
+                      <tr key={`none-${c.id}`}>
+                        <td colSpan={width} className="py-2.5 pr-4 pl-8 text-sm text-muted-foreground">
+                          {c.archived ? t('project.noneArchived') : t('project.none')}
+                        </td>
+                      </tr>,
+                    );
+                  return [header, ...rows];
+                })}
+              </Table>
+            </ListRowActionsProvider>
+          </div>
         )}
       </Panel>
+      {contextMenu}
       <p className="mt-2 text-xs text-muted-foreground">{t('archiveNote')}</p>
 
       {customerDialog && (

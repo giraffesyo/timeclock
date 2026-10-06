@@ -87,7 +87,6 @@
   "catalog": {
     "title": "Customers and projects",
     "showArchived": "Show archived ({count})",
-    "hideArchived": "Hide archived",
     "archived": "Archived",
     "archive": "Archive",
     "unarchive": "Unarchive",
@@ -102,22 +101,16 @@
     "customer": {
       "add": "Add customer",
       "addTitle": "Add customer",
-      "rename": "Rename",
       "renameTitle": "Rename customer",
       "name": "Name",
-      "delete": "Delete {name}",
       "saveFailed": "Couldn’t save the customer.",
       "archiveDescription": "No new time can be recorded on any of its projects. Time already recorded stays in reports. You can unarchive it later.",
       "deleteDescription": "A customer can be deleted only when it has no projects. This can’t be undone.",
       "inUse": "This customer still has projects, so it can’t be deleted. Archive it to stop new time instead."
     },
     "project": {
-      "add": "Add project",
       "addTitle": "Add project",
-      "edit": "Edit {name}",
       "editTitle": "Edit project",
-      "archive": "Archive {name}",
-      "delete": "Delete {name}",
       "name": "Name",
       "code": "Code",
       "codeHint": "A charge code or contract number, shown in reports and exports. Optional.",
@@ -132,9 +125,23 @@
       "archiveDescription": "No new time can be recorded on it. Time already recorded stays in reports. You can unarchive it later.",
       "deleteDescription": "A project can be deleted only when no time was ever recorded on it. This can’t be undone.",
       "inUse": "This project has time recorded on it, so it can’t be deleted. Archive it to stop new time instead.",
-      "noCustomer": "No customer (internal work)"
+      "noCustomer": "No customer (internal work)",
+      "addTo": "Add a project to {name}"
     },
-    "internal": "Internal"
+    "internal": "Internal",
+    "columns": {
+      "name": "Name",
+      "code": "Code",
+      "billable": "Billable",
+      "status": "Status"
+    },
+    "menu": {
+      "edit": "Edit…",
+      "addProject": "Add project…",
+      "rename": "Rename…",
+      "archive": "Archive…",
+      "delete": "Delete…"
+    }
   },
   "people": {
     "title": "People",
