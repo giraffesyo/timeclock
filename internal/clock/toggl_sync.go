@@ -16,6 +16,9 @@ import (
 
 type togglJob struct{}
 
+// Toggl Reports rejects dates before this day, including time-zone padding.
+var togglReportFloor = time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC)
+
 func (togglJob) Kind() string { return "timeclock.toggl" }
 func (t *Toggl) Register(workers *hopper.Workers) hopper.PeriodicJob {
 	hopper.AddWorkFunc(workers, t.run)
@@ -87,6 +90,11 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 }
 
 func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *toggl.Client) error {
+	// Keep the saved selection (1970 means all history), but start requests
+	// at Toggl's supported boundary. This also repairs existing connections.
+	if c.from.Before(togglReportFloor) {
+		c.from = togglReportFloor
+	}
 	projects, err := client.Projects(ctx, c.remote)
 	if err != nil {
 		return err
@@ -107,6 +115,9 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 	cursor := c.from
 	if c.history != nil {
 		cursor = *c.history
+	}
+	if cursor.Before(c.from) {
+		cursor = c.from
 	}
 	// A quota wait can cross midnight, changing the recent window's dates.
 	// Finish any staged window that the normal ranges would no longer visit.
@@ -326,6 +337,10 @@ func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
 // from that cursor instead of repeatedly spending the quota on page one. No
 // reconciliation occurs until the window has a complete report.
 func (t *Toggl) report(ctx context.Context, s *Service, client *toggl.Client, workspace int64, from, to time.Time) ([]toggl.Entry, error) {
+	reportFrom := from.AddDate(0, 0, -1)
+	if reportFrom.Before(togglReportFloor) {
+		reportFrom = togglReportFloor
+	}
 	rows, err := s.pool.Query(ctx, `SELECT entries,next_cursor FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2 ORDER BY page`, from, to)
 	if err != nil {
 		return nil, err
@@ -354,7 +369,7 @@ func (t *Toggl) report(ctx context.Context, s *Service, client *toggl.Client, wo
 		return entries, nil
 	}
 	for n := len(pages); n < 1000; n++ {
-		batch, next, err := client.ReportPage(ctx, workspace, from.AddDate(0, 0, -1).Format(time.DateOnly), to.Format(time.DateOnly), cursor)
+		batch, next, err := client.ReportPage(ctx, workspace, reportFrom.Format(time.DateOnly), to.Format(time.DateOnly), cursor)
 		if err != nil {
 			return nil, err
 		}
