@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.11.0...timeclock-v0.12.0) (2026-10-06)
+
+
+### Features
+
+* export ClockButton, the clock as a header button ([#50](https://github.com/giraffesyo/timeclock/issues/50)) ([f396ad5](https://github.com/giraffesyo/timeclock/commit/f396ad571517eb86eacea5b1a4487680c2fe9046))
+
 ## [0.11.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.10.0...timeclock-v0.11.0) (2026-10-06)
 
 
