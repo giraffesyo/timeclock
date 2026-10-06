@@ -38,7 +38,7 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   const page = await as(browser, 'ada@host.test', org);
   await page.goto('/timeclock/');
   await expect(sections(page).getByRole('link', { name: 'Timer' })).toHaveAttribute('href', '/timeclock/');
-  await expect(page.getByText('ada', { exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('ada', { exact: true })).toBeVisible();
   // The host keeps the accounts: there is a way back to it, and nothing about signing in.
   await expect(page.getByRole('link', { name: 'Back to Example Portal' }).first()).toHaveAttribute('href', '/');
   await expect(page.getByRole('link', { name: 'Account and sign-in' })).toHaveCount(0);

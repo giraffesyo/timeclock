@@ -225,7 +225,7 @@ test.describe('a workspace’s single sign-on', () => {
     await page.getByRole('link', { name: 'Continue with Harbor Works single sign-on' }).click();
     await atProvider(page, email, 'Ines Provider');
     await expect(clock(page)).toBeVisible();
-    await expect(page.getByText('Ines Provider')).toBeVisible();
+    await expect(page.getByRole('complementary').getByText('Ines Provider')).toBeVisible();
     await expect(page.getByText('Harbor Works')).toBeVisible();
     await expect(sections(page).getByRole('link', { name: 'Settings' })).toHaveCount(0);
 
@@ -277,7 +277,7 @@ test.describe('a workspace’s single sign-on', () => {
     await page.goto(loginLink);
     await atProvider(page, email, 'Nell Newcomer');
     await expect(clock(page)).toBeVisible();
-    await expect(page.getByText('Nell Newcomer')).toBeVisible();
+    await expect(page.getByRole('complementary').getByText('Nell Newcomer')).toBeVisible();
     // They join as a member, not an admin.
     await expect(sections(page).getByRole('link', { name: 'Settings' })).toHaveCount(0);
 
@@ -356,7 +356,7 @@ test('the server’s own provider signs someone in, and makes their account', as
   await atProvider(page, email, 'Rory Remote');
   // Back where they were going, in the server's first workspace, as a member.
   await expect(page).toHaveURL(/\/overview$/);
-  await expect(page.getByText('Rory Remote')).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('Rory Remote')).toBeVisible();
   await expect(sections(page).getByRole('link', { name: 'Settings' })).toHaveCount(0);
 
   // The server's provider vouches for the whole account, so nothing is held back.

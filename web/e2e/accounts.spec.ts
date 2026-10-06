@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { DateTime } from 'luxon';
 import { ACCOUNTS_ENV } from '../playwright.config';
 import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
 import { lastWeek } from './fixtures';
@@ -24,7 +25,7 @@ test('an invited admin sets a password, signs out, and signs back in', async ({ 
   await expect(
     page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Settings' }),
   ).toBeVisible();
-  await expect(page.getByText('Pat Admin')).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('Pat Admin')).toBeVisible();
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
@@ -220,7 +221,7 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await page.getByRole('button', { name: 'Sign out' }).click();
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
-  await expect(page.getByText('Pia', { exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('Pia', { exact: true })).toBeVisible();
 
   // Removed, it no longer signs in.
   await page.goto('/account');
@@ -269,7 +270,14 @@ test('workspace project and description requirements control clocks and manual e
   const descriptionRule = page.getByLabel('Require a description on every entry', { exact: true });
   await projectRule.click();
   await descriptionRule.click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // A previous save toast may still be visible; wait for this write before navigating.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/v1/settings') && response.request().method() === 'PUT' && response.ok(),
+    ),
+    page.getByRole('button', { name: 'Save', exact: true }).click(),
+  ]);
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   await page.reload();
   expect(await settings()).toMatchObject({ requireProject: false, requireDescription: true });
@@ -308,7 +316,13 @@ test('workspace project and description requirements control clocks and manual e
   await page.goto('/settings');
   await projectRule.click();
   await descriptionRule.click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/v1/settings') && response.request().method() === 'PUT' && response.ok(),
+    ),
+    page.getByRole('button', { name: 'Save', exact: true }).click(),
+  ]);
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
   await page.getByRole('link', { name: 'Timer', exact: true }).click();
@@ -328,7 +342,8 @@ test('workspace project and description requirements control clocks and manual e
   await page.reload();
   await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
   await expect(clock.getByRole('timer')).toBeVisible();
-  const started = (await (await request.get('/api/v1/me')).json()).running;
+  const session = await (await request.get('/api/v1/me')).json();
+  const started = session.running;
   await clock.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(clock.getByRole('alert')).toContainText('Add a description and choose a project');
   await clock.getByRole('button', { name: /^Project the clock is running on:/ }).click();
@@ -337,11 +352,11 @@ test('workspace project and description requirements control clocks and manual e
   await note.fill('Finish the review');
   await clock.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(clock.getByRole('timer')).toHaveCount(0);
-  const entries = (
-    await (
-      await request.get(`/api/v1/entries?from=${started.startedAt.slice(0, 10)}&to=${started.startedAt.slice(0, 10)}`)
-    ).json()
-  ).entries;
+  // Entry filters use the person's calendar date, which can differ from UTC.
+  const day = DateTime.fromISO(started.startedAt)
+    .setZone(session.person.timezone || session.settings.timezone)
+    .toISODate();
+  const entries = (await (await request.get(`/api/v1/entries?from=${day}&to=${day}`)).json()).entries;
   expect(entries.find((entry: { id: string }) => entry.id === started.id)).toMatchObject({
     startedAt: started.startedAt,
     note: 'Finish the review',
