@@ -1,4 +1,13 @@
 {
   "name": "timeclock",
-  "postgres": { "port": 54331 }
+  "postgres": { "port": 54331 },
+  "env": "dev.env",
+  "before": [["sh", "-c", "find web/dist -mindepth 1 ! -name .gitkeep -delete"]],
+  "server": {
+    "build": ["go", "build", "-o", "tmp/timeclock-server", "./cmd/timeclock-server"],
+    "run": ["tmp/timeclock-server"],
+    "exclude": ["tmp", "web", "tools", "dist", "examples"],
+    "extensions": [".go", ".sql"]
+  },
+  "processes": [{ "name": "web", "dir": "web", "run": ["pnpm", "dev"] }]
 }

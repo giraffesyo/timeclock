@@ -174,12 +174,11 @@ Live integration tests are opt-in. Set `TIMECLOCK_TOGGL_TEST_TOKEN_FILE` to a lo
 
 ## Development
 
-Needs Go 1.27 and Node 26 with pnpm 11. Postgres 18 runs natively, without Docker, from Foundation's dev stack (`dev.json`); leave it running in a terminal of its own. Its data stays in `.devstack/` between runs.
+Needs Go 1.27 and Node 26 with pnpm 11. Foundation's `dev` tool (`dev.json`) runs everything in one terminal, without Docker: Postgres 18 on :54331, the server on http://localhost:8090 (rebuilt and restarted when Go or SQL changes), and Vite. Its data stays in `.devstack/` between runs. `dev.env` holds the server's development settings, signed in as `dev@example.com`, an admin; the real environment wins, so `TIMECLOCK_DEV_USER=you@example.com go -C tools tool dev` signs in as someone else.
 
 ```sh
-go -C tools tool dev stack   # Postgres on :54331; `dev reset` deletes its data
 make install
-make dev        # http://localhost:8090, signed in as DEV_USER (an admin)
+go -C tools tool dev         # Postgres, server and Vite; `dev stack` runs only Postgres, `dev reset` deletes its data
 make test-db    # Go tests, with the database tests on
 make check      # every linter and test
 make vuln       # known vulnerabilities in the Go code
