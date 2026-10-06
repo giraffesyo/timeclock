@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,9 +26,27 @@ type fakeToggl struct {
 	// slowerThan makes reports spanning more days than this too slow to answer.
 	slowerThan int
 	slow       time.Duration
+	// A request the client gave up on can still be running when the next
+	// arrives, so requests take turns.
+	mu sync.Mutex
 }
 
 func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		From string `json:"start_date"`
+		To   string `json:"end_date"`
+	}
+	if strings.HasPrefix(r.URL.Path, "/reports/") {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		// Slow before taking a turn, so the client's next request isn't held up.
+		from, _ := time.Parse(time.DateOnly, body.From)
+		to, _ := time.Parse(time.DateOnly, body.To)
+		if f.slowerThan > 0 && to.Sub(from) > time.Duration(f.slowerThan)*24*time.Hour {
+			time.Sleep(f.slow)
+		}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls++
 	write := func(v any) { _ = json.NewEncoder(w).Encode(v) }
 	switch {
@@ -40,19 +59,9 @@ func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasSuffix(r.URL.Path, "/clients"):
 		write([]toggl.Customer{})
 	case strings.HasPrefix(r.URL.Path, "/reports/"):
-		var body struct {
-			From string `json:"start_date"`
-			To   string `json:"end_date"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
 		if body.From < "2006-01-01" {
 			http.Error(w, "start_date must be on or after 2006-01-01", http.StatusBadRequest)
 			return
-		}
-		from, _ := time.Parse(time.DateOnly, body.From)
-		to, _ := time.Parse(time.DateOnly, body.To)
-		if f.slowerThan > 0 && to.Sub(from) > time.Duration(f.slowerThan)*24*time.Hour {
-			time.Sleep(f.slow)
 		}
 		groups := []any{}
 		for _, e := range f.entries {
