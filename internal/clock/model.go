@@ -67,6 +67,8 @@ type Person struct {
 // Actor is the person making a request.
 type Actor struct {
 	Person
+	// AvatarURL comes fresh from the host directory, rather than payroll storage.
+	AvatarURL string
 	// Admin runs payroll.
 	Admin bool
 }

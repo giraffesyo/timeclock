@@ -55,7 +55,7 @@ func mounted(t *testing.T) http.Handler {
 		},
 		Directory: directory{
 			"pat": {ID: "pat", Name: "Pat Admin", Email: "pat@example.com", Admin: true},
-			"ada": {ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "pat"},
+			"ada": {ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "pat", AvatarURL: "/avatars/ada.png"},
 		},
 		HomeURL:   "/",
 		HomeLabel: "Host",
@@ -121,6 +121,9 @@ func TestMountedInAHost(t *testing.T) {
 	}
 	if person, _ := body["person"].(map[string]any); person["name"] != "Ada Lovelace" || person["managerId"] != "pat" {
 		t.Fatalf("ada = %v", body["person"])
+	}
+	if body["avatarUrl"] != "/avatars/ada.png" {
+		t.Fatalf("ada avatar = %v", body["avatarUrl"])
 	}
 
 	// Only the admin changes settings; a refusal is a 403 problem.

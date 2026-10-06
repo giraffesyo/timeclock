@@ -44,7 +44,16 @@ for (const mobile of [false, true]) {
         },
       });
     });
-    await page.goto('/integrations');
+    await page.goto('/settings');
+    await expect(
+      page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Integrations' }),
+    ).toHaveCount(0);
+    const integrations = page
+      .getByRole('navigation', { name: 'Settings', exact: true })
+      .getByRole('link', { name: 'Integrations' });
+    await integrations.click();
+    await expect(page).toHaveURL(/\/settings\?tab=integrations$/);
+    await expect(integrations).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'Integrations', exact: true })).toBeVisible();
     await page.getByLabel('Toggl API token').fill('mock-token');
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
@@ -66,7 +75,8 @@ for (const mobile of [false, true]) {
 
 test('a non-admin cannot manage integrations', async ({ me }) => {
   await me.page.goto('/integrations');
-  await expect(me.page.getByText('An admin can manage your company’s integrations.')).toBeVisible();
+  await expect(me.page).toHaveURL(/\/settings\?tab=integrations$/);
+  await expect(me.page.getByText('An admin manages payroll settings, projects and people.')).toBeVisible();
   await expect(me.page.getByLabel('Toggl API token')).toHaveCount(0);
   const response = await me.api.try('post', '/integrations/toggl/preview', { token: 'secret', workspaceId: 0 });
   expect(response.status()).toBe(403);
@@ -117,6 +127,7 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
   };
 
   await page.goto('/integrations');
+  await expect(page).toHaveURL(/\/settings\?tab=integrations$/);
   await connect();
   await sweep();
   const imported = await historical();

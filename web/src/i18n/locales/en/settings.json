@@ -1,11 +1,12 @@
 {
   "title": "Settings",
-  "description": "How payroll runs, what time is recorded against, and who tracks it.",
+  "description": "Your preferences and how your workspace runs.",
   "adminOnly": "An admin manages payroll settings, projects and people.",
   "tabs": {
     "payroll": "Payroll",
     "projects": "Customers and projects",
     "people": "People",
+    "integrations": "Integrations",
     "history": "History",
     "appearance": "Appearance",
     "signin": "Sign-in"
@@ -242,7 +243,15 @@
     "paste": "Paste theme",
     "pasteFailed": "There is no theme on the clipboard.",
     "reset": "Go back to the default",
-    "wasReset": "The workspace is back to the default look."
+    "wasReset": "The workspace is back to the default look.",
+    "preference": {
+      "title": "Color theme",
+      "hint": "Choose how Timeclock looks in this browser.",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "workspaceTitle": "Workspace colors"
   },
   "invites": {
     "title": "Invite people",

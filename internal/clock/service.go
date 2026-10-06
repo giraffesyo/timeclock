@@ -154,7 +154,7 @@ func (s *Service) Sync(ctx context.Context, hp host.Person) (Actor, error) {
 	if err != nil {
 		return Actor{}, fmt.Errorf("sync person: %w", err)
 	}
-	return Actor{Person: p, Admin: hp.Admin}, nil
+	return Actor{Person: p, Admin: hp.Admin, AvatarURL: hp.AvatarURL}, nil
 }
 
 // SyncAll records everyone in the host's directory, so admins can assign

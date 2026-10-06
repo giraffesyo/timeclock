@@ -1,21 +1,17 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { TOOLTIP_ID } from '@parallelworks/ui';
+import { Avatar } from '@parallelworks/ui';
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
-  IntegrationsIcon,
-  MoonIcon,
   OverviewIcon,
   ReportsIcon,
   SettingsIcon,
   SignOutIcon,
-  SunIcon,
-  SystemIcon,
   TeamIcon,
   TimeOffIcon,
   TimerIcon,
@@ -24,39 +20,19 @@ import {
 import { AccountLink, WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { ZoneButton } from '@/components/zone';
 import { useSession } from '@/lib/session';
-import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
 
 const item =
   'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground md:h-7';
 const itemActive = '!bg-foreground/[0.07] !font-medium !text-foreground';
 
-const MODES = [
-  { value: 'light', icon: <SunIcon /> },
-  { value: 'dark', icon: <MoonIcon /> },
-  { value: 'system', icon: <SystemIcon /> },
-] as const;
-
-/** Light, dark, or whatever the system is in. Inside a host this is the host's own choice, kept in step. */
-function ModeSwitch({ compact }: { compact?: boolean }) {
-  const t = useTranslations('shell.mode');
-  const preference = useSyncExternalStore(onThemeChange, readPreference);
+function UserIdentity() {
+  const me = useSession();
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a fieldset would bring a legend the sidebar has no room for
-    <div role="group" aria-label={t('label')} className={compact ? 'flex gap-px' : 'flex gap-px px-1 pt-1'}>
-      {MODES.map((m) => (
-        <button
-          key={m.value}
-          type="button"
-          className="shell-icon-button"
-          aria-label={t(m.value)}
-          aria-pressed={preference === m.value}
-          data-tooltip-id={TOOLTIP_ID}
-          data-tooltip-content={t(m.value)}
-          onClick={() => setPreference(m.value)}
-        >
-          {m.icon}
-        </button>
-      ))}
+    <div className="flex min-w-0 items-center gap-2.5 px-2 py-2">
+      <span aria-hidden="true" className="shrink-0">
+        <Avatar src={me.avatarUrl} name={me.person.name} size="md" />
+      </span>
+      <span className="min-w-0 text-sm leading-snug font-medium wrap-anywhere">{me.person.name}</span>
     </div>
   );
 }
@@ -103,12 +79,7 @@ export function Shell({ children }: { children: ReactNode }) {
       links: [
         ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
         { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
-        ...(me.admin
-          ? [
-              { to: '/integrations', label: t('nav.integrations'), icon: <IntegrationsIcon /> },
-              { to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
-            ]
-          : []),
+        { to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
       ],
     },
   ];
@@ -138,16 +109,17 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="flex flex-col gap-px border-t border-border pt-2">
+        <div className="flex shrink-0 flex-col gap-1 border-t border-border pt-2">
           {info.homeUrl && (
             <a href={info.homeUrl} className={item}>
               <BackIcon />
               {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
             </a>
           )}
-          <div className="flex h-8 items-center gap-2 pr-1 pl-2">
-            <span className="min-w-0 flex-1 truncate text-sm">{me.person.name}</span>
+          <UserIdentity />
+          <div className="flex flex-wrap items-center gap-1 px-1">
             <ZoneButton className="shell-zone tabular" />
+            <span className="flex-1" />
             <AccountLink className="shell-icon-button" />
             {info.signOutUrl && (
               <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
@@ -155,7 +127,6 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
             )}
           </div>
-          <ModeSwitch />
         </div>
       </aside>
 
@@ -166,9 +137,13 @@ export function Shell({ children }: { children: ReactNode }) {
             <BrandIcon className="text-primary" />
             {t('name')}
           </Link>
-          <span className="ml-auto" />
-          <ModeSwitch compact />
+        </div>
+        <div className="flex items-center gap-1 px-2 pb-2">
+          <div className="min-w-0 flex-1">
+            <UserIdentity />
+          </div>
           <ZoneButton className="shell-zone tabular" />
+          <AccountLink className="shell-icon-button" />
           {info.signOutUrl && (
             <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
               <SignOutIcon />
