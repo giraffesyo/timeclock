@@ -76,6 +76,11 @@ for (const mobile of [false, true]) {
     await expect(row.getByRole('button', { name: 'Grace Hopper', exact: true })).toBeVisible();
     await row.getByRole('button', { name: 'Ada Lovelace', exact: true }).hover();
     await expect(page.getByText('Manager: Grace Hopper')).toBeVisible();
+    // The manager is shown as a person, with their photo.
+    const managerPhoto = page.getByText('Manager: Grace Hopper').getByRole('img', { name: 'Grace Hopper' });
+    await expect(managerPhoto).toBeVisible();
+    // Sized to the row's text, not the 24px default.
+    expect((await managerPhoto.boundingBox())?.height).toBeLessThan(20);
     await page.screenshot({ path: `/tmp/timeclock-people-${device}.png` });
     await testInfo.attach(`People ${device}`, {
       path: `/tmp/timeclock-people-${device}.png`,

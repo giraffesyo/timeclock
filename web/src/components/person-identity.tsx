@@ -23,7 +23,24 @@ export function PersonIdentity({ person, people }: { person: Person; people: Per
           badge={person.active ? t('active') : t('inactive')}
         >
           <HoverCardRow icon={<TeamIcon />}>
-            {t('profileManager', { name: manager?.name || manager?.email || person.managerId || t('adminApproves') })}
+            {t.rich('profileManager', {
+              name: manager?.name || manager?.email || person.managerId || t('adminApproves'),
+              // The manager is a person too: their photo beside their name.
+              person: (chunks) =>
+                manager ? (
+                  <span className="inline-flex items-center gap-1 align-bottom">
+                    <Avatar
+                      src={manager.avatarUrl}
+                      name={manager.name || manager.email || manager.id}
+                      size="sm"
+                      className="shrink-0 [&>*]:!size-4 [&>*]:!text-[8px]"
+                    />
+                    <span className="font-medium text-foreground">{chunks}</span>
+                  </span>
+                ) : (
+                  chunks
+                ),
+            })}
           </HoverCardRow>
           <HoverCardRow icon={<BrandIcon />}>{person.timezone || settings.timezone}</HoverCardRow>
         </UserHoverCard>
