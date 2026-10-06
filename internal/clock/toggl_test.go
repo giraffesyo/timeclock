@@ -3,6 +3,7 @@ package clock
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -20,6 +21,7 @@ type fakeToggl struct {
 	posts, puts, deletes int
 	failCreate           bool
 	calls                int
+	projects             []toggl.Project
 }
 
 func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +33,7 @@ func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.Contains(r.URL.Path, "/workspace_users"):
 		write([]toggl.User{{ID: 1, Email: "ADA@example.com", Name: "Ada"}, {ID: 2, Email: "bob@example.com", Name: "Bob"}})
 	case strings.HasSuffix(r.URL.Path, "/projects"):
-		write([]toggl.Project{{ID: 11, WorkspaceID: 42, Name: "Migration", Active: true}})
+		write(append([]toggl.Project{{ID: 11, WorkspaceID: 42, Name: "Migration", Active: true}}, f.projects...))
 	case strings.HasSuffix(r.URL.Path, "/clients"):
 		write([]toggl.Customer{})
 	case strings.HasPrefix(r.URL.Path, "/reports/"):
@@ -99,7 +101,7 @@ func togglFixture(t *testing.T) (*fixture, *Toggl, *fakeToggl) {
 	fake := &fakeToggl{entries: map[int64]toggl.Entry{}, next: 1000}
 	server := httptest.NewServer(fake)
 	t.Cleanup(server.Close)
-	bridge, err := NewToggl(f.Service, "a long test secret key kept outside the database")
+	bridge, err := NewToggl(f.Service, "a long test secret key kept outside the database", slog.Default())
 	if err != nil {
 		t.Fatal(err)
 	}

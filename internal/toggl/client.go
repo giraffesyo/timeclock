@@ -275,7 +275,7 @@ func (c *Client) Projects(ctx context.Context, workspace int64) ([]Project, erro
 }
 func (c *Client) Customers(ctx context.Context, workspace int64) ([]Customer, error) {
 	var raw json.RawMessage
-	_, err := c.request(ctx, "GET", fmt.Sprintf("/api/v9/workspaces/%d/clients", workspace), nil, &raw)
+	_, err := c.request(ctx, "GET", fmt.Sprintf("/api/v9/workspaces/%d/clients?status=both", workspace), nil, &raw)
 	if err != nil {
 		return nil, err
 	}

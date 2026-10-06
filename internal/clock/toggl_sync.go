@@ -79,6 +79,7 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 			if err != nil {
 				delay = time.Hour
 				message = togglMessage(err)
+				t.logger.ErrorContext(ctx, "toggl sync failed", "workspace", s.ws, "error", err)
 				if e, ok := errors.AsType[*toggl.Error](err); ok {
 					if e.RetryAfter > delay {
 						delay = e.RetryAfter
@@ -233,8 +234,10 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 	}
 	seen := map[int64]bool{}
 	for _, e := range entries {
+		// A malformed row can't be matched to anyone. Skipping it never deletes:
+		// a linked entry missing from the report is read on its own below.
 		if e.ID <= 0 || e.UserID <= 0 || e.Start.IsZero() {
-			return errors.New("invalid Toggl report entry")
+			continue
 		}
 		if e.Start.Before(from) || !e.Start.Before(to) {
 			continue
@@ -261,7 +264,8 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 			continue
 		} // New imports must be completed.
 		state, err := togglRemote(e, projectMap)
-		if err != nil {
+		issue := togglIssueFor(err)
+		if err != nil && issue == "" {
 			return err
 		}
 		if !linked {
@@ -284,8 +288,8 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 				return err
 			}
 		}
-		_, err = s.pool.Exec(ctx, `INSERT INTO toggl_entries(workspace_id,entry_id,person_id,remote_id,baseline,remote)
-   VALUES($W,$1,$2,$3,$4,$5) ON CONFLICT(workspace_id,entry_id) DO UPDATE SET remote=EXCLUDED.remote,issue=CASE WHEN toggl_entries.issue IN ('ownership_changed','missing_remote') THEN '' ELSE toggl_entries.issue END`, l.id, l.person, l.remoteID, stateJSON(l.base), stateJSON(state))
+		_, err = s.pool.Exec(ctx, `INSERT INTO toggl_entries(workspace_id,entry_id,person_id,remote_id,baseline,remote,issue)
+   VALUES($W,$1,$2,$3,$4,$5,$6) ON CONFLICT(workspace_id,entry_id) DO UPDATE SET remote=EXCLUDED.remote,issue=CASE WHEN EXCLUDED.issue<>'' THEN EXCLUDED.issue WHEN toggl_entries.issue IN ('ownership_changed','missing_remote','project_unavailable') THEN '' ELSE toggl_entries.issue END`, l.id, l.person, l.remoteID, stateJSON(l.base), stateJSON(state), issue)
 		if err != nil {
 			return err
 		}
@@ -318,10 +322,11 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 			continue
 		}
 		state, err := togglRemote(e, projectMap)
-		if err != nil {
+		issue := togglIssueFor(err)
+		if err != nil && issue == "" {
 			return err
 		}
-		_, err = s.pool.Exec(ctx, `UPDATE toggl_entries SET remote=$2,issue=CASE WHEN issue IN ('ownership_changed','missing_remote') THEN '' ELSE issue END WHERE workspace_id=$W AND entry_id=$1`, l.id, stateJSON(state))
+		_, err = s.pool.Exec(ctx, `UPDATE toggl_entries SET remote=$2,issue=CASE WHEN $3<>'' THEN $3 WHEN issue IN ('ownership_changed','missing_remote','project_unavailable') THEN '' ELSE issue END WHERE workspace_id=$W AND entry_id=$1`, l.id, stateJSON(state), issue)
 		if err != nil {
 			return err
 		}
@@ -481,17 +486,31 @@ func togglRemote(e toggl.Entry, projects map[int64]uuid.UUID) (togglState, error
 		}
 		state.End = &end
 	}
-	if e.ProjectID != nil {
-		id, ok := projects[*e.ProjectID]
-		if !ok {
-			return state, errors.New("Toggl entry references an unavailable project")
-		}
-		state.ProjectID = &id
-	}
 	if e.Start.IsZero() {
 		return state, errors.New("Toggl entry has no start")
 	}
+	if e.ProjectID != nil {
+		id, ok := projects[*e.ProjectID]
+		if !ok {
+			// Deleted projects, and ones the connecting admin cannot see, are
+			// not in the catalog. The entry waits for an admin; the sync goes on.
+			return state, errTogglProjectUnavailable
+		}
+		state.ProjectID = &id
+	}
 	return state, nil
+}
+
+// errTogglProjectUnavailable marks one entry, never the whole sync: the state
+// beside it is complete except for the project.
+var errTogglProjectUnavailable = errors.New("Toggl entry references an unavailable project")
+
+// togglIssueFor is the issue an entry's remote state carries on its own.
+func togglIssueFor(err error) string {
+	if errors.Is(err, errTogglProjectUnavailable) {
+		return "project_unavailable"
+	}
+	return ""
 }
 func (t *Toggl) issue(ctx context.Context, s *Service, id uuid.UUID, issue string) error {
 	_, err := s.pool.Exec(ctx, `UPDATE toggl_entries SET issue=$2 WHERE workspace_id=$W AND entry_id=$1`, id, issue)
@@ -509,7 +528,7 @@ func (t *Toggl) reconcile(ctx context.Context, s *Service, c togglConfig, client
 	if user == 0 {
 		return nil
 	}
-	if l.pending || l.issue == "missing_remote" || l.issue == "ownership_changed" {
+	if l.pending || l.issue == "missing_remote" || l.issue == "ownership_changed" || l.issue == "project_unavailable" {
 		return nil
 	}
 	local, _, err := togglLocal(ctx, s.pool, l.id)
@@ -629,6 +648,10 @@ func (t *Toggl) reconcile(ctx context.Context, s *Service, c togglConfig, client
 				return errors.New("Toggl ownership changed")
 			}
 			state, err := togglRemote(fresh, projects)
+			if issue := togglIssueFor(err); issue != "" {
+				_, err = q.Exec(ctx, `UPDATE toggl_entries SET remote=$2,issue=$3 WHERE workspace_id=$W AND entry_id=$1`, l.id, stateJSON(state), issue)
+				return err
+			}
 			if err != nil {
 				return err
 			}
