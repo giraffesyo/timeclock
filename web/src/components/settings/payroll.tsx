@@ -9,10 +9,10 @@ import { usePeriodLabel } from '@/components/period-nav';
 import { Holidays } from '@/components/settings/holidays';
 import { isDay, periodAfter, periodContaining, todayIn } from '@/components/settings/periods';
 import { SwitchRow } from '@/components/settings/switch';
+import { ZoneSelect } from '@/components/zone-select';
 import { type Settings, useSaveSettings } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { dayToDate } from '@/lib/time';
-import { timeZones } from '@/lib/zone';
 
 const CYCLES = ['weekly', 'biweekly', 'semimonthly', 'monthly'] as const satisfies readonly Settings['payCycle'][];
 
@@ -161,17 +161,7 @@ export function PayrollSettings() {
         <Panel title={t('time.title')}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('timezone.label')} hint={t('timezone.hint')} className="sm:col-span-2">
-              <select
-                className={`${controlClass} sm:max-w-sm`}
-                value={draft.timezone}
-                onChange={(e) => set('timezone', e.target.value)}
-              >
-                {timeZones(draft.timezone).map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
+              <ZoneSelect className="sm:max-w-sm" value={draft.timezone} onChange={(zone) => set('timezone', zone)} />
             </Field>
             <Field label={t('weekStart.label')} hint={t('weekStart.hint')}>
               <select

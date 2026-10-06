@@ -100,3 +100,52 @@ test('a manager sees a report’s time in the report’s zone', async ({ me, som
   await page.getByRole('button', { name: `Show time for ${tuesday}` }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Standup' })).toContainText('9:00 AM – 10:00 AM');
 });
+
+test('a time zone is found by city or offset, and the organization’s is a choice too', async ({ me }) => {
+  const { page } = me;
+  await page.goto('/');
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await page.getByRole('button', { name: /Change your time zone$/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Your time zone' });
+  const zone = dialog.getByRole('combobox', { name: 'Time zone' });
+  await expect(zone).toHaveValue('The organization’s (America/Chicago)');
+
+  // A city, however it is spelled in the zone's name.
+  await zone.fill('sao paulo');
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await expect(page.getByRole('option')).toContainText('Sao Paulo');
+  // An offset: every zone at UTC+5:30 now, and nothing else.
+  await zone.fill('+5:30');
+  const options = page.getByRole('option');
+  await expect(options.first()).toContainText('UTC+5:30');
+  for (const text of await options.allInnerTexts()) expect(text).toContain('UTC+5:30');
+  await page.getByRole('option').filter({ hasText: 'Kolkata' }).click();
+  // Browsers may still name it Asia/Calcutta; it shows by today's name either way.
+  await expect(zone).toHaveValue(/^Kolkata \(Asia\/(Kolkata|Calcutta)\) · UTC\+5:30$/);
+  await zone.fill('no such place');
+  await expect(page.getByText('No time zone matches “no such place”.')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect((await me.api.get('/me')).person.timezone).toMatch(/^Asia\/(Kolkata|Calcutta)$/);
+  // A city's old name finds it too.
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await page.getByRole('button', { name: /Change your time zone$/ }).click();
+  await zone.fill('kyiv');
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await zone.fill('kiev');
+  await expect(page.getByRole('option')).toContainText('Kyiv');
+  await page.keyboard.press('Escape');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+
+  // Back to the organization's.
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await page.getByRole('button', { name: /Change your time zone$/ }).click();
+  await zone.fill('organization');
+  await page.getByRole('option', { name: 'The organization’s (America/Chicago)' }).click();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  expect((await me.api.get('/me')).person.timezone).toBe('');
+});

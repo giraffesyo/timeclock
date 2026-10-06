@@ -26,6 +26,7 @@ import { PersonSelect, personChoices } from '@/components/person-select';
 import { Invites } from '@/components/settings/invites';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
+import { ZoneSelect } from '@/components/zone-select';
 import {
   PartialFailure,
   type Person,
@@ -37,7 +38,6 @@ import {
   useUpdatePerson,
 } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { timeZones } from '@/lib/zone';
 
 /** Something to do to a group of people, shown in the menu and the selection bar. */
 interface Action {
@@ -144,14 +144,11 @@ function PersonDialog({ person, people, onClose }: { person: Person; people: Per
           />
         </Field>
         <Field label={t('columns.timezone')}>
-          <select className={controlClass} value={draft.timezone} onChange={(e) => set({ timezone: e.target.value })}>
-            <option value="">{t('timezoneDefault')}</option>
-            {timeZones(draft.timezone).map((z) => (
-              <option key={z} value={z}>
-                {z}
-              </option>
-            ))}
-          </select>
+          <ZoneSelect
+            value={draft.timezone}
+            onChange={(timezone) => set({ timezone })}
+            defaultLabel={t('timezoneDefault')}
+          />
         </Field>
         <Field label={t('columns.timesheets')}>
           <select
