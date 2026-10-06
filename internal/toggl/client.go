@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -37,6 +38,14 @@ func (e *Error) Error() string {
 		return fmt.Sprintf("Toggl returned HTTP %d. Sync will retry later.", e.Status)
 	}
 }
+
+// Timeout reports whether Toggl took too long to answer, as its reports API
+// can for a long, busy date range.
+func Timeout(err error) bool {
+	var e net.Error
+	return errors.As(err, &e) && e.Timeout()
+}
+
 func (c *Client) request(ctx context.Context, method, path string, body, out any) (http.Header, error) {
 	var buf bytes.Buffer
 	if body != nil {
@@ -61,7 +70,8 @@ func (c *Client) request(ctx context.Context, method, path string, body, out any
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.New("toggl could not be reached")
+		// Keep the cause (a timeout, a refused connection) for the admin and the log.
+		return nil, fmt.Errorf("toggl could not be reached: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

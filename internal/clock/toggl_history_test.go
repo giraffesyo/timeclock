@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -396,5 +397,46 @@ func TestTogglHistoryContinuesPastUnavailableProjects(t *testing.T) {
 func TestTogglSyncErrorSaysWhy(t *testing.T) {
 	if got := togglMessage(errors.New("Toggl did not preserve the entry")); got != "Sync could not finish: Toggl did not preserve the entry" {
 		t.Fatal(got)
+	}
+}
+
+// Toggl's reports API can take longer than a request may for a year of a busy
+// company's time. The sweep then asks for less at a time instead of failing
+// on the same window every hour.
+func TestTogglHistoryNarrowsWindowsThatTimeOut(t *testing.T) {
+	f, b, fake := togglFixture(t)
+	seedToggl(f, fake)
+	project := int64(11)
+	at := f.time("2025-03-03 09:00")
+	end := at.Add(time.Hour)
+	fake.entries[107] = toggl.Entry{ID: 107, WorkspaceID: 42, UserID: 1, ProjectID: &project, Start: at, Stop: &end, Duration: 3600, Description: "Busy year"}
+	fake.slowerThan, fake.slow = 100, 300*time.Millisecond
+	client := b.client
+	b.client = func(token string) *toggl.Client {
+		c := client(token)
+		c.HTTP = &http.Client{Timeout: 100 * time.Millisecond, Transport: c.HTTP.Transport}
+		return c
+	}
+	if err := b.Configure(t.Context(), f.Service, f.admin, TogglSetup{Token: "fake", WorkspaceID: 42, From: "2024-10-01", People: []TogglMapping{{PersonID: f.ada.ID, UserID: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	for range 8 {
+		requireSync(t, f, b)
+	}
+	status, err := b.Status(t.Context(), f.Service, f.admin)
+	if err != nil || !status.HistoryComplete {
+		t.Fatalf("history did not finish: %+v %v", status, err)
+	}
+	var imported int
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM time_entries WHERE workspace_id=$W AND source='toggl'`).Scan(&imported); err != nil || imported != 2 {
+		t.Fatalf("the entry in the slow year and the recent one must import: %d %v", imported, err)
+	}
+}
+
+func TestTogglUnreachableSaysWhy(t *testing.T) {
+	c := &toggl.Client{BaseURL: "http://127.0.0.1:1"}
+	_, err := c.Projects(t.Context(), 42)
+	if err == nil || !strings.HasPrefix(err.Error(), "toggl could not be reached: ") || len(err.Error()) == len("toggl could not be reached: ") {
+		t.Fatalf("the cause must be kept: %v", err)
 	}
 }
