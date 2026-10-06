@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./reset-B_Mfrgk7.js","./clsx-vqjabRLh.js","./page-D-rtjQSj.js","./link-BDXXWpUJ.js","./field-CTaIyej_.js","./accounts-MNKXjrIP.js","./auth-page-CQQ0Jl_Y.js"])))=>i.map(i=>d[i]);
+import{n as e,t}from"./lazyRouteComponent-Dxlpdx4w.js";import{t as n}from"./preload-helper-BaNbYf_w.js";var r=e(`/reset`)({component:t(()=>n(()=>import(`./reset-B_Mfrgk7.js`),__vite__mapDeps([0,1,2,3,4,5,6]),import.meta.url),`component`),validateSearch:e=>({token:typeof e.token==`string`?e.token:void 0})});export{r as t};
