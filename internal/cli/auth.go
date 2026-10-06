@@ -61,7 +61,19 @@ func (o *options) authCommand(version string) *cobra.Command {
 	auth := &cobra.Command{Use: "auth", Short: "Sign in through your browser or sign out"}
 	var device, noBrowser bool
 	var wait time.Duration
-	login := &cobra.Command{Use: "login", Short: "Authorize this CLI in your browser (OAuth with PKCE)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	login := &cobra.Command{
+		Use: "login [SERVER]", Short: "Authorize this CLI in your browser (OAuth with PKCE)",
+		Long:    "Authorize this CLI in your browser (OAuth with PKCE).\n\nSERVER is the Timeclock URL, including any mount path. A bare host such as time.example.com means HTTPS. Without SERVER, the saved server, --server, or TIMECLOCK_URL is used.",
+		Example: "  timeclock auth login time.example.com\n  timeclock auth login https://portal.example.com/timeclock --device",
+		Args:    cobra.MaximumNArgs(1),
+	}
+	login.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) == 1 {
+			if cmd.Flags().Changed("server") && o.server != args[0] {
+				return errors.New("pass the server either as an argument or with --server, not both")
+			}
+			o.server = args[0]
+		}
 		if wait <= 0 {
 			return errors.New("--login-timeout must be positive")
 		}
@@ -115,7 +127,7 @@ func (o *options) authCommand(version string) *cobra.Command {
 		}
 		_, err = fmt.Fprintln(cmd.OutOrStdout(), "Signed in to "+c.base.String()+".")
 		return err
-	}}
+	}
 	login.Flags().BoolVar(&device, "device", false, "Use a device code for SSH or a headless machine")
 	login.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the sign-in URL without opening a browser")
 	login.Flags().DurationVar(&wait, "login-timeout", 10*time.Minute, "How long to wait for browser approval")

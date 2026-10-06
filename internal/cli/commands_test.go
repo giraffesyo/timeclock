@@ -220,3 +220,23 @@ func TestOSCredentialStore(t *testing.T) {
 		t.Fatalf("delete keyring: %v", err)
 	}
 }
+
+func TestServerAddress(t *testing.T) {
+	for server, want := range map[string]string{
+		"clock.example.com":            "https://clock.example.com",
+		"clock.example.com/timeclock/": "https://clock.example.com/timeclock",
+		"localhost:8090":               "http://localhost:8090",
+		"127.0.0.1:8090":               "http://127.0.0.1:8090",
+		"http://localhost:8090":        "http://localhost:8090",
+	} {
+		o := &options{server: server, configPath: filepath.Join(t.TempDir(), "config.json"), timeout: time.Second}
+		c, err := o.client(context.Background(), "test", false)
+		if err != nil || c.base.String() != want {
+			t.Errorf("%q: got %v, %v; want %q", server, c, err, want)
+		}
+	}
+	o := &options{configPath: filepath.Join(t.TempDir(), "config.json"), timeout: time.Second}
+	if _, err := o.client(context.Background(), "test", false); err == nil || !strings.Contains(err.Error(), "auth login <server>") {
+		t.Fatalf("missing server: %v", err)
+	}
+}
