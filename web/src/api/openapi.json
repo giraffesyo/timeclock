@@ -2025,6 +2025,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "timeOff": {
+            "$ref": "#/components/schemas/TogglTimeOff"
+          },
           "version": {
             "type": "string"
           }
@@ -2069,6 +2072,15 @@
             "readOnly": true,
             "type": "string"
           },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/TogglProject"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "suggested": {
             "items": {
               "$ref": "#/components/schemas/TogglMapping"
@@ -2100,7 +2112,29 @@
         "required": [
           "workspaces",
           "users",
+          "projects",
           "suggested"
+        ],
+        "type": "object"
+      },
+      "TogglProject": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active"
         ],
         "type": "object"
       },
@@ -2155,6 +2189,12 @@
             "description": "Optional start date (YYYY-MM-DD). Empty imports all history.",
             "type": "string"
           },
+          "holidayProject": {
+            "description": "Entries on it are left out: company holidays pay that time.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "people": {
             "items": {
               "$ref": "#/components/schemas/TogglMapping"
@@ -2166,9 +2206,21 @@
               "null"
             ]
           },
+          "sickProject": {
+            "description": "Entries on it become sick time.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "token": {
             "maxLength": 256,
             "type": "string"
+          },
+          "vacationProject": {
+            "description": "Entries on it become vacation.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
           },
           "workspaceId": {
             "format": "int64",
@@ -2242,6 +2294,19 @@
           "historyThrough": {
             "type": "string"
           },
+          "holidayFrom": {
+            "type": "string"
+          },
+          "holidayName": {
+            "description": "The project's name once a sync has brought it in.",
+            "type": "string"
+          },
+          "holidayProject": {
+            "description": "Entries on it are left out: company holidays pay that time.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "issues": {
             "items": {
               "$ref": "#/components/schemas/TogglIssue"
@@ -2268,6 +2333,30 @@
               "null"
             ]
           },
+          "sickFrom": {
+            "type": "string"
+          },
+          "sickName": {
+            "type": "string"
+          },
+          "sickProject": {
+            "description": "Entries on it become sick time.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "vacationFrom": {
+            "type": "string"
+          },
+          "vacationName": {
+            "type": "string"
+          },
+          "vacationProject": {
+            "description": "Entries on it become vacation.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "workspaceId": {
             "format": "int64",
             "type": "integer"
@@ -2283,6 +2372,33 @@
           "error",
           "people",
           "issues"
+        ],
+        "type": "object"
+      },
+      "TogglTimeOff": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "hours": {
+            "description": "What the Toggl entries add up to.",
+            "format": "double",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "vacation",
+              "sick"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "day",
+          "hours"
         ],
         "type": "object"
       },

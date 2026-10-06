@@ -232,6 +232,10 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 			pending[l.person] = true
 		}
 	}
+	away, err := newTogglAway(ctx, t, s, c)
+	if err != nil {
+		return err
+	}
 	seen := map[int64]bool{}
 	for _, e := range entries {
 		// A malformed row can't be matched to anyone. Skipping it never deletes:
@@ -256,6 +260,15 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 		}
 		if !ok {
 			continue
+		}
+		// Entries already synced as work stay work, whatever their project.
+		if !linked {
+			if claimed, err := away.claim(ctx, e, personID); err != nil || claimed {
+				if err != nil {
+					return err
+				}
+				continue
+			}
 		}
 		if !linked && (e.Start.Before(c.from) || pending[personID]) {
 			continue
@@ -330,6 +343,12 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 		if err != nil {
 			return err
 		}
+	}
+	if err = away.missing(ctx, client, seen, people, from, to); err != nil {
+		return err
+	}
+	if err = away.settle(ctx); err != nil {
+		return err
 	}
 	// Discover completed local entries only for explicitly matched people.
 	_, err = s.pool.Exec(ctx, `INSERT INTO toggl_entries(workspace_id,entry_id,person_id,baseline,remote)

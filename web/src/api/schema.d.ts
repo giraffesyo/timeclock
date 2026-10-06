@@ -1531,6 +1531,7 @@ export interface components {
             remote: components["schemas"]["TogglState"];
             /** Format: int64 */
             remoteId?: number;
+            timeOff?: components["schemas"]["TogglTimeOff"];
             version: string;
         };
         TogglMapping: {
@@ -1545,9 +1546,16 @@ export interface components {
              * @example https://example.com/api/schemas/TogglPreview.json
              */
             readonly $schema?: string;
+            projects: components["schemas"]["TogglProject"][] | null;
             suggested: components["schemas"]["TogglMapping"][] | null;
             users: components["schemas"]["User"][] | null;
             workspaces: components["schemas"]["Workspace"][] | null;
+        };
+        TogglProject: {
+            active: boolean;
+            /** Format: int64 */
+            id: number;
+            name: string;
         };
         TogglResolution: {
             /**
@@ -1571,8 +1579,23 @@ export interface components {
             readonly $schema?: string;
             /** @description Optional start date (YYYY-MM-DD). Empty imports all history. */
             from: string;
+            /**
+             * Format: int64
+             * @description Entries on it are left out: company holidays pay that time.
+             */
+            holidayProject?: number;
             people: components["schemas"]["TogglMapping"][] | null;
+            /**
+             * Format: int64
+             * @description Entries on it become sick time.
+             */
+            sickProject?: number;
             token: string;
+            /**
+             * Format: int64
+             * @description Entries on it become vacation.
+             */
+            vacationProject?: number;
             /** Format: int64 */
             workspaceId: number;
         };
@@ -1598,14 +1621,47 @@ export interface components {
             from: string;
             historyComplete: boolean;
             historyThrough: string;
+            holidayFrom?: string;
+            /** @description The project's name once a sync has brought it in. */
+            holidayName?: string;
+            /**
+             * Format: int64
+             * @description Entries on it are left out: company holidays pay that time.
+             */
+            holidayProject?: number;
             issues: components["schemas"]["TogglIssue"][] | null;
             /** Format: date-time */
             lastSync?: string;
             /** Format: date-time */
             nextSync?: string;
             people: components["schemas"]["TogglMapping"][] | null;
+            sickFrom?: string;
+            sickName?: string;
+            /**
+             * Format: int64
+             * @description Entries on it become sick time.
+             */
+            sickProject?: number;
+            vacationFrom?: string;
+            vacationName?: string;
+            /**
+             * Format: int64
+             * @description Entries on it become vacation.
+             */
+            vacationProject?: number;
             /** Format: int64 */
             workspaceId: number;
+        };
+        TogglTimeOff: {
+            /** Format: date */
+            day: string;
+            /**
+             * Format: double
+             * @description What the Toggl entries add up to.
+             */
+            hours: number;
+            /** @enum {string} */
+            kind: "vacation" | "sick";
         };
         User: {
             email: string;
