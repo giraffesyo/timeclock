@@ -39,6 +39,27 @@ interface Action {
   tooltip?: string | undefined;
 }
 
+/** The actions on people: each has a label under bulk and a confirmation under confirm. */
+type ActionKey =
+  | 'exempt'
+  | 'notExempt'
+  | 'reportsOnly'
+  | 'submits'
+  | 'timesheetsDefault'
+  | 'makeAdmin'
+  | 'removeAdmin'
+  | 'activate'
+  | 'deactivate';
+
+/** An action waiting for the admin to confirm it. */
+interface Pending {
+  title: string;
+  description: string;
+  label: string;
+  danger: boolean;
+  run: () => void;
+}
+
 const toMenuItem = (a: Action): RowMenuItem => ({
   kind: 'action',
   label: a.label,
@@ -367,9 +388,8 @@ export function People() {
   const { openMenu, contextMenu } = useRowMenu();
   const admins = useSetAdmins();
   const me = useSession();
-  // Who a confirmation is about: the selection, or the one row right-clicked.
-  const [deactivating, setDeactivating] = useState<Person[] | null>(null);
-  const [granting, setGranting] = useState<Person[] | null>(null);
+  // The action waiting to be confirmed.
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const list = people.data ?? [];
   // People who left the list (a sync, another admin) drop out of the selection.
@@ -447,86 +467,91 @@ export function People() {
   };
 
   // One item per setting, saying what it would do: a mixed group is brought
-  // into line, everyone already alike is switched over.
+  // into line, everyone already alike is switched over. Deactivating, the
+  // destructive one, comes last.
+  // Every action is confirmed first, naming who it is for.
+  const confirmed = (
+    key: ActionKey,
+    group: Person[],
+    run: () => void,
+    extra: { danger?: boolean; disabled?: boolean; tooltip?: string | undefined } = {},
+  ): Action => {
+    const who = group.length === 1 ? (group[0]?.name ?? '') : t('bulk.people', { count: group.length });
+    return {
+      label: t(`bulk.${key}`),
+      ...extra,
+      onSelect: () =>
+        setPending({
+          title: t(`confirm.${key}.title`, { who }),
+          description: t(`confirm.${key}.description`),
+          label: t(`bulk.${key}`).replace(/…$/, ''),
+          danger: extra.danger ?? false,
+          run,
+        }),
+    };
+  };
+
+  // One item per setting, saying what it would do: a mixed group is brought
+  // into line, everyone already alike is switched over. Deactivating, the
+  // destructive one, comes last.
   const actionsFor = (group: Person[]): Action[] => {
-    const allExempt = group.every((p) => p.overtimeExempt);
-    const allSubmit = group.every((p) => p.submitsTimesheets);
-    const allActive = group.every((p) => p.active);
-    const allAdmin = group.every((p) => p.admin);
+    const exempt = group.filter((p) => p.overtimeExempt);
+    const submitting = group.filter((p) => p.submitsTimesheets);
+    const overridden = group.filter((p) => p.submitsTimesheetsOverride != null);
+    const active = group.filter((p) => p.active);
+    const admin = group.filter((p) => p.admin);
     // Only grants made here can be taken back here, and never your own.
-    const revocable = group.filter((p) => p.admin && !p.hostAdmin && p.id !== me.person.id);
+    const revocable = admin.filter((p) => !p.hostAdmin && p.id !== me.person.id);
+    const others = (part: Person[]) => group.filter((p) => !part.includes(p));
     return [
-      allExempt
-        ? {
-            label: t('bulk.notExempt'),
-            onSelect: () =>
-              apply(
-                group,
-                { overtimeExempt: false },
-                (p) => p.overtimeExempt,
-                (count) => t('bulk.unexempted', { count }),
-              ),
-          }
-        : {
-            label: t('bulk.exempt'),
-            onSelect: () =>
-              apply(
-                group,
-                { overtimeExempt: true },
-                (p) => !p.overtimeExempt,
-                (count) => t('bulk.exempted', { count }),
-              ),
-          },
-      allSubmit
-        ? {
-            label: t('bulk.reportsOnly'),
-            onSelect: () =>
-              apply(
-                group,
-                { submitsTimesheets: false },
-                (p) => p.submitsTimesheets,
-                (count) => t('bulk.madeReportsOnly', { count }),
-              ),
-          }
-        : {
-            label: t('bulk.submits'),
-            onSelect: () =>
-              apply(
-                group,
-                { submitsTimesheets: true },
-                (p) => !p.submitsTimesheets,
-                (count) => t('bulk.madeSubmit', { count }),
-              ),
-          },
-      ...(group.some((p) => p.submitsTimesheetsOverride != null)
+      exempt.length === group.length
+        ? confirmed('notExempt', group, () =>
+            apply(
+              group,
+              { overtimeExempt: false },
+              () => true,
+              (count) => t('bulk.unexempted', { count }),
+            ),
+          )
+        : confirmed('exempt', others(exempt), () =>
+            apply(
+              others(exempt),
+              { overtimeExempt: true },
+              () => true,
+              (count) => t('bulk.exempted', { count }),
+            ),
+          ),
+      submitting.length === group.length
+        ? confirmed('reportsOnly', group, () =>
+            apply(
+              group,
+              { submitsTimesheets: false },
+              () => true,
+              (count) => t('bulk.madeReportsOnly', { count }),
+            ),
+          )
+        : confirmed('submits', others(submitting), () =>
+            apply(
+              others(submitting),
+              { submitsTimesheets: true },
+              () => true,
+              (count) => t('bulk.madeSubmit', { count }),
+            ),
+          ),
+      ...(overridden.length > 0
         ? [
-            {
-              label: t('bulk.timesheetsDefault'),
-              onSelect: () =>
-                apply(
-                  group,
-                  { submitsTimesheets: null },
-                  (p) => p.submitsTimesheetsOverride != null,
-                  (count) => t('bulk.followDefault', { count }),
-                ),
-            },
+            confirmed('timesheetsDefault', overridden, () =>
+              apply(
+                overridden,
+                { submitsTimesheets: null },
+                () => true,
+                (count) => t('bulk.followDefault', { count }),
+              ),
+            ),
           ]
         : []),
-      allActive
-        ? { label: t('bulk.deactivate'), danger: true, onSelect: () => setDeactivating(group) }
-        : {
-            label: t('bulk.activate'),
-            onSelect: () =>
-              apply(
-                group,
-                { active: true },
-                (p) => !p.active,
-                (count) => t('bulk.activated', { count }),
-              ),
-          },
-      allAdmin
-        ? {
-            label: t('bulk.removeAdmin'),
+      admin.length === group.length
+        ? confirmed('removeAdmin', revocable, () => setAdmin(revocable, false), {
             disabled: revocable.length === 0,
             tooltip:
               revocable.length === 0
@@ -534,9 +559,29 @@ export function People() {
                   ? t('bulk.ownAdmin')
                   : t('adminFromHost', { host: me.info.homeLabel || t('theHost') })
                 : undefined,
-            onSelect: () => setAdmin(revocable, false),
-          }
-        : { label: t('bulk.makeAdmin'), onSelect: () => setGranting(group.filter((p) => !p.admin)) },
+          })
+        : confirmed('makeAdmin', others(admin), () => setAdmin(others(admin), true)),
+      active.length === group.length
+        ? confirmed(
+            'deactivate',
+            group,
+            () =>
+              apply(
+                group,
+                { active: false },
+                () => true,
+                (count) => t('bulk.deactivated', { count }),
+              ),
+            { danger: true },
+          )
+        : confirmed('activate', others(active), () =>
+            apply(
+              others(active),
+              { active: true },
+              () => true,
+              (count) => t('bulk.activated', { count }),
+            ),
+          ),
     ];
   };
   const busy = bulk.isPending || admins.isPending;
@@ -651,36 +696,15 @@ export function People() {
         )}
       </Panel>
       {contextMenu}
-      {deactivating && (
+      {pending && (
         <ConfirmModal
           open
-          onClose={() => setDeactivating(null)}
-          title={t('bulk.deactivateTitle', { count: deactivating.filter((p) => p.active).length })}
-          description={t('deactivate.description')}
-          confirmLabel={t('deactivate.action')}
-          destructive
-          onConfirm={() =>
-            apply(
-              deactivating,
-              { active: false },
-              (p) => p.active,
-              (count) => t('bulk.deactivated', { count }),
-            )
-          }
-        />
-      )}
-      {granting && (
-        <ConfirmModal
-          open
-          onClose={() => setGranting(null)}
-          title={
-            granting.length === 1
-              ? t('grant.titleOne', { name: granting[0]?.name ?? '' })
-              : t('grant.title', { count: granting.length })
-          }
-          description={t('grant.description')}
-          confirmLabel={t('bulk.makeAdmin')}
-          onConfirm={() => setAdmin(granting, true)}
+          onClose={() => setPending(null)}
+          title={pending.title}
+          description={pending.description}
+          confirmLabel={pending.label}
+          destructive={pending.danger}
+          onConfirm={pending.run}
         />
       )}
       <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">

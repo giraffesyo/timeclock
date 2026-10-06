@@ -200,7 +200,6 @@
       "unexempted": "{count, plural, one {# person is} other {# people are}} no longer overtime exempt.",
       "activated": "{count, plural, one {# person is} other {# people are}} active again.",
       "deactivated": "{count, plural, one {# person was} other {# people were}} deactivated.",
-      "deactivateTitle": "Deactivate {count, plural, one {# person} other {# people}}?",
       "failed": "Couldn’t change {count} of {total, plural, one {# person} other {# people}}.",
       "hint": "Select people, right-click one, or use ⋮ to change several at once.",
       "submits": "Require timesheets",
@@ -213,7 +212,8 @@
       "removeAdmin": "Remove admin",
       "ownAdmin": "You can’t remove your own admin.",
       "madeAdmin": "{count, plural, one {# person is} other {# people are}} now an admin.",
-      "removedAdmin": "{count, plural, one {# person is} other {# people are}} no longer an admin."
+      "removedAdmin": "{count, plural, one {# person is} other {# people are}} no longer an admin.",
+      "people": "{count, plural, one {# person} other {# people}}"
     },
     "timesheetsFor": "Whether {name} submits timesheets",
     "timesheetsDefault": "Default: {value}",
@@ -224,10 +224,43 @@
     "theHost": "the host application",
     "adminFromHost": "An admin in {host}: only {host} can change that.",
     "rowMenu": "Actions for {name}",
-    "grant": {
-      "titleOne": "Make {name} an admin?",
-      "title": "Make {count, plural, one {# person} other {# people}} admins?",
-      "description": "Admins run payroll and manage Timeclock: they see everyone’s time, approve anything, change settings and people, and export reports."
+    "confirm": {
+      "exempt": {
+        "title": "Mark {who} overtime exempt?",
+        "description": "All of their hours count as regular, whatever the weekly overtime threshold."
+      },
+      "notExempt": {
+        "title": "Count overtime for {who}?",
+        "description": "Hours past the weekly threshold count as overtime again."
+      },
+      "reportsOnly": {
+        "title": "Make {who} reports only?",
+        "description": "From now on they don’t submit timesheets and are left out of payroll. Their time still counts in reports and the overview."
+      },
+      "submits": {
+        "title": "Require timesheets from {who}?",
+        "description": "They submit a timesheet each pay period, and their time is in payroll."
+      },
+      "timesheetsDefault": {
+        "title": "Use the workspace default for {who}?",
+        "description": "Whether they submit timesheets follows Settings → Payroll."
+      },
+      "makeAdmin": {
+        "title": "Make {who} an admin?",
+        "description": "Admins run payroll and manage Timeclock: they see everyone’s time, approve anything, change settings and people, and export reports."
+      },
+      "removeAdmin": {
+        "title": "Remove admin from {who}?",
+        "description": "They’ll no longer run payroll or manage Timeclock. Admins from the host application stay admins."
+      },
+      "activate": {
+        "title": "Make {who} active?",
+        "description": "They’re back in payroll reports, the Gusto export and exceptions."
+      },
+      "deactivate": {
+        "title": "Deactivate {who}?",
+        "description": "They are left out of payroll reports, the Gusto export and exceptions from now on. Their recorded time is kept, and you can make them active again."
+      }
     }
   },
   "history": {
