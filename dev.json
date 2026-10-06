@@ -1,13 +1,23 @@
 {
   "name": "timeclock",
   "postgres": { "port": 54331 },
-  "env": "dev.env",
-  "before": [["sh", "-c", "find web/dist -mindepth 1 ! -name .gitkeep -delete"]],
-  "server": {
-    "build": ["go", "build", "-o", "tmp/timeclock-server", "./cmd/timeclock-server"],
-    "run": ["tmp/timeclock-server"],
-    "exclude": ["tmp", "web", "tools", "dist", "examples"],
-    "extensions": [".go", ".sql"]
+  "env": {
+    "PORT": "8090",
+    "TIMECLOCK_DATABASE_URL": "{postgres}",
+    "TIMECLOCK_TEST_DATABASE_URL": "{postgres_test}",
+    "TIMECLOCK_DEV_USER": "dev@example.com",
+    "TIMECLOCK_ADMIN_EMAILS": "dev@example.com",
+    "TIMECLOCK_VITE_URL": "http://localhost:5174"
   },
-  "processes": [{ "name": "web", "dir": "web", "run": ["pnpm", "dev"] }]
+  "before": [["sh", "-c", "find web/dist -mindepth 1 ! -name .gitkeep -delete"]],
+  "services": [
+    {
+      "name": "server",
+      "build": ["go", "build", "-o", "tmp/timeclock-server", "./cmd/timeclock-server"],
+      "run": ["tmp/timeclock-server"],
+      "exclude": ["tmp", "web", "tools", "dist", "examples"],
+      "extensions": [".go", ".sql"]
+    },
+    { "name": "web", "dir": "web", "run": ["pnpm", "dev"] }
+  ]
 }

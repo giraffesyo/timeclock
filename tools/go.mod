@@ -14,7 +14,7 @@ require (
 	github.com/johannesboyne/gofakes3 v1.2.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/lmittmann/tint v1.2.1 // indirect
-	github.com/parallelworks/foundation/dev v0.3.0 // indirect
+	github.com/parallelworks/foundation/dev v0.4.0 // indirect
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
