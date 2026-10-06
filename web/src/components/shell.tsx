@@ -28,8 +28,9 @@ import { useSession } from '@/lib/session';
 import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
 import { useZone } from '@/lib/zone';
 
+// The ring is drawn inside: the scrolling nav would clip one outside the link.
 const item =
-  'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground md:h-7';
+  'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-offset-[-2px] md:h-7';
 const itemActive = '!bg-foreground/[0.07] !font-medium !text-foreground';
 
 const MODES = [

@@ -81,7 +81,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
 
   // Ada is now one of the workspace's people.
   await admin.goto('/settings?tab=people');
-  await expect(admin.getByRole('row', { name: /^Ada Lovelace/ })).toBeVisible();
+  await expect(admin.getByRole('checkbox', { name: 'Select Ada Lovelace', exact: true })).toBeVisible();
 });
 
 test('someone in two workspaces switches between them, and each has its own time', async ({ browser }) => {

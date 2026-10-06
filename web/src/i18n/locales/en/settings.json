@@ -180,7 +180,25 @@
     "done": "Done",
     "editFor": "Edit {name}",
     "doneFor": "Done editing {name}",
-    "profileManager": "Manager: {name}"
+    "profileManager": "Manager: {name}",
+    "bulk": {
+      "select": "Select {name}",
+      "selectAll": "Select everyone",
+      "selected": "{count, plural, one {# person} other {# people}} selected",
+      "menu": "Change {count, plural, one {# person} other {# people}}",
+      "exempt": "Mark overtime exempt",
+      "notExempt": "Mark not overtime exempt",
+      "activate": "Make active",
+      "deactivate": "Deactivate…",
+      "clear": "Clear selection",
+      "exempted": "{count, plural, one {# person is} other {# people are}} now overtime exempt.",
+      "unexempted": "{count, plural, one {# person is} other {# people are}} no longer overtime exempt.",
+      "activated": "{count, plural, one {# person is} other {# people are}} active again.",
+      "deactivated": "{count, plural, one {# person was} other {# people were}} deactivated.",
+      "deactivateTitle": "Deactivate {count, plural, one {# person} other {# people}}?",
+      "failed": "Couldn’t change {count} of {total, plural, one {# person} other {# people}}.",
+      "hint": "Select people, or right-click one, to change several at once."
+    }
   },
   "history": {
     "title": "Changes to payroll data",
