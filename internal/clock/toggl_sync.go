@@ -16,12 +16,25 @@ import (
 
 type togglJob struct{}
 
+type togglWorker struct {
+	hopper.WorkerDefaults[togglJob]
+	bridge *Toggl
+}
+
+func (w togglWorker) Work(ctx context.Context, job *hopper.Job[togglJob]) error {
+	return w.bridge.run(ctx, job)
+}
+
+// Each workspace has its own five-minute deadline below. The queue's
+// one-minute default would cancel larger imports before saving progress.
+func (togglWorker) Timeout(*hopper.Job[togglJob]) time.Duration { return -1 }
+
 // Toggl Reports rejects dates before this day, including time-zone padding.
 var togglReportFloor = time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (togglJob) Kind() string { return "timeclock.toggl" }
 func (t *Toggl) Register(workers *hopper.Workers) hopper.PeriodicJob {
-	hopper.AddWorkFunc(workers, t.run)
+	hopper.AddWorker(workers, togglWorker{bridge: t})
 	return hopper.Every(togglPollInterval, togglJob{}, &hopper.PeriodicOpts{RunOnStart: true})
 }
 func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
