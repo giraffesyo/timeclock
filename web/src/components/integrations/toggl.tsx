@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeople, useProjects } from '@/lib/queries';
+import { dayToDate } from '@/lib/time';
 
 const key = ['integrations', 'toggl'];
 type Status = Schemas['TogglStatus'];
@@ -73,6 +74,7 @@ export function TogglIntegration() {
                     </dd>
                   </div>
                 </dl>
+                <Roles saved={saved} />
                 <p role="status" className="text-sm text-muted-foreground">
                   {saved.historyComplete
                     ? t('historyComplete')
@@ -122,9 +124,13 @@ export function TogglIntegration() {
             {(saved.issues ?? []).length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">{t('needsAttention', { count: (saved.issues ?? []).length })}</h3>
-                {(saved.issues ?? []).map((issue) => (
-                  <Conflict key={`${issue.entryId}:${issue.version}`} issue={issue} onResolved={refresh} />
-                ))}
+                {(saved.issues ?? []).map((issue) =>
+                  issue.timeOff ? (
+                    <TimeOffIssue key={issue.entryId} issue={issue} />
+                  ) : (
+                    <Conflict key={`${issue.entryId}:${issue.version}`} issue={issue} onResolved={refresh} />
+                  ),
+                )}
               </div>
             )}
           </>
@@ -146,6 +152,38 @@ export function TogglIntegration() {
   );
 }
 
+const roleKeys = ['holidayProject', 'vacationProject', 'sickProject'] as const;
+type Roles = Record<(typeof roleKeys)[number], number>;
+
+/** The projects that stand for time away, and since when. */
+function Roles({ saved }: { saved: Status }) {
+  const t = useTranslations('integrations.toggl');
+  const format = useFormatter();
+  const roles = [
+    { key: 'holidayProject', id: saved.holidayProject, name: saved.holidayName, from: saved.holidayFrom },
+    { key: 'vacationProject', id: saved.vacationProject, name: saved.vacationName, from: saved.vacationFrom },
+    { key: 'sickProject', id: saved.sickProject, name: saved.sickName, from: saved.sickFrom },
+  ] as const;
+  if (!roles.some((r) => r.id)) return null;
+  return (
+    <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-3">
+      {roles.map((r) => (
+        <div key={r.key}>
+          <dt className="text-muted-foreground">{t(r.key)}</dt>
+          <dd className="mt-1">
+            {r.id && r.from
+              ? t('roleFrom', {
+                  name: r.name || t('roleUnnamed', { id: r.id }),
+                  date: format.dateTime(dayToDate(r.from), { dateStyle: 'medium' }),
+                })
+              : t('noRole')}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
   const t = useTranslations('integrations.toggl');
   const client = useQueryClient();
@@ -157,6 +195,11 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [matches, setMatches] = useState<Record<string, string>>({});
   const [loadedWorkspace, setLoadedWorkspace] = useState(0);
+  const [roles, setRoles] = useState<Roles>({
+    holidayProject: saved.holidayProject ?? 0,
+    vacationProject: saved.vacationProject ?? 0,
+    sickProject: saved.sickProject ?? 0,
+  });
   const discover = useMutation({
     mutationFn: async (id: number) =>
       unwrap(await api.POST('/api/v1/integrations/toggl/preview', { body: { token, workspaceId: id } })),
@@ -182,6 +225,7 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
             people: Object.entries(matches)
               .filter(([, personId]) => !!personId)
               .map(([id, personId]) => ({ userId: Number(id), personId })),
+            ...roles,
           },
         }),
       ),
@@ -304,6 +348,32 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
                   ))}
                 {(preview.users ?? []).length === 0 && <p className="text-sm">{t('noPeople')}</p>}
               </div>
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">{t('roles')}</h3>
+                <p className="max-w-2xl text-sm text-muted-foreground">{t('rolesHint')}</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {roleKeys.map((role) => (
+                    <Field key={role} label={t(role)}>
+                      <select
+                        className={controlClass}
+                        value={roles[role] || ''}
+                        onChange={(e) => setRoles({ ...roles, [role]: Number(e.target.value) || 0 })}
+                      >
+                        <option value="">{t('noRole')}</option>
+                        {(preview.projects ?? []).map((p) => (
+                          <option
+                            key={p.id}
+                            value={p.id}
+                            disabled={roleKeys.some((other) => other !== role && roles[other] === p.id)}
+                          >
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  ))}
+                </div>
+              </div>
               <p className="max-w-2xl text-sm text-muted-foreground">{t('scope')}</p>
               <Button
                 type="submit"
@@ -319,6 +389,36 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
         </>
       )}
     </form>
+  );
+}
+
+/** A day whose Toggl vacation or sick entries can't become time off yet. Fixed in Toggl or by clearing the day; nothing to choose here. */
+function TimeOffIssue({ issue }: { issue: Issue }) {
+  const t = useTranslations('integrations.toggl');
+  const format = useFormatter();
+  const people = usePeople();
+  const kinds = ['locked', 'time_off_exists', 'invalid_entry'] as const;
+  const kind = kinds.find((k) => k === issue.kind) ?? 'invalid_entry';
+  const person = people.data?.find((p) => p.id === issue.personId);
+  const off = issue.timeOff;
+  if (!off) return null;
+  return (
+    <section className="space-y-3 border-t border-border pt-4">
+      <div>
+        <h4 className="text-sm font-medium">{person?.name || issue.personId}</h4>
+        <p className="mt-1 text-sm text-muted-foreground">{t(`timeOffIssues.${kind}`)}</p>
+      </div>
+      <dl className="text-sm">
+        <dt className="font-medium">{t('togglVersion')}</dt>
+        <dd className="mt-1 text-muted-foreground">
+          {t('timeOffSummary', {
+            kind: off.kind,
+            hours: format.number(off.hours, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            day: format.dateTime(dayToDate(off.day), { dateStyle: 'medium' }),
+          })}
+        </dd>
+      </dl>
+    </section>
   );
 }
 

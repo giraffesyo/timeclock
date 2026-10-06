@@ -253,3 +253,105 @@ for (const mobile of [false, true]) {
     });
   });
 }
+
+for (const mobile of [false, true]) {
+  test(`an admin chooses the holiday, vacation and sick projects${mobile ? ' on mobile' : ''}`, async ({
+    adminPerson,
+    me,
+  }, testInfo) => {
+    const { page } = await adminPerson();
+    if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+    const people = [{ personId: me.id, userId: 123 }];
+    let setup: Record<string, unknown> | undefined;
+    await page.route('**/api/v1/integrations/toggl**', async (route) => {
+      const req = route.request();
+      if (req.url().endsWith('/preview')) {
+        await route.fulfill({
+          json: {
+            workspaces: [{ id: 42, name: 'Trial company', organization_id: 9, admin: true, role: 'admin' }],
+            users: [{ user_id: 123, name: 'Trial teammate', email: me.email, inactive: false }],
+            projects: [
+              { id: 7, name: 'Platform', active: true },
+              { id: 21, name: 'Company holiday', active: true },
+              { id: 22, name: 'Vacation', active: true },
+              { id: 23, name: 'Sick', active: true },
+            ],
+            suggested: people,
+          },
+        });
+        return;
+      }
+      if (req.method() === 'PUT') setup = req.postDataJSON();
+      const roles = setup
+        ? {
+            holidayProject: 21,
+            holidayFrom: '2026-10-06',
+            holidayName: 'Company holiday',
+            vacationProject: 22,
+            vacationFrom: '2026-10-06',
+            vacationName: 'Vacation',
+            sickProject: 23,
+            sickFrom: '2026-10-06',
+            sickName: 'Sick',
+          }
+        : {};
+      await route.fulfill({
+        json: {
+          available: true,
+          connected: true,
+          workspaceId: 42,
+          from: '1970-01-01',
+          lastSync: null,
+          nextSync: null,
+          error: '',
+          historyComplete: true,
+          historyThrough: '',
+          people,
+          ...roles,
+          issues: setup
+            ? [
+                {
+                  entryId: '01a11224-cd64-7720-ac03-c85b11e1f9e5',
+                  personId: me.id,
+                  kind: 'locked',
+                  version: '',
+                  local: { start: '0001-01-01T00:00:00Z', note: '', deleted: true },
+                  remote: { start: '0001-01-01T00:00:00Z', note: '', deleted: true },
+                  timeOff: { kind: 'vacation', day: '2026-10-02', hours: 4 },
+                },
+              ]
+            : [],
+        },
+      });
+    });
+    await page.goto('/settings?tab=integrations');
+    await page.getByRole('button', { name: 'Manage connection' }).click();
+    await page.getByRole('button', { name: 'Find workspaces and people' }).click();
+    const holiday = page.getByRole('combobox', { name: 'Holiday project' });
+    const vacation = page.getByRole('combobox', { name: 'Vacation project' });
+    const sick = page.getByRole('combobox', { name: 'Sick project' });
+    await holiday.selectOption({ label: 'Company holiday' });
+    await vacation.selectOption({ label: 'Vacation' });
+    // A project fills one role at a time.
+    await expect(sick.locator('option', { hasText: 'Vacation' })).toHaveAttribute('disabled', '');
+    await sick.selectOption({ label: 'Sick' });
+    const device = mobile ? 'mobile' : 'desktop';
+    await sick.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `/tmp/timeclock-toggl-roles-form-${device}.png` });
+    await testInfo.attach(`Roles form ${device}`, {
+      path: `/tmp/timeclock-toggl-roles-form-${device}.png`,
+      contentType: 'image/png',
+    });
+    await page.getByRole('button', { name: 'Save connection' }).click();
+    await expect.poll(() => setup).toMatchObject({ holidayProject: 21, vacationProject: 22, sickProject: 23 });
+    await expect(page.getByText('Vacation, from Oct 6, 2026')).toBeVisible();
+    await expect(page.getByText('This day is in a submitted or approved timesheet')).toBeVisible();
+    await expect(page.getByText('Vacation · 4.00 h · Oct 2, 2026')).toBeVisible();
+    expect(await page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `/tmp/timeclock-toggl-roles-summary-${device}.png`, fullPage: true });
+    await testInfo.attach(`Roles summary ${device}`, {
+      path: `/tmp/timeclock-toggl-roles-summary-${device}.png`,
+      contentType: 'image/png',
+    });
+  });
+}

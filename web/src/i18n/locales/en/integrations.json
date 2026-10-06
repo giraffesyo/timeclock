@@ -41,7 +41,15 @@
     "matchHint": "Review the email matches below. Only matched people sync; employees do not need to connect their accounts. Existing matches cannot be reassigned while connected.",
     "doNotSync": "Do not sync this person",
     "noPeople": "No Toggl users were found.",
-    "scope": "Customers and projects are imported from Toggl. Use those projects when tracking in either app. Running timers transfer after they stop. Time off, rates, tags, tasks and payroll approvals are not synced. Submitted timesheets stay locked; conflicts require a decision here.",
+    "roles": "Holiday, vacation and sick projects",
+    "rolesHint": "Entries on these projects aren’t work. From the day you choose a project, its holiday entries are left out (company holidays pay that time), and vacation and sick entries become time off, waiting for approval when time off needs it. Time off is never sent to Toggl. Earlier entries keep syncing as work.",
+    "holidayProject": "Holiday project",
+    "vacationProject": "Vacation project",
+    "sickProject": "Sick project",
+    "noRole": "None",
+    "roleFrom": "{name}, from {date}",
+    "roleUnnamed": "Toggl project {id}",
+    "scope": "Customers and projects are imported from Toggl. Use those projects when tracking in either app. Running timers transfer after they stop. Rates, tags, tasks and payroll approvals are not synced, and time off only comes from the projects above. Submitted timesheets stay locked; conflicts require a decision here.",
     "connect": "Connect and start syncing",
     "saveConnection": "Save connection",
     "connected": "Toggl connected. Sync will begin shortly.",
@@ -69,6 +77,12 @@
       "description_required": "Timeclock requires a description. Add one in Toggl before syncing this entry.",
       "invalid_entry": "This entry could not be synced. Check its dates, description and project. Outgoing entries must use a project imported from Toggl."
     },
-    "noProject": "No project"
+    "noProject": "No project",
+    "timeOffIssues": {
+      "locked": "This day is in a submitted or approved timesheet. Return the timesheet for changes to bring in the change from Toggl.",
+      "time_off_exists": "Timeclock already has time off of this kind on this day. Remove one of them; the Toggl entries sync once the day is clear.",
+      "invalid_entry": "These Toggl entries add up to more than 24 hours on one day. Fix them in Toggl."
+    },
+    "timeOffSummary": "{kind, select, vacation {Vacation} other {Sick}} · {hours} h · {day}"
   }
 }

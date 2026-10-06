@@ -53,11 +53,28 @@ type TogglSetup struct {
 	WorkspaceID int64          `json:"workspaceId" minimum:"1"`
 	From        string         `json:"from" doc:"Optional start date (YYYY-MM-DD). Empty imports all history."`
 	People      []TogglMapping `json:"people" minItems:"1" maxItems:"1000"`
+	TogglRoles
+}
+
+// TogglRoles are the Toggl projects that record time away rather than work.
+// Each applies to entries from the day it was chosen; zero is none.
+type TogglRoles struct {
+	HolidayProject  int64 `json:"holidayProject,omitempty" minimum:"0" doc:"Entries on it are left out: company holidays pay that time."`
+	VacationProject int64 `json:"vacationProject,omitempty" minimum:"0" doc:"Entries on it become vacation."`
+	SickProject     int64 `json:"sickProject,omitempty" minimum:"0" doc:"Entries on it become sick time."`
 }
 type TogglPreview struct {
 	Workspaces []toggl.Workspace `json:"workspaces"`
 	Users      []toggl.User      `json:"users"`
+	Projects   []TogglProject    `json:"projects"`
 	Suggested  []TogglMapping    `json:"suggested"`
+}
+
+// TogglProject is a project in the Toggl workspace, to choose roles from.
+type TogglProject struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
 }
 type TogglStatus struct {
 	HistoryComplete bool           `json:"historyComplete"`
@@ -70,7 +87,14 @@ type TogglStatus struct {
 	NextSync        *time.Time     `json:"nextSync,omitempty"`
 	Error           string         `json:"error"`
 	People          []TogglMapping `json:"people"`
-	Issues          []TogglIssue   `json:"issues"`
+	TogglRoles
+	HolidayFrom  string       `json:"holidayFrom,omitempty"`
+	VacationFrom string       `json:"vacationFrom,omitempty"`
+	SickFrom     string       `json:"sickFrom,omitempty"`
+	HolidayName  string       `json:"holidayName,omitempty" doc:"The project's name once a sync has brought it in."`
+	VacationName string       `json:"vacationName,omitempty"`
+	SickName     string       `json:"sickName,omitempty"`
+	Issues       []TogglIssue `json:"issues"`
 }
 type TogglIssue struct {
 	EntryID  uuid.UUID  `json:"entryId"`
@@ -80,6 +104,16 @@ type TogglIssue struct {
 	Version  string     `json:"version"`
 	Local    togglState `json:"local"`
 	Remote   togglState `json:"remote"`
+	// TimeOff is set for Toggl entries on the vacation or sick project, which
+	// sync to time off on a day rather than to an entry.
+	TimeOff *TogglTimeOff `json:"timeOff,omitempty"`
+}
+
+// TogglTimeOff is the time off a day's Toggl entries add up to.
+type TogglTimeOff struct {
+	Kind  string  `json:"kind" enum:"vacation,sick"`
+	Day   Date    `json:"day" format:"date"`
+	Hours float64 `json:"hours" doc:"What the Toggl entries add up to."`
 }
 type togglConfig struct {
 	history         *time.Time
@@ -88,11 +122,42 @@ type togglConfig struct {
 	token           []byte
 	from            time.Time
 	next            time.Time
+	roles           []togglRole
+}
+
+// togglRole is a project whose entries are not work, from the day it was chosen.
+type togglRole struct {
+	kind    string // holiday, vacation or sick
+	project int64
+	from    Date
+}
+
+// role is what an entry on project, on day, stands for, if anything.
+func (c togglConfig) role(project *int64, day Date) string {
+	if project == nil {
+		return ""
+	}
+	for _, r := range c.roles {
+		if r.project == *project && !day.Before(r.from) {
+			return r.kind
+		}
+	}
+	return ""
 }
 
 func (t *Toggl) config(ctx context.Context, s *Service) (togglConfig, error) {
 	var c togglConfig
-	err := s.pool.QueryRow(ctx, `SELECT remote_id, token, sync_from, next_sync, history_cursor, history_complete FROM toggl_workspaces WHERE workspace_id=$W`).Scan(&c.remote, &c.token, &c.from, &c.next, &c.history, &c.historyComplete)
+	var projects [3]*int64
+	var froms [3]*time.Time
+	err := s.pool.QueryRow(ctx, `SELECT remote_id, token, sync_from, next_sync, history_cursor, history_complete,
+    holiday_project, holiday_from, vacation_project, vacation_from, sick_project, sick_from FROM toggl_workspaces WHERE workspace_id=$W`).Scan(
+		&c.remote, &c.token, &c.from, &c.next, &c.history, &c.historyComplete,
+		&projects[0], &froms[0], &projects[1], &froms[1], &projects[2], &froms[2])
+	for i, kind := range []string{"holiday", Vacation, Sick} {
+		if projects[i] != nil && froms[i] != nil {
+			c.roles = append(c.roles, togglRole{kind: kind, project: *projects[i], from: DateFromTime(*froms[i])})
+		}
+	}
 	return c, err
 }
 func (t *Toggl) token(ctx context.Context, s *Service, input string) (string, error) {
@@ -113,7 +178,7 @@ func (t *Toggl) token(ctx context.Context, s *Service, input string) (string, er
 	return string(plain), nil
 }
 func (t *Toggl) Preview(ctx context.Context, s *Service, actor Actor, token string, workspace int64) (TogglPreview, error) {
-	out := TogglPreview{Workspaces: []toggl.Workspace{}, Users: []toggl.User{}, Suggested: []TogglMapping{}}
+	out := TogglPreview{Workspaces: []toggl.Workspace{}, Users: []toggl.User{}, Projects: []TogglProject{}, Suggested: []TogglMapping{}}
 	if !actor.Admin {
 		return out, forbidden("only an admin manages integrations")
 	}
@@ -135,6 +200,13 @@ func (t *Toggl) Preview(ctx context.Context, s *Service, actor Actor, token stri
 			out.Users, err = client.Users(ctx, w)
 			if err != nil {
 				return out, invalidField("workspaceId", togglMessage(err))
+			}
+			projects, err := client.Projects(ctx, w.ID)
+			if err != nil {
+				return out, invalidField("workspaceId", togglMessage(err))
+			}
+			for _, p := range projects {
+				out.Projects = append(out.Projects, TogglProject{ID: p.ID, Name: p.Name, Active: p.Active})
 			}
 		}
 	}
@@ -253,6 +325,23 @@ func (t *Toggl) Configure(ctx context.Context, s *Service, actor Actor, in Toggl
 				users[u.ID] = true
 			}
 		}
+		available := map[int64]bool{}
+		for _, p := range preview.Projects {
+			available[p.ID] = true
+		}
+		chosen := map[int64]bool{}
+		for _, r := range []struct {
+			field   string
+			project int64
+		}{{"holidayProject", in.HolidayProject}, {"vacationProject", in.VacationProject}, {"sickProject", in.SickProject}} {
+			if r.project == 0 {
+				continue
+			}
+			if !available[r.project] || chosen[r.project] {
+				return invalidField(r.field, "choose a different Toggl project for each role")
+			}
+			chosen[r.project] = true
+		}
 		ids := map[string]bool{}
 		remote := map[int64]bool{}
 		for _, m := range in.People {
@@ -280,15 +369,28 @@ func (t *Toggl) Configure(ctx context.Context, s *Service, actor Actor, in Toggl
 			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 				return err
 			}
+			fresh := errors.Is(err, pgx.ErrNoRows)
+			var before int
+			if err = q.QueryRow(ctx, `SELECT count(*) FROM toggl_people WHERE workspace_id=$W`).Scan(&before); err != nil {
+				return err
+			}
 			_, err = q.Exec(ctx, `INSERT INTO toggl_workspaces(workspace_id,remote_id,token,sync_from) VALUES($W,$1,$2,$3)
-    ON CONFLICT(workspace_id) DO UPDATE SET token=EXCLUDED.token,next_sync=now(),last_error='',history_cursor=NULL,history_complete=false`, in.WorkspaceID, sealed, from)
+    ON CONFLICT(workspace_id) DO UPDATE SET token=EXCLUDED.token,next_sync=now(),last_error=''`, in.WorkspaceID, sealed, from)
 			if isUniqueViolation(err) {
 				return invalidField("workspaceId", "this Toggl workspace is already linked to another company")
 			}
 			if err != nil {
 				return err
 			}
-			if _, err = q.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W`); err != nil {
+			// A role applies from the day it is chosen: entries already synced as
+			// work stay work. Keeping a role keeps its day.
+			today := DateOf(s.now(), time.UTC).Time()
+			_, err = q.Exec(ctx, `UPDATE toggl_workspaces SET
+    holiday_from=CASE WHEN $1::bigint IS NULL THEN NULL WHEN holiday_project IS NOT DISTINCT FROM $1 THEN holiday_from ELSE $4::date END, holiday_project=$1,
+    vacation_from=CASE WHEN $2::bigint IS NULL THEN NULL WHEN vacation_project IS NOT DISTINCT FROM $2 THEN vacation_from ELSE $4::date END, vacation_project=$2,
+    sick_from=CASE WHEN $3::bigint IS NULL THEN NULL WHEN sick_project IS NOT DISTINCT FROM $3 THEN sick_from ELSE $4::date END, sick_project=$3
+    WHERE workspace_id=$W`, nonZero(in.HolidayProject), nonZero(in.VacationProject), nonZero(in.SickProject), today)
+			if err != nil {
 				return err
 			}
 			// Existing ownership is immutable while connected. Adding new people
@@ -317,10 +419,20 @@ func (t *Toggl) Configure(ctx context.Context, s *Service, actor Actor, in Toggl
 			if total != len(in.People) {
 				return invalidField("people", "keep all existing person matches when updating the connection")
 			}
+			// New people have history to import; a new token or new roles don't.
+			if fresh || total != before {
+				if _, err = q.Exec(ctx, `UPDATE toggl_workspaces SET history_cursor=NULL,history_complete=false WHERE workspace_id=$W`); err != nil {
+					return err
+				}
+				if _, err = q.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W`); err != nil {
+					return err
+				}
+			}
 			if err = restoreTogglLinks(ctx, q, in.WorkspaceID); err != nil {
 				return err
 			}
-			return audit(ctx, q, actor, "toggl.configure", "", map[string]any{"workspaceId": in.WorkspaceID, "from": in.From, "people": in.People})
+			return audit(ctx, q, actor, "toggl.configure", "", map[string]any{"workspaceId": in.WorkspaceID, "from": in.From, "people": in.People,
+				"holidayProject": in.HolidayProject, "vacationProject": in.VacationProject, "sickProject": in.SickProject})
 		})
 	})
 }
@@ -359,7 +471,12 @@ func (t *Toggl) Status(ctx context.Context, s *Service, actor Actor) (TogglStatu
 	}
 	var from time.Time
 	var history *time.Time
-	err := s.pool.QueryRow(ctx, `SELECT remote_id,token IS NOT NULL,sync_from,last_sync,next_sync,last_error,history_cursor,history_complete FROM toggl_workspaces WHERE workspace_id=$W`).Scan(&out.WorkspaceID, &out.Connected, &from, &out.LastSync, &out.NextSync, &out.Error, &history, &out.HistoryComplete)
+	var roles [3]*int64
+	var froms [3]*time.Time
+	err := s.pool.QueryRow(ctx, `SELECT remote_id,token IS NOT NULL,sync_from,last_sync,next_sync,last_error,history_cursor,history_complete,
+    holiday_project,holiday_from,vacation_project,vacation_from,sick_project,sick_from FROM toggl_workspaces WHERE workspace_id=$W`).Scan(
+		&out.WorkspaceID, &out.Connected, &from, &out.LastSync, &out.NextSync, &out.Error, &history, &out.HistoryComplete,
+		&roles[0], &froms[0], &roles[1], &froms[1], &roles[2], &froms[2])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return out, nil
 	}
@@ -367,6 +484,20 @@ func (t *Toggl) Status(ctx context.Context, s *Service, actor Actor) (TogglStatu
 		return out, err
 	}
 	out.From = from.Format(time.DateOnly)
+	for i, role := range []struct {
+		project    *int64
+		from, name *string
+	}{{&out.HolidayProject, &out.HolidayFrom, &out.HolidayName}, {&out.VacationProject, &out.VacationFrom, &out.VacationName}, {&out.SickProject, &out.SickFrom, &out.SickName}} {
+		if roles[i] == nil || froms[i] == nil {
+			continue
+		}
+		*role.project = *roles[i]
+		*role.from = froms[i].Format(time.DateOnly)
+		err = s.pool.QueryRow(ctx, `SELECT p.name FROM toggl_projects t JOIN projects p ON p.id=t.project_id WHERE t.workspace_id=$W AND t.remote_id=$1`, *roles[i]).Scan(role.name)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return out, err
+		}
+	}
 	if history != nil {
 		out.HistoryThrough = history.AddDate(0, 0, -1).Format(time.DateOnly)
 	}
@@ -392,7 +523,25 @@ func (t *Toggl) Status(ctx context.Context, s *Service, actor Actor) (TogglStatu
 		}
 		out.Issues = append(out.Issues, TogglIssue{EntryID: l.id, PersonID: l.person, RemoteID: l.remoteID, Kind: l.issue, Local: local, Remote: l.remote, Version: togglVersion(l, local)})
 	}
-	return out, nil
+	rows, err = s.pool.Query(ctx, `SELECT d.id,d.person_id,d.kind,d.day,d.issue,
+    COALESCE((SELECT sum(o.seconds) FROM toggl_time_off o WHERE o.workspace_id=d.workspace_id AND o.person_id=d.person_id AND o.day=d.day AND o.kind=d.kind),0)
+    FROM toggl_time_off_days d WHERE d.workspace_id=$W AND d.issue<>'' ORDER BY d.day,d.person_id,d.kind`)
+	if err != nil {
+		return out, err
+	}
+	var issue TogglIssue
+	var off TogglTimeOff
+	var day time.Time
+	var seconds int64
+	_, err = pgx.ForEachRow(rows, []any{&issue.EntryID, &issue.PersonID, &off.Kind, &day, &issue.Kind, &seconds}, func() error {
+		off.Day = DateFromTime(day)
+		off.Hours = Hours(time.Duration(seconds) * time.Second)
+		item, timeOff := issue, off
+		item.Local, item.Remote, item.TimeOff = togglState{Deleted: true}, togglState{Deleted: true}, &timeOff
+		out.Issues = append(out.Issues, item)
+		return nil
+	})
+	return out, err
 }
 func togglMessage(err error) string {
 	if e, ok := errors.AsType[*toggl.Error](err); ok {
@@ -463,4 +612,12 @@ func togglLocal(ctx context.Context, q querier, id uuid.UUID) (togglState, strin
 }
 func togglVersion(l togglLink, local togglState) string {
 	return fmt.Sprintf("%x", sha256.Sum256(append(append(stateJSON(local), stateJSON(l.remote)...), []byte(l.issue)...)))
+}
+
+// nonZero is a Toggl id, or null for none.
+func nonZero(id int64) *int64 {
+	if id == 0 {
+		return nil
+	}
+	return &id
 }
