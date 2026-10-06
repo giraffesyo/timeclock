@@ -19,13 +19,14 @@ import (
 // Toggl is the company migration bridge. Credentials are encrypted with a key
 // kept outside the database; associated data binds ciphertext to its workspace.
 type Toggl struct {
-	svc    *Service
-	box    cipher.AEAD
-	client func(string) *toggl.Client
+	svc              *Service
+	box              cipher.AEAD
+	client           func(string) *toggl.Client
+	workspaceTimeout time.Duration
 }
 
 func NewToggl(s *Service, key string) (*Toggl, error) {
-	t := &Toggl{svc: s, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
+	t := &Toggl{svc: s, workspaceTimeout: 5 * time.Minute, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
 	if key == "" {
 		return t, nil
 	}
