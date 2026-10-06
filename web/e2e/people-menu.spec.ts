@@ -76,6 +76,11 @@ for (const mobile of [false, true]) {
     await expect(row.getByRole('button', { name: 'Grace Hopper', exact: true })).toBeVisible();
     await row.getByRole('button', { name: 'Ada Lovelace', exact: true }).hover();
     await expect(page.getByText('Manager: Grace Hopper')).toBeVisible();
+    // The card copies the email, from a button that shows on hover.
+    const copy = page.getByRole('button', { name: 'Copy email' });
+    await expect(copy).toHaveCount(1);
+    await page.getByText(employee.email, { exact: true }).last().hover();
+    await expect(copy).toBeVisible();
     // The manager is shown as a person, with their photo.
     const managerPhoto = page.getByText('Manager: Grace Hopper').getByRole('img', { name: 'Grace Hopper' });
     await expect(managerPhoto).toBeVisible();
