@@ -45,5 +45,8 @@ for (const mobile of [false, true]) {
       await expect(avatar).toHaveCount(0);
       await expect(fullName).toBeVisible();
     }
+    // A refetch of /me may still be passing through the route as the test
+    // ends; let it go rather than fail on the closed context.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
   });
 }
