@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.7.0...timeclock-v0.8.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** drop the --server flag ([#30](https://github.com/giraffesyo/timeclock/issues/30))
+
+### Features
+
+* **cli:** drop the --server flag ([#30](https://github.com/giraffesyo/timeclock/issues/30)) ([dfe51ad](https://github.com/giraffesyo/timeclock/commit/dfe51ad5d82eb16f5de4eefd161a05865fda30f4))
+* **cli:** sign in to embedded hosts with an API key ([#32](https://github.com/giraffesyo/timeclock/issues/32)) ([99e63a3](https://github.com/giraffesyo/timeclock/commit/99e63a372967d43c7e368d994fc72352b76d600d))
+
+
+### Bug Fixes
+
+* batch unchanged Toggl entry reconciliation ([#33](https://github.com/giraffesyo/timeclock/issues/33)) ([5629dd0](https://github.com/giraffesyo/timeclock/commit/5629dd0223ba5d7a7ce63fe87a9fbe1303476027))
+
 ## [0.7.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.6.0...timeclock-v0.7.0) (2026-10-06)
 
 
