@@ -957,6 +957,10 @@
           "active": {
             "type": "boolean"
           },
+          "admin": {
+            "description": "Runs payroll and manages Timeclock.",
+            "type": "boolean"
+          },
           "avatarUrl": {
             "type": "string"
           },
@@ -966,6 +970,10 @@
           },
           "email": {
             "type": "string"
+          },
+          "hostAdmin": {
+            "description": "The host application makes them an admin; only the host can take that away.",
+            "type": "boolean"
           },
           "id": {
             "type": "string"
@@ -1020,6 +1028,8 @@
           "payrollId",
           "active",
           "submitsTimesheets",
+          "admin",
+          "hostAdmin",
           "submitsTimesheetsOverride"
         ],
         "type": "object"
@@ -1376,6 +1386,28 @@
         },
         "required": [
           "timezone"
+        ],
+        "type": "object"
+      },
+      "Set-person-adminRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Set-person-adminRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "admin": {
+            "description": "Grant admin here. Someone the host makes an admin stays one either way.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "admin"
         ],
         "type": "object"
       },
@@ -3147,6 +3179,57 @@
           }
         },
         "summary": "Set a person's manager and payroll details",
+        "tags": [
+          "People"
+        ]
+      }
+    },
+    "/api/v1/people/{id}/admin": {
+      "put": {
+        "operationId": "set-person-admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Set-person-adminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Make someone an admin in Timeclock, or take it back",
         "tags": [
           "People"
         ]

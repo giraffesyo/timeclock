@@ -68,6 +68,10 @@ type Person struct {
 	Active             bool   `json:"active"`
 	// SubmitsTimesheets is what applies: their own choice, or else the workspace's.
 	SubmitsTimesheets bool `json:"submitsTimesheets" doc:"They submit timesheets and are in payroll. Without, their time is for reports only."`
+	// Admin runs payroll and manages Timeclock: the host says so (HostAdmin),
+	// or an admin granted it here.
+	Admin     bool `json:"admin" doc:"Runs payroll and manages Timeclock."`
+	HostAdmin bool `json:"hostAdmin" doc:"The host application makes them an admin; only the host can take that away."`
 	// SubmitsTimesheetsOverride is their own choice; nil follows the workspace.
 	SubmitsTimesheetsOverride *bool `json:"submitsTimesheetsOverride" nullable:"true" doc:"Set for this person; null follows the workspace's setting."`
 }

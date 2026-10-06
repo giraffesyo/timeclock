@@ -1,22 +1,24 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
 import { ConfirmModal } from '@parallelworks/ui';
-import { LoaderIcon, RefreshIcon } from '@parallelworks/ui/icons';
-import { useCallback, useState } from 'react';
+import { LoaderIcon, MenuIcon, RefreshIcon } from '@parallelworks/ui/icons';
+import { type RowMenuItem, useRowMenu } from '@parallelworks/ui/list';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
-import { ContextMenu } from '@/components/context-menu';
 import { controlClass } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PersonIdentity } from '@/components/person-identity';
 import { Invites } from '@/components/settings/invites';
 import { Switch } from '@/components/settings/switch';
+import { Chip } from '@/components/status';
 import { cn } from '@/lib/cn';
 import {
   PartialFailure,
   type Person,
   type PersonUpdate,
   usePeople,
+  useSetAdmins,
   useSyncPeople,
   useUpdatePeople,
   useUpdatePerson,
@@ -26,6 +28,25 @@ import { timeZones } from '@/lib/zone';
 
 const th = 'px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground first:pl-4 last:pr-4';
 const td = 'px-3 py-2 align-middle first:pl-4 last:pr-4';
+
+/** Something to do to a group of people, shown in the menu and the selection bar. */
+interface Action {
+  label: string;
+  onSelect: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  /** Why it is disabled. */
+  tooltip?: string | undefined;
+}
+
+const toMenuItem = (a: Action): RowMenuItem => ({
+  kind: 'action',
+  label: a.label,
+  onSelect: a.onSelect,
+  destructive: a.danger,
+  disabled: a.disabled,
+  tooltip: a.tooltip,
+});
 
 /** One person. Each change is its own request, so the row carries its own pending and error states. */
 function PersonRow({
@@ -45,7 +66,7 @@ function PersonRow({
 }) {
   const t = useTranslations('settings.people');
   const update = useUpdatePerson();
-  const { settings } = useSession();
+  const { settings, info } = useSession();
   const [editing, setEditing] = useState(false);
   // The payroll id as typed, until it is saved; null shows the saved one.
   const [payrollDraft, setPayrollDraft] = useState<string | null>(null);
@@ -133,7 +154,18 @@ function PersonRow({
           />
         </td>
         <td className={`${td} whitespace-nowrap`}>
-          <PersonIdentity person={person} people={people} />
+          <span className="flex items-center gap-2">
+            <PersonIdentity person={person} people={people} />
+            {person.admin && (
+              <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
+                <span
+                  title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}
+                >
+                  {t('admin')}
+                </span>
+              </Chip>
+            )}
+          </span>
         </td>
         <td className={`${td} whitespace-nowrap text-muted-foreground`}>{person.email}</td>
         <td className={td}>
@@ -257,7 +289,7 @@ function PersonRow({
             <span>{shown.active ? t('active') : t('inactive')}</span>
           )}
         </td>
-        <td className={`${td} w-8`}>
+        <td className={`${td} w-8 whitespace-nowrap`}>
           <Button
             size="sm"
             variant="ghost"
@@ -267,6 +299,18 @@ function PersonRow({
           >
             {t(editing ? 'done' : 'edit')}
           </Button>
+          <button
+            type="button"
+            className="ml-0.5 inline-flex size-7 cursor-pointer items-center justify-center rounded-md align-middle text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t('rowMenu', { name: person.name })}
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const box = e.currentTarget.getBoundingClientRect();
+              onMenu({ x: box.right, y: box.bottom });
+            }}
+          >
+            <MenuIcon aria-hidden className="size-4" />
+          </button>
           {busy && (
             <span role="status" aria-label={t('saving')}>
               <LoaderIcon className="size-3.5 text-muted-foreground" aria-hidden />
@@ -320,9 +364,12 @@ export function People() {
   const bulk = useUpdatePeople();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [last, setLast] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const closeMenu = useCallback(() => setMenu(null), []);
-  const [deactivating, setDeactivating] = useState(false);
+  const { openMenu, contextMenu } = useRowMenu();
+  const admins = useSetAdmins();
+  const me = useSession();
+  // Who a confirmation is about: the selection, or the one row right-clicked.
+  const [deactivating, setDeactivating] = useState<Person[] | null>(null);
+  const [granting, setGranting] = useState<Person[] | null>(null);
 
   const list = people.data ?? [];
   // People who left the list (a sync, another admin) drop out of the selection.
@@ -342,17 +389,24 @@ export function People() {
     setLast(id);
   };
   // A right click on a row outside the selection acts on that row alone, as in a file list.
-  const openMenu = (id: string, at: { x: number; y: number }) => {
-    if (!selected.has(id)) {
-      setSelected(new Set([id]));
-      setLast(id);
+  const openRowMenu = (person: Person, at: { x: number; y: number }) => {
+    let group = chosen;
+    if (!selected.has(person.id)) {
+      setSelected(new Set([person.id]));
+      setLast(person.id);
+      group = [person];
     }
-    setMenu(at);
+    openMenu(at.x, at.y, actionsFor(group).map(toMenuItem));
   };
 
-  /** Applies the patch to the selected people it would change. */
-  const apply = (patch: Partial<PersonUpdate>, changes: (p: Person) => boolean, done: (count: number) => string) => {
-    const targets = chosen.filter(changes);
+  /** Applies the patch to those in the group it would change. */
+  const apply = (
+    group: Person[],
+    patch: Partial<PersonUpdate>,
+    changes: (p: Person) => boolean,
+    done: (count: number) => string,
+  ) => {
+    const targets = group.filter(changes);
     if (targets.length === 0) return;
     bulk.mutate(
       targets.map((p) => ({
@@ -367,85 +421,125 @@ export function People() {
       })),
       {
         onSuccess: () => toast.success(done(targets.length)),
-        onError: (err) =>
-          toast.error(
-            err instanceof PartialFailure
-              ? t('bulk.failed', { count: err.failed, total: err.total })
-              : t('bulk.failed', { count: targets.length, total: targets.length }),
-            { description: errorMessage(err instanceof PartialFailure ? err.cause : err) },
-          ),
+        onError: (err) => failed(err, targets.length),
       },
     );
   };
-  // One item per setting, saying what it would do: a mixed selection is
-  // brought into line, everyone already alike is switched over.
-  const allExempt = chosen.every((p) => p.overtimeExempt);
-  const allSubmit = chosen.every((p) => p.submitsTimesheets);
-  const allActive = chosen.every((p) => p.active);
-  const actions = [
-    allExempt
-      ? {
-          label: t('bulk.notExempt'),
-          onSelect: () =>
-            apply(
-              { overtimeExempt: false },
-              (p) => p.overtimeExempt,
-              (count) => t('bulk.unexempted', { count }),
-            ),
-        }
-      : {
-          label: t('bulk.exempt'),
-          onSelect: () =>
-            apply(
-              { overtimeExempt: true },
-              (p) => !p.overtimeExempt,
-              (count) => t('bulk.exempted', { count }),
-            ),
-        },
-    allSubmit
-      ? {
-          label: t('bulk.reportsOnly'),
-          onSelect: () =>
-            apply(
-              { submitsTimesheets: false },
-              (p) => p.submitsTimesheets,
-              (count) => t('bulk.madeReportsOnly', { count }),
-            ),
-        }
-      : {
-          label: t('bulk.submits'),
-          onSelect: () =>
-            apply(
-              { submitsTimesheets: true },
-              (p) => !p.submitsTimesheets,
-              (count) => t('bulk.madeSubmit', { count }),
-            ),
-        },
-    ...(chosen.some((p) => p.submitsTimesheetsOverride != null)
-      ? [
-          {
-            label: t('bulk.timesheetsDefault'),
+  const failed = (err: unknown, count: number) =>
+    toast.error(
+      err instanceof PartialFailure
+        ? t('bulk.failed', { count: err.failed, total: err.total })
+        : t('bulk.failed', { count, total: count }),
+      { description: errorMessage(err instanceof PartialFailure ? err.cause : err) },
+    );
+  const setAdmin = (group: Person[], admin: boolean) => {
+    const ids = group.map((p) => p.id);
+    admins.mutate(
+      { ids, admin },
+      {
+        onSuccess: () =>
+          toast.success(
+            admin ? t('bulk.madeAdmin', { count: ids.length }) : t('bulk.removedAdmin', { count: ids.length }),
+          ),
+        onError: (err) => failed(err, ids.length),
+      },
+    );
+  };
+
+  // One item per setting, saying what it would do: a mixed group is brought
+  // into line, everyone already alike is switched over.
+  const actionsFor = (group: Person[]): Action[] => {
+    const allExempt = group.every((p) => p.overtimeExempt);
+    const allSubmit = group.every((p) => p.submitsTimesheets);
+    const allActive = group.every((p) => p.active);
+    const allAdmin = group.every((p) => p.admin);
+    // Only grants made here can be taken back here, and never your own.
+    const revocable = group.filter((p) => p.admin && !p.hostAdmin && p.id !== me.person.id);
+    return [
+      allExempt
+        ? {
+            label: t('bulk.notExempt'),
             onSelect: () =>
               apply(
-                { submitsTimesheets: null },
-                (p) => p.submitsTimesheetsOverride != null,
-                (count) => t('bulk.followDefault', { count }),
+                group,
+                { overtimeExempt: false },
+                (p) => p.overtimeExempt,
+                (count) => t('bulk.unexempted', { count }),
+              ),
+          }
+        : {
+            label: t('bulk.exempt'),
+            onSelect: () =>
+              apply(
+                group,
+                { overtimeExempt: true },
+                (p) => !p.overtimeExempt,
+                (count) => t('bulk.exempted', { count }),
               ),
           },
-        ]
-      : []),
-    allActive
-      ? { label: t('bulk.deactivate'), danger: true, onSelect: () => setDeactivating(true) }
-      : {
-          label: t('bulk.activate'),
-          onSelect: () =>
-            apply(
-              { active: true },
-              (p) => !p.active,
-              (count) => t('bulk.activated', { count }),
-            ),
-        },
-  ];
+      allSubmit
+        ? {
+            label: t('bulk.reportsOnly'),
+            onSelect: () =>
+              apply(
+                group,
+                { submitsTimesheets: false },
+                (p) => p.submitsTimesheets,
+                (count) => t('bulk.madeReportsOnly', { count }),
+              ),
+          }
+        : {
+            label: t('bulk.submits'),
+            onSelect: () =>
+              apply(
+                group,
+                { submitsTimesheets: true },
+                (p) => !p.submitsTimesheets,
+                (count) => t('bulk.madeSubmit', { count }),
+              ),
+          },
+      ...(group.some((p) => p.submitsTimesheetsOverride != null)
+        ? [
+            {
+              label: t('bulk.timesheetsDefault'),
+              onSelect: () =>
+                apply(
+                  group,
+                  { submitsTimesheets: null },
+                  (p) => p.submitsTimesheetsOverride != null,
+                  (count) => t('bulk.followDefault', { count }),
+                ),
+            },
+          ]
+        : []),
+      allActive
+        ? { label: t('bulk.deactivate'), danger: true, onSelect: () => setDeactivating(group) }
+        : {
+            label: t('bulk.activate'),
+            onSelect: () =>
+              apply(
+                group,
+                { active: true },
+                (p) => !p.active,
+                (count) => t('bulk.activated', { count }),
+              ),
+          },
+      allAdmin
+        ? {
+            label: t('bulk.removeAdmin'),
+            disabled: revocable.length === 0,
+            tooltip:
+              revocable.length === 0
+                ? group.some((p) => p.id === me.person.id)
+                  ? t('bulk.ownAdmin')
+                  : t('adminFromHost', { host: me.info.homeLabel || t('theHost') })
+                : undefined,
+            onSelect: () => setAdmin(revocable, false),
+          }
+        : { label: t('bulk.makeAdmin'), onSelect: () => setGranting(group.filter((p) => !p.admin)) },
+    ];
+  };
+  const busy = bulk.isPending || admins.isPending;
 
   return (
     <>
@@ -478,18 +572,19 @@ export function People() {
                 <span className="mr-1 text-sm font-medium" role="status">
                   {t('bulk.selected', { count: chosen.length })}
                 </span>
-                {actions.map((a) => (
+                {actionsFor(chosen).map((a) => (
                   <Button
                     key={a.label}
                     size="sm"
                     variant={a.danger ? 'danger' : 'outline'}
-                    disabled={bulk.isPending}
+                    disabled={busy || a.disabled}
+                    title={a.tooltip}
                     onClick={a.onSelect}
                   >
                     {a.label}
                   </Button>
                 ))}
-                {bulk.isPending && <LoaderIcon className="size-3.5 text-muted-foreground" aria-label={t('saving')} />}
+                {busy && <LoaderIcon className="size-3.5 text-muted-foreground" aria-label={t('saving')} />}
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
                   {t('bulk.clear')}
                 </Button>
@@ -547,7 +642,7 @@ export function People() {
                     people={people.data}
                     selected={selected.has(p.id)}
                     onSelect={(range) => select(p.id, range)}
-                    onMenu={(at) => openMenu(p.id, at)}
+                    onMenu={(at) => openRowMenu(p, at)}
                   />
                 ))}
               </tbody>
@@ -555,30 +650,37 @@ export function People() {
           </div>
         )}
       </Panel>
-      {menu && chosen.length > 0 && (
-        <ContextMenu
-          at={menu}
-          label={t('bulk.menu', { count: chosen.length })}
-          heading={chosen.length === 1 ? chosen[0]?.name : t('bulk.selected', { count: chosen.length })}
-          items={actions.map((a) => ({ ...a, disabled: bulk.isPending }))}
-          onClose={closeMenu}
-        />
-      )}
+      {contextMenu}
       {deactivating && (
         <ConfirmModal
           open
-          onClose={() => setDeactivating(false)}
-          title={t('bulk.deactivateTitle', { count: chosen.filter((p) => p.active).length })}
+          onClose={() => setDeactivating(null)}
+          title={t('bulk.deactivateTitle', { count: deactivating.filter((p) => p.active).length })}
           description={t('deactivate.description')}
           confirmLabel={t('deactivate.action')}
           destructive
           onConfirm={() =>
             apply(
+              deactivating,
               { active: false },
               (p) => p.active,
               (count) => t('bulk.deactivated', { count }),
             )
           }
+        />
+      )}
+      {granting && (
+        <ConfirmModal
+          open
+          onClose={() => setGranting(null)}
+          title={
+            granting.length === 1
+              ? t('grant.titleOne', { name: granting[0]?.name ?? '' })
+              : t('grant.title', { count: granting.length })
+          }
+          description={t('grant.description')}
+          confirmLabel={t('bulk.makeAdmin')}
+          onConfirm={() => setAdmin(granting, true)}
         />
       )}
       <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">

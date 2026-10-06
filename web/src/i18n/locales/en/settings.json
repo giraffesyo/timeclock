@@ -202,19 +202,33 @@
       "deactivated": "{count, plural, one {# person was} other {# people were}} deactivated.",
       "deactivateTitle": "Deactivate {count, plural, one {# person} other {# people}}?",
       "failed": "Couldn’t change {count} of {total, plural, one {# person} other {# people}}.",
-      "hint": "Select people, or right-click one, to change several at once.",
+      "hint": "Select people, right-click one, or use ⋮ to change several at once.",
       "submits": "Require timesheets",
       "reportsOnly": "Reports only, not in payroll",
       "timesheetsDefault": "Use the workspace default for timesheets",
       "madeSubmit": "{count, plural, one {# person submits} other {# people submit}} timesheets now.",
       "madeReportsOnly": "{count, plural, one {# person tracks} other {# people track}} time for reports only now.",
-      "followDefault": "{count, plural, one {# person follows} other {# people follow}} the workspace default for timesheets."
+      "followDefault": "{count, plural, one {# person follows} other {# people follow}} the workspace default for timesheets.",
+      "makeAdmin": "Make admin",
+      "removeAdmin": "Remove admin",
+      "ownAdmin": "You can’t remove your own admin.",
+      "madeAdmin": "{count, plural, one {# person is} other {# people are}} now an admin.",
+      "removedAdmin": "{count, plural, one {# person is} other {# people are}} no longer an admin."
     },
     "timesheetsFor": "Whether {name} submits timesheets",
     "timesheetsDefault": "Default: {value}",
     "submits": "Submits",
     "reportsOnly": "Reports only",
-    "byDefault": "default"
+    "byDefault": "default",
+    "admin": "Admin",
+    "theHost": "the host application",
+    "adminFromHost": "An admin in {host}: only {host} can change that.",
+    "rowMenu": "Actions for {name}",
+    "grant": {
+      "titleOne": "Make {name} an admin?",
+      "title": "Make {count, plural, one {# person} other {# people}} admins?",
+      "description": "Admins run payroll and manage Timeclock: they see everyone’s time, approve anything, change settings and people, and export reports."
+    }
   },
   "history": {
     "title": "Changes to payroll data",

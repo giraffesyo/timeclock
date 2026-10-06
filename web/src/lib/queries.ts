@@ -310,6 +310,24 @@ export function useUpdatePeople() {
   });
 }
 
+/** Grants admin to several people, or takes it back, one request each. */
+export function useSetAdmins() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, admin }: { ids: string[]; admin: boolean }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          api.PUT('/api/v1/people/{id}/admin', { params: { path: { id } }, body: { admin } }).then(unwrap),
+        ),
+      );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0)
+        throw new PartialFailure(failed.length, ids.length, (failed[0] as PromiseRejectedResult).reason);
+    },
+    onSettled: () => client.invalidateQueries(),
+  });
+}
+
 /** Some of a batch of changes failed: how many, and the first reason. */
 export class PartialFailure extends Error {
   constructor(

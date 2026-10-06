@@ -131,12 +131,13 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 
 const personColumns = `id, name, email, timezone, CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END,
 	overtime_exempt, payroll_id, active, avatar_url, host_manager_id, manager_id, submits_timesheets,
-	coalesce(submits_timesheets, (SELECT submit_timesheets FROM settings WHERE settings.workspace_id = people.workspace_id))`
+	coalesce(submits_timesheets, (SELECT submit_timesheets FROM settings WHERE settings.workspace_id = people.workspace_id)),
+	host_admin, host_admin OR admin`
 
 func scanPerson(row pgx.Row) (Person, error) {
 	var p Person
 	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.Timezone, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active, &p.AvatarURL,
-		&p.DirectoryManagerID, &p.ManagerOverrideID, &p.SubmitsTimesheetsOverride, &p.SubmitsTimesheets)
+		&p.DirectoryManagerID, &p.ManagerOverrideID, &p.SubmitsTimesheetsOverride, &p.SubmitsTimesheets, &p.HostAdmin, &p.Admin)
 	return p, err
 }
 
@@ -145,18 +146,45 @@ func scanPerson(row pgx.Row) (Person, error) {
 // table always has everyone who has used Timeclock.
 func (s *Service) Sync(ctx context.Context, hp host.Person) (Actor, error) {
 	p, err := scanPerson(s.pool.QueryRow(ctx, `
-		INSERT INTO people (id, workspace_id, name, email, host_manager_id, avatar_url) VALUES ($1, $W, $2, $3, $4, $5)
+		INSERT INTO people (id, workspace_id, name, email, host_manager_id, avatar_url, host_admin) VALUES ($1, $W, $2, $3, $4, $5, $6)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email,
-			host_manager_id = EXCLUDED.host_manager_id, avatar_url = EXCLUDED.avatar_url, updated_at = now()
-		WHERE (people.name, people.email, people.host_manager_id, people.avatar_url) IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.email, EXCLUDED.host_manager_id, EXCLUDED.avatar_url)
-		RETURNING `+personColumns, hp.ID, hp.Name, hp.Email, hp.ManagerID, hp.AvatarURL))
+			host_manager_id = EXCLUDED.host_manager_id, avatar_url = EXCLUDED.avatar_url, host_admin = EXCLUDED.host_admin, updated_at = now()
+		WHERE (people.name, people.email, people.host_manager_id, people.avatar_url, people.host_admin)
+			IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.email, EXCLUDED.host_manager_id, EXCLUDED.avatar_url, EXCLUDED.host_admin)
+		RETURNING `+personColumns, hp.ID, hp.Name, hp.Email, hp.ManagerID, hp.AvatarURL, hp.Admin))
 	if errors.Is(err, pgx.ErrNoRows) { // nothing changed, so nothing was returned
 		p, err = scanPerson(s.pool.QueryRow(ctx, `SELECT `+personColumns+` FROM people WHERE id = $1 AND workspace_id = $W`, hp.ID))
 	}
 	if err != nil {
 		return Actor{}, fmt.Errorf("sync person: %w", err)
 	}
-	return Actor{Person: p, Admin: hp.Admin}, nil
+	return Actor{Person: p, Admin: p.Admin}, nil
+}
+
+// SetAdmin grants a person admin in Timeclock, or takes the grant back.
+// Someone the host makes an admin stays one: only the host can change that.
+// No one takes their own admin away, so a workspace can't lock itself out.
+func (s *Service) SetAdmin(ctx context.Context, actor Actor, id string, admin bool) (Person, error) {
+	if !actor.Admin {
+		return Person{}, forbidden("only an admin changes who is an admin")
+	}
+	if id == actor.ID && !admin {
+		return Person{}, forbidden("you can't take away your own admin")
+	}
+	var out Person
+	err := s.tx(ctx, id, func(tx querier) error {
+		before, err := person(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET admin = $2, updated_at = now()
+			WHERE id = $1 AND workspace_id = $W RETURNING `+personColumns, id, admin))
+		if err != nil {
+			return fmt.Errorf("set admin: %w", err)
+		}
+		return audit(ctx, tx, actor, "person.admin", id, map[string]any{"before": before.Admin, "after": out.Admin, "granted": admin})
+	})
+	return out, err
 }
 
 // SyncAll records everyone in the host's directory, so admins can assign
