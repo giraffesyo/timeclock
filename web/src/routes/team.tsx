@@ -1,3 +1,4 @@
+import { ListDisplayMenu, ListFilterMenu } from '@parallelworks/ui/list';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -5,7 +6,7 @@ import { Button, buttonClass } from '@/components/button';
 import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
 import { PeriodNav, usePeriodLabel } from '@/components/period-nav';
 import { PendingTimeOff, pendingRuns } from '@/components/team/pending-time-off';
-import { TeamTable } from '@/components/team/team-table';
+import { TeamTable, useTeamView } from '@/components/team/team-table';
 import { type PeriodSummary, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
@@ -63,6 +64,7 @@ function Approvals() {
   const team = useTeam(day);
   const pending = usePendingTimeOff();
   const people = usePeople();
+  const view = useTeamView();
 
   const show = (next: Day | undefined) => navigate({ search: (prev) => ({ ...prev, day: next }), replace: true });
 
@@ -143,7 +145,16 @@ function Approvals() {
           )}
         </Panel>
 
-        <Panel flush title={period ? periodLabel(period) : t('table.title')}>
+        <Panel
+          flush
+          title={period ? periodLabel(period) : t('table.title')}
+          actions={
+            <>
+              <ListFilterMenu view={view} />
+              <ListDisplayMenu view={view} />
+            </>
+          }
+        >
           {team.isError ? (
             <ErrorNote className="m-4" context={t('loadFailed')} error={team.error} />
           ) : team.isPending ? (
@@ -151,7 +162,7 @@ function Approvals() {
           ) : members.length === 0 ? (
             <Empty>{t('table.empty')}</Empty>
           ) : (
-            <TeamTable members={members} />
+            <TeamTable members={members} view={view} />
           )}
         </Panel>
       </div>
