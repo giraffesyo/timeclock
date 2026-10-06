@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.5.0...timeclock-v0.5.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* respect Toggl report date limits during historical sync ([#22](https://github.com/giraffesyo/timeclock/issues/22)) ([ebbae2a](https://github.com/giraffesyo/timeclock/commit/ebbae2a69bfe970f66761a70428f691476d69040))
+
 ## [0.5.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.4.0...timeclock-v0.5.0) (2026-10-05)
 
 

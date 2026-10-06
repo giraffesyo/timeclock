@@ -11,6 +11,49 @@ import (
 	"github.com/giraffesyo/timeclock/internal/toggl"
 )
 
+func TestTogglHistoryRespectsReportDateFloor(t *testing.T) {
+	for _, tc := range []struct {
+		name, from, cursor string
+	}{
+		{name: "all history"},
+		{name: "explicit old start", from: "1970-01-01"},
+		{name: "earliest report day", from: "2006-01-01"},
+		{name: "existing historical cursor", cursor: "1980-01-01"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, b, fake := togglFixture(t)
+			seedToggl(f, fake)
+			earliest := fake.entries[101]
+			earliest.ID = 102
+			earliest.Start = time.Date(2006, 1, 1, 0, 0, 0, 0, time.UTC)
+			end := earliest.Start.Add(time.Hour)
+			earliest.Stop = &end
+			fake.entries[102] = earliest
+			if err := b.Configure(t.Context(), f.Service, f.admin, TogglSetup{Token: "fake", WorkspaceID: 42, From: tc.from, People: []TogglMapping{{PersonID: f.ada.ID, UserID: 1}}}); err != nil {
+				t.Fatal(err)
+			}
+			if tc.cursor != "" {
+				if _, err := f.pool.Exec(t.Context(), `UPDATE toggl_workspaces SET history_cursor=$1 WHERE workspace_id=$W`, tc.cursor); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Six batches cover the supported history through the fixture's
+			// October 2026 clock without spending batches on unsupported years.
+			for range 6 {
+				requireSync(t, f, b)
+			}
+			status, err := b.Status(t.Context(), f.Service, f.admin)
+			if err != nil || !status.HistoryComplete {
+				t.Fatalf("history did not finish: %+v %v", status, err)
+			}
+			var imported int
+			if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM time_entries WHERE workspace_id=$W AND source='toggl'`).Scan(&imported); err != nil || imported != 2 {
+				t.Fatalf("earliest-day and recent entries must import exactly once: %d %v", imported, err)
+			}
+		})
+	}
+}
+
 func TestTogglAllHistoryAndOfflineReconnect(t *testing.T) {
 	f, b, fake := togglFixture(t)
 	seedToggl(f, fake)
