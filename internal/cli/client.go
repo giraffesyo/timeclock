@@ -232,7 +232,7 @@ func (c *client) send(ctx context.Context, method, path string, query url.Values
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, detail)
 	}
 	if len(data) > 0 && !json.Valid(data) && !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/csv") {
-		return nil, errors.New("server returned neither JSON nor CSV; check --server includes the Timeclock mount path")
+		return nil, errors.New("server returned neither JSON nor CSV; check the server URL includes the Timeclock mount path")
 	}
 	return data, nil
 }

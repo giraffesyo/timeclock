@@ -17,13 +17,12 @@ import (
 
 // New creates a fresh command tree. No configuration or network is needed for help.
 func New(version string) *cobra.Command {
-	o := &options{token: os.Getenv("TIMECLOCK_TOKEN")}
+	o := &options{token: os.Getenv("TIMECLOCK_TOKEN"), server: os.Getenv("TIMECLOCK_URL")}
 	root := &cobra.Command{
 		Use: "timeclock", Short: "Track time from your terminal", Version: version,
 		SilenceUsage: true, SilenceErrors: true,
 	}
 	f := root.PersistentFlags()
-	f.StringVar(&o.server, "server", os.Getenv("TIMECLOCK_URL"), "Server URL, including any mount path (TIMECLOCK_URL)")
 	f.StringVar(&o.configPath, "config", os.Getenv("TIMECLOCK_CONFIG"), "Config file (TIMECLOCK_CONFIG; default: user config directory/timeclock/config.json)")
 	f.BoolVar(&o.json, "json", false, "Print the full JSON response")
 	f.StringVar(&o.credentialStore, "credential-store", os.Getenv("TIMECLOCK_CREDENTIAL_STORE"), "OAuth credential storage: keyring (default) or file (explicit headless fallback)")
