@@ -3,11 +3,12 @@ import { CloseIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
-import { controlClass, Field } from '@/components/field';
+import { Field } from '@/components/field';
 import { ErrorNote } from '@/components/page';
+import { ZoneSelect } from '@/components/zone-select';
 import { useSetOwnTimezone } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { browserZone, timeZones, useZone } from '@/lib/zone';
+import { browserZone, useZone } from '@/lib/zone';
 
 /** A zone as people say it: "Chicago", "Los Angeles". */
 export const zoneCity = (zone: string) => (zone.split('/').pop() ?? zone).replaceAll('_', ' ');
@@ -38,14 +39,7 @@ export function ZoneDialog({ onClose }: { onClose: () => void }) {
       }}
     >
       <Field label={t('label')}>
-        <select className={controlClass} value={zone} onChange={(e) => setZone(e.target.value)}>
-          <option value="">{t('organization', { zone: settings.timezone })}</option>
-          {timeZones(zone).map((z) => (
-            <option key={z} value={z}>
-              {z}
-            </option>
-          ))}
-        </select>
+        <ZoneSelect value={zone} onChange={setZone} defaultLabel={t('organization', { zone: settings.timezone })} />
       </Field>
       {(zone || settings.timezone) !== here && (
         <Button variant="ghost" size="sm" className="mt-2" onClick={() => setZone(here)}>

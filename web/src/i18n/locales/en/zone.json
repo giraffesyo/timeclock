@@ -8,5 +8,9 @@
   "button": "Times are in {zone}. Change your time zone",
   "banner": "This browser is in {here} time, but your times are shown in {zone} time.",
   "switch": "Use {zone} time",
-  "keep": "Keep {zone} time"
+  "keep": "Keep {zone} time",
+  "picker": {
+    "search": "Search by city, region or offset",
+    "empty": "No time zone matches “{query}”."
+  }
 }
