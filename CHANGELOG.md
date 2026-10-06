@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.13.0...timeclock-v0.14.0) (2026-10-06)
+
+
+### Features
+
+* build Customers and projects on the UI package's list view ([#60](https://github.com/giraffesyo/timeclock/issues/60)) ([2915979](https://github.com/giraffesyo/timeclock/commit/29159799dd4ec43c30ce64b2fb9cf528083ac939))
+* build the People table on the UI package's list view ([#57](https://github.com/giraffesyo/timeclock/issues/57)) ([0fc2826](https://github.com/giraffesyo/timeclock/commit/0fc2826e6821de620b26a76a7b8abce25872767d))
+* build the Team table on the UI package's list view ([#59](https://github.com/giraffesyo/timeclock/issues/59)) ([2990b5f](https://github.com/giraffesyo/timeclock/commit/2990b5f7d42d75baec64e38a77a27282284e9bf2))
+
+
+### Bug Fixes
+
+* keep the Toggl history import going past entries it can't place ([#61](https://github.com/giraffesyo/timeclock/issues/61)) ([520d7ba](https://github.com/giraffesyo/timeclock/commit/520d7ba9a3fd7648ed12140560e3a4f35abe2870))
+
 ## [0.13.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.12.0...timeclock-v0.13.0) (2026-10-06)
 
 
