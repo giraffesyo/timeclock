@@ -167,9 +167,19 @@ type ReportGroup struct {
 // treats an incomplete result, a rate limit, or a missing row as a deletion.
 type ReportCursor map[string]int64
 
+// Row offsets and entry/time offsets are alternative pagination methods.
+// Sending both makes Toggl skip entries, often returning an empty second page.
+// Normalize saved cursors too: older versions persisted all three headers.
+func (c ReportCursor) normalized() ReportCursor {
+	if row, ok := c["first_row_number"]; ok {
+		return ReportCursor{"first_row_number": row}
+	}
+	return c
+}
+
 func (c *Client) ReportPage(ctx context.Context, workspace int64, from, to string, cursor ReportCursor) ([]Entry, ReportCursor, error) {
 	body := map[string]any{"start_date": from, "end_date": to, "page_size": 1000, "grouped": false, "rounding": 0, "rounding_minutes": 0, "order_by": "date", "order_dir": "ASC"}
-	for k, v := range cursor {
+	for k, v := range cursor.normalized() {
 		body[k] = v
 	}
 	var raw json.RawMessage
@@ -200,7 +210,7 @@ func (c *Client) ReportPage(ctx context.Context, workspace int64, from, to strin
 			}
 		}
 	}
-	return entries, next, nil
+	return entries, next.normalized(), nil
 }
 
 func (c *Client) Report(ctx context.Context, workspace int64, from, to string) ([]Entry, error) {
