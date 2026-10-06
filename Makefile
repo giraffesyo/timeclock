@@ -1,4 +1,4 @@
-.PHONY: dev server web install build cli cli-dist check lint lint-go vuln test test-db e2e api release
+.PHONY: dev server web install build build-web build-server build-host build-e2e cli cli-dist check lint lint-go vuln test db test-db e2e api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
@@ -26,11 +26,21 @@ install:
 	@cd web && pnpm install --frozen-lockfile
 
 # The server with the web app embedded, as the image builds it.
-build:
+build: build-server build-host cli
+
+build-web:
 	@cd web && pnpm build
+
+build-server: build-web
 	go build -o timeclock-server ./cmd/timeclock-server
+
+build-host: build-web
 	go build -o example-host ./examples/host
-	$(MAKE) cli
+
+# Build the test server directly, without first linking a production server
+# that would immediately be overwritten. The host keeps its production tags.
+build-e2e: build-web build-host cli
+	go build -tags=e2e -o timeclock-server ./cmd/timeclock-server
 
 # The CLI needs neither PostgreSQL nor the web build.
 CLI_VERSION ?= dev
@@ -69,8 +79,7 @@ test-db: db
 
 # The end-to-end tests: the built server, with the app embedded, driven by
 # real browsers against the development database (a schema of its own per run).
-e2e: db build
-	go build -tags=e2e -o timeclock-server ./cmd/timeclock-server
+e2e: db build-e2e
 	@cd web && pnpm exec playwright test $(ARGS)
 
 # Regenerate the web app's API types from the server's OpenAPI document.

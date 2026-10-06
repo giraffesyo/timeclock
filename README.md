@@ -183,6 +183,8 @@ make cli-dist CLI_VERSION=dev # cross-compile and package all six CLI targets
 
 In development the Go server proxies the web app from Vite, so open the Go server's address. Vite's own address (`:5174`) passes the API on to the Go server and works too, but only the Go server applies the CSP.
 
+`make build` builds the production server, example host, and CLI. `make build-e2e` builds the same frontend and host with the test-tagged server directly; `make e2e` uses it. Both share one frontend build, including with parallel Make. CI overlaps that build with browser installation and runs every browser project. Go jobs use separate caches for cross-compilation, lint/race tests, API generation, and E2E builds; Docker uses a shared BuildKit layer cache. Cache hits never skip the database or browser tests.
+
 | Where | What |
 | --- | --- |
 | `timeclock.go` | `New`, `Options`: the handler a host mounts |
