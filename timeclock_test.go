@@ -57,10 +57,11 @@ func mounted(t *testing.T) http.Handler {
 			"pat": {ID: "pat", Name: "Pat Admin", Email: "pat@example.com", Admin: true},
 			"ada": {ID: "ada", Name: "Ada Lovelace", Email: "ada@example.com", ManagerID: "pat", AvatarURL: "/avatars/ada.png"},
 		},
-		HomeURL:    "/",
-		HomeLabel:  "Host",
-		SignInURL:  "/login?next=",
-		APIKeysURL: "https://portal.example.com/settings/api-keys",
+		HomeURL:      "/",
+		HomeLabel:    "Host",
+		SignInURL:    "/login?next=",
+		ImageSources: []string{"https://*.googleusercontent.com"},
+		APIKeysURL:   "https://portal.example.com/settings/api-keys",
 		Theme: host.Theme{
 			Light: &host.Scheme{Interface: host.ThemeSeed{Accent: "#06354f", Background: "#f3f4f6"}},
 			Dark:  &host.Scheme{Interface: host.ThemeSeed{Accent: "#2f81f7", Background: "#0d1117"}},
@@ -101,6 +102,11 @@ func TestMountedInAHost(t *testing.T) {
 	}
 	h := mounted(t)
 	const api = "/timeclock/api/v1"
+
+	// Directory photos load from the host's image origin.
+	if rec, _ := call(t, h, "ada", http.MethodGet, "/timeclock/", ""); !strings.Contains(rec.Header().Get("Content-Security-Policy"), "img-src 'self' data: https://*.googleusercontent.com;") {
+		t.Fatalf("CSP = %q", rec.Header().Get("Content-Security-Policy"))
+	}
 
 	// Signed out: the API refuses with a problem, and says where to sign in.
 	rec, _ := call(t, h, "", http.MethodGet, api+"/me", "")
@@ -330,6 +336,19 @@ func TestAPIKeysURLMustBeAbsolute(t *testing.T) {
 		})
 		if err == nil || !strings.Contains(err.Error(), "APIKeysURL") {
 			t.Errorf("%q: %v", u, err)
+		}
+	}
+}
+
+func TestImageSourcesAreOneSourceEach(t *testing.T) {
+	for _, src := range []string{"", "https://a.example https://b.example", "https://a.example; script-src *", "'unsafe-inline'"} {
+		_, err := timeclock.New(t.Context(), timeclock.Options{
+			Caller:       func(*http.Request) (string, bool) { return "", false },
+			Directory:    directory{},
+			ImageSources: []string{src},
+		})
+		if err == nil || !strings.Contains(err.Error(), "image source") {
+			t.Errorf("%q: %v", src, err)
 		}
 	}
 }

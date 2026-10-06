@@ -97,6 +97,10 @@ type Options struct {
 	// than one organization: each key is its own people, time and settings,
 	// made the first time it is seen. Without it, everyone is in one.
 	Workspace func(r *http.Request) (key string, ok bool)
+	// ImageSources are origins Timeclock may load images from, beside its
+	// own, such as "https://*.googleusercontent.com" for directory photos in
+	// host.Person.AvatarURL. Each is a CSP source expression.
+	ImageSources []string
 	// Theme is the host's look, so Timeclock mounted in it matches: for
 	// light and for dark, an accent and a background. A workspace admin can
 	// still set the workspace's own in Timeclock's settings.
@@ -134,6 +138,11 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 	base := "/" + strings.Trim(opts.BasePath, "/")
 	if u, err := url.Parse(opts.APIKeysURL); opts.APIKeysURL != "" && (err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "") {
 		return nil, fmt.Errorf("timeclock: APIKeysURL %q must be an absolute http(s) URL", opts.APIKeysURL)
+	}
+	for _, src := range opts.ImageSources {
+		if src == "" || strings.ContainsAny(src, " ;,'\"\n") {
+			return nil, fmt.Errorf("timeclock: image source %q must be one CSP source expression", src)
+		}
 	}
 	for _, u := range []string{opts.SignInURL, opts.SignOutURL, opts.HomeURL} {
 		if u != "" && (!strings.HasPrefix(u, "/") || strings.HasPrefix(u, "//")) {
@@ -199,13 +208,14 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 				opts.Routes(mux)
 			}
 		},
-		Problems:  []*problem.Registry{clock.Problems},
-		Ready:     map[string]server.Pinger{"database": pool},
-		Web:       web.FS(),
-		DevServer: opts.DevServer,
-		BasePath:  base,
-		HSTS:      opts.HSTS,
-		Wrap:      authenticate(opts.Caller, (&workspaces{svc: svc, key: opts.Workspace}).of),
+		Problems:              []*problem.Registry{clock.Problems},
+		Ready:                 map[string]server.Pinger{"database": pool},
+		Web:                   web.FS(),
+		DevServer:             opts.DevServer,
+		BasePath:              base,
+		HSTS:                  opts.HSTS,
+		ContentSecurityPolicy: contentSecurityPolicy(opts.ImageSources),
+		Wrap:                  authenticate(opts.Caller, (&workspaces{svc: svc, key: opts.Workspace}).of),
 	})
 	if base != "/" {
 		h = http.StripPrefix(base, h)
@@ -282,4 +292,13 @@ func (w *workspaces) of(r *http.Request) (uuid.UUID, string, error) {
 // anything. The web app's client types are generated from it.
 func OpenAPI() *huma.OpenAPI {
 	return api.New(http.NewServeMux(), api.Deps{}).OpenAPI()
+}
+
+// contentSecurityPolicy is the server's default, with images also allowed
+// from the host's sources.
+func contentSecurityPolicy(images []string) string {
+	if len(images) == 0 {
+		return server.DefaultContentSecurityPolicy
+	}
+	return strings.Replace(server.DefaultContentSecurityPolicy, "img-src 'self' data:", "img-src 'self' data: "+strings.Join(images, " "), 1)
 }
