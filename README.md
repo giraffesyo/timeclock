@@ -106,7 +106,7 @@ Download `timeclock` from the [GitHub release assets](https://github.com/giraffe
 With Go installed, `go install github.com/giraffesyo/timeclock/cmd/timeclock@latest` also works. From this checkout, `make cli` builds only the client, without PostgreSQL or a web build.
 
 ```sh
-timeclock auth login --server https://time.example.com
+timeclock auth login time.example.com
 timeclock status
 timeclock projects
 timeclock clock in --project PROJECT_UUID --note 'Implement the export'
@@ -125,12 +125,12 @@ timeclock auth logout
 For SSH or another machine without a browser, use device authorization:
 
 ```sh
-timeclock auth login --server https://time.example.com --device --no-browser
+timeclock auth login time.example.com --device --no-browser
 ```
 
 Open the displayed URL on another device, enter the code from your terminal, check the account and workspace, and approve. Authorize only requests you started yourself. To use another workspace, switch to it in the browser and sign the CLI in again. Each authorization stays bound to its approved workspace even if the browser later switches.
 
-Tokens live in the OS credential store: macOS Keychain, Windows Credential Manager, or Linux Secret Service. On a headless system without one, explicitly add `--credential-store=file`; tokens are then stored in a private file beside the configuration (mode `0600` on Unix). There is no automatic plaintext fallback. The non-secret configuration lives in the platform's user configuration directory under `timeclock/config.json`; override it with `--config` or `TIMECLOCK_CONFIG` for separate profiles. A successful login saves the server and credential-store choice. `--server` / `TIMECLOCK_URL` overrides the saved server, and saved credentials are never sent to a different server.
+Tokens live in the OS credential store: macOS Keychain, Windows Credential Manager, or Linux Secret Service. On a headless system without one, explicitly add `--credential-store=file`; tokens are then stored in a private file beside the configuration (mode `0600` on Unix). There is no automatic plaintext fallback. The non-secret configuration lives in the platform's user configuration directory under `timeclock/config.json`; override it with `--config` or `TIMECLOCK_CONFIG` for separate profiles. The server is the Timeclock URL including any mount path; a bare host means HTTPS. A successful login saves the server and credential-store choice, so later commands (and a later `auth login` with no argument) reuse it. `--server` / `TIMECLOCK_URL` overrides the saved server, and saved credentials are never sent to a different server.
 
 Access tokens last ten minutes. Refresh tokens rotate automatically, with a thirty-day authorization lifetime; reusing a spent refresh token revokes the whole authorization. `auth logout` revokes the authorization at the server and removes the local credentials. Removing workspace membership, disabling the account, or changing/resetting its password also removes access. Browser logout is independent. CLI tokens cannot manage sign-in methods or approve another CLI.
 

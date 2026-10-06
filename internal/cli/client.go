@@ -102,7 +102,19 @@ func (o *options) client(ctx context.Context, version string, credentials bool) 
 		server = cfg.URL
 	}
 	if server == "" {
-		server = "http://localhost:8090"
+		return nil, errors.New("no server configured; run timeclock auth login <server> or set TIMECLOCK_URL")
+	}
+	if !strings.Contains(server, "://") {
+		// A bare host means HTTPS, except for local development servers.
+		host := server
+		if i := strings.IndexAny(host, ":/"); i >= 0 {
+			host = host[:i]
+		}
+		if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+			server = "http://" + server
+		} else {
+			server = "https://" + server
+		}
 	}
 	u, err := url.Parse(strings.TrimRight(server, "/"))
 	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
