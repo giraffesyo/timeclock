@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as CliRouteImport } from './routes/cli'
 import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InviteRouteImport } from './routes/invite'
@@ -31,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccountRoute = AccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CliRoute = CliRouteImport.update({
+  id: '/cli',
+  path: '/cli',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotRoute = ForgotRouteImport.update({
@@ -92,6 +98,7 @@ const TimesheetRoute = TimesheetRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/cli'
     | '/forgot'
     | '/integrations'
     | '/invite'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
+    | '/cli'
     | '/forgot'
     | '/integrations'
     | '/invite'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/cli'
     | '/forgot'
     | '/integrations'
     | '/invite'
@@ -186,6 +198,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
+  CliRoute: typeof CliRoute
   ForgotRoute: typeof ForgotRoute
   IntegrationsRoute: typeof IntegrationsRoute
   InviteRoute: typeof InviteRoute
@@ -213,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cli': {
+      id: '/cli'
+      path: '/cli'
+      fullPath: '/cli'
+      preLoaderRoute: typeof CliRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot': {
@@ -298,6 +318,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
+  CliRoute: CliRoute,
   ForgotRoute: ForgotRoute,
   IntegrationsRoute: IntegrationsRoute,
   InviteRoute: InviteRoute,

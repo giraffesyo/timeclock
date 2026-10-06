@@ -1,5 +1,5 @@
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test';
-import { BREACHED_PASSWORD, IDP, SERVICES_URL, SIGNIN_ENV } from '../playwright.config';
+import { BREACHED_PASSWORD, IDP, SERVICES_URL, SIGNIN_ENV, SIGNIN_URL } from '../playwright.config';
 import {
   addAuthenticator,
   address,
@@ -11,6 +11,7 @@ import {
   signIn,
   workspaceKey,
 } from './accounts';
+import { installation } from './cli';
 
 // A server set up the way a real deployment is: mail goes out by SMTP, the
 // breach list is checked, workspaces and the server have identity providers,
@@ -210,6 +211,34 @@ test.describe('passwords', () => {
 });
 
 test.describe('a workspace’s single sign-on', () => {
+  test('CLI browser authorization returns through required workspace SSO', async ({ browser }) => {
+    const ws = await workspace(browser, 'CLI SSO Workspace');
+    await connect(ws.admin, { required: true });
+    const email = address('cli-sso');
+    manage('invite', ws.key, email);
+    const page = await visitor(browser);
+    const cli = installation(SIGNIN_URL);
+    const login = cli.start();
+    try {
+      await expect.poll(() => login.output()).toContain('/auth/cli/authorize?');
+      await page.goto(login.output().match(/http:\/\/\S+/)?.[0] as string);
+      await page.getByLabel('Email', { exact: true }).fill(email);
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      await page.getByRole('link', { name: 'Continue with CLI SSO Workspace single sign-on' }).click();
+      await atProvider(page, email, 'CLI SSO User');
+      await expect(page.getByRole('heading', { name: 'Authorize Timeclock CLI' })).toBeVisible();
+      await expect(page.getByText('CLI SSO Workspace', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
+      expect(await login.finished, login.output()).toBe(0);
+      expect(JSON.parse(cli.run(['status', '--json'])).person.email).toBe(email);
+      expect(() => cli.run(['reports', 'payroll'])).toThrow();
+      cli.run(['auth', 'logout']);
+    } finally {
+      login.child.kill();
+      cli.clean();
+    }
+  });
+
   test('its people sign in through the provider, into that workspace only', async ({ browser }) => {
     const ws = await workspace(browser, 'Harbor Works');
     const loginLink = await connect(ws.admin);

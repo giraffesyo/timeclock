@@ -1,4 +1,4 @@
-.PHONY: dev server web install build check lint lint-go vuln test test-db e2e api release
+.PHONY: dev server web install build cli cli-dist check lint lint-go vuln test test-db e2e api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
@@ -30,6 +30,15 @@ build:
 	@cd web && pnpm build
 	go build -o timeclock-server ./cmd/timeclock-server
 	go build -o example-host ./examples/host
+	$(MAKE) cli
+
+# The CLI needs neither PostgreSQL nor the web build.
+CLI_VERSION ?= dev
+cli:
+	go build -trimpath -ldflags '-X main.version=$(CLI_VERSION)' -o timeclock ./cmd/timeclock
+
+cli-dist:
+	bash scripts/build-cli.sh '$(CLI_VERSION)'
 
 check: lint test
 

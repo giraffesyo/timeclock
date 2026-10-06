@@ -1,6 +1,7 @@
 import account from './account.json'
 import apiErrors from './apiErrors.json'
 import auth from './auth.json'
+import cli from './cli.json'
 import clock from './clock.json'
 import common from './common.json'
 import entry from './entry.json'
@@ -21,6 +22,7 @@ export default {
   account,
   apiErrors,
   auth,
+  cli,
   clock,
   common,
   entry,

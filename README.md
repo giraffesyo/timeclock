@@ -97,6 +97,53 @@ timeclock-server
 
 See `cmd/timeclock-server/main.go` for every variable. The `Dockerfile` builds the image.
 
+## Command-line client
+
+Download `timeclock` from the [GitHub release assets](https://github.com/giraffesyo/timeclock/releases). Each release includes macOS, Linux, and Windows binaries for `amd64` (Intel/AMD) and `arm64` (Apple Silicon/ARM). Unix archives are `.tar.gz`; Windows archives are `.zip`. Download `SHA256SUMS` alongside the archive and verify its SHA-256 digest before extracting it. On macOS/Linux, compare `shasum -a 256 <archive>` to its line in the manifest; on Windows use `Get-FileHash <archive> -Algorithm SHA256`. Put the extracted `timeclock` (or `timeclock.exe`) on your `PATH`.
+
+With Go installed, `go install github.com/giraffesyo/timeclock/cmd/timeclock@latest` also works. From this checkout, `make cli` builds only the client, without PostgreSQL or a web build.
+
+```sh
+timeclock auth login --server https://time.example.com
+timeclock status
+timeclock projects
+timeclock clock in --project PROJECT_UUID --note 'Implement the export'
+timeclock clock switch --project ANOTHER_UUID --note 'Review payroll'
+timeclock clock out
+timeclock entries list --from 2026-10-01 --to 2026-10-05
+timeclock timesheet show
+timeclock timesheet submit --day 2026-10-05
+timeclock reports payroll --day 2026-10-05 --csv > payroll.csv
+timeclock status --json
+timeclock auth logout
+```
+
+`auth login` opens your system browser and uses OAuth authorization code flow with S256 PKCE and a temporary loopback callback. Sign in normally with your password, passkey, authenticator or workspace SSO, then approve the CLI for the workspace shown. The CLI never asks for your password or browser cookie. `--no-browser` prints the URL for you to open manually on the same machine.
+
+For SSH or another machine without a browser, use device authorization:
+
+```sh
+timeclock auth login --server https://time.example.com --device --no-browser
+```
+
+Open the displayed URL on another device, enter the code from your terminal, check the account and workspace, and approve. Authorize only requests you started yourself. To use another workspace, switch to it in the browser and sign the CLI in again. Each authorization stays bound to its approved workspace even if the browser later switches.
+
+Tokens live in the OS credential store: macOS Keychain, Windows Credential Manager, or Linux Secret Service. On a headless system without one, explicitly add `--credential-store=file`; tokens are then stored in a private file beside the configuration (mode `0600` on Unix). There is no automatic plaintext fallback. The non-secret configuration lives in the platform's user configuration directory under `timeclock/config.json`; override it with `--config` or `TIMECLOCK_CONFIG` for separate profiles. A successful login saves the server and credential-store choice. `--server` / `TIMECLOCK_URL` overrides the saved server, and saved credentials are never sent to a different server.
+
+Access tokens last ten minutes. Refresh tokens rotate automatically, with a thirty-day authorization lifetime; reusing a spent refresh token revokes the whole authorization. `auth logout` revokes the authorization at the server and removes the local credentials. Removing workspace membership, disabling the account, or changing/resetting its password also removes access. Browser logout is independent. CLI tokens cannot manage sign-in methods or approve another CLI.
+
+Browser and device authorization are provided by the **standalone server**. When Timeclock is embedded in a host, the host supplies authentication: set `TIMECLOCK_TOKEN` to a bearer token the host accepts and include the mount path in `--server` (for example, `https://portal.example.com/timeclock`). That environment token overrides stored OAuth credentials. Production servers should use HTTPS; remote plain HTTP requires an explicit `--allow-http`.
+
+Use `--help` on any command. Date ranges include both `--from` and `--to`; manual entry timestamps require RFC3339 with an offset. `entries update` replaces the supplied entry's fields, so include its description and project to retain them. `--json` preserves the complete API response, CSV writes cleanly to stdout, and failures go to stderr with a nonzero exit status. Payroll CSV includes settled time by default; `--all` explicitly includes unsettled time. Shell completions are available through `timeclock completion bash|zsh|fish|powershell`.
+
+For operations without a dedicated command, `api` calls a path relative to `/api/v1`:
+
+```sh
+timeclock api '/time-off?from=2026-10-01&to=2026-10-31'
+timeclock api /projects --method POST --input project.json
+# --input - reads JSON from stdin.
+```
+
 ## Toggl Track trial sync
 
 An admin opens **Integrations → Toggl Track**, enters a Toggl workspace admin's API token, selects the workspace, and confirms the suggested email matches between Toggl users and Timeclock people. Employees do not connect their accounts. The Toggl account must have permission to read and edit the matched people's time; plan restrictions and API quotas still apply.
@@ -128,6 +175,8 @@ make check      # every linter and test
 make vuln       # known vulnerabilities in the Go code
 make e2e        # the end-to-end tests: the built server, driven by real browsers
 make api        # after changing an API operation: regenerate the web app's types
+make cli        # build the Go command-line client
+make cli-dist CLI_VERSION=dev # cross-compile and package all six CLI targets
 ```
 
 In development the Go server proxies the web app from Vite, so open the Go server's address. Vite's own address (`:5174`) passes the API on to the Go server and works too, but only the Go server applies the CSP.
@@ -139,6 +188,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 | `internal/clock/` | The payroll rules and their storage. Every statement names its workspace as `$W`; one that doesn't is refused (`workspace.go`) |
 | `internal/api/` | The HTTP API (huma); `timeclock-server openapi` prints its document |
 | `internal/standalone/` | A standalone server's accounts: passwords, sessions, invitations, workspaces to switch between, email, and OIDC |
+| `internal/cli/`, `cmd/timeclock/` | The Cobra CLI, OAuth client, credential storage, and HTTP commands |
 | `migrations/` | goose migrations, `NNNNN_name.sql` |
 | `web/` | The Vite app, embedded in the binary |
 | `web/packages/timeclock/` | `@giraffesyo/timeclock`, the clock for a host application; the app is built on its source |
@@ -154,10 +204,13 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 Commits on `canary` follow Conventional Commits, and [release-please](https://github.com/googleapis/release-please) keeps a release PR open from them. Merging that PR:
 
 - publishes a `timeclock-vX.Y.Z` GitHub release with the notes;
+- attaches `timeclock_X.Y.Z_OS_ARCH` CLI archives and `SHA256SUMS` to that release, built from its exact tag;
 - tags the Go module `vX.Y.Z` on a commit that adds the built `web/dist`, so a tagged version carries the app while `canary` stays free of build output. A host depends on that tag, never on `canary`, which embeds no app;
 - publishes `@giraffesyo/timeclock` at the same version to npm, signed in through npm's trusted publishing.
 
 `make release VERSION=vX.Y.Z` tags the module by hand, as a fallback.
+
+`make cli-dist CLI_VERSION=vX.Y.Z` builds the same CLI archives locally under `dist/cli` (Go, Bash, `tar`, `zip`, and `shasum` required). CI cross-compiles all targets, checks the checksums, and smoke-tests the Linux binary. The browser suite runs the real CLI against the standalone server and PostgreSQL: PKCE, device approval, MFA, required SSO, denial, workspace isolation, clock and entry operations, timesheets, exports, refresh, and logout. Run it with `make e2e ARGS='e2e/cli.spec.ts e2e/signin.spec.ts --project=accounts --project=signin'`. Go database tests additionally cover token replay, concurrent refresh, expiry, account revocation, and membership/SSO-policy changes.
 
 ## License
 

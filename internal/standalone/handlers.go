@@ -23,6 +23,11 @@ import (
 
 // Routes registers sign-in and account management under /auth.
 func (a *Auth) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /auth/cli/authorize", a.cliAuthorize)
+	mux.HandleFunc("POST /auth/cli/device", a.cliDevice)
+	mux.HandleFunc("POST /auth/cli/decision", a.cliDecision)
+	mux.HandleFunc("POST /auth/cli/token", a.cliToken)
+	mux.HandleFunc("POST /auth/cli/revoke", a.cliRevoke)
 	mux.HandleFunc("GET /auth/session", a.getSession)
 	mux.HandleFunc("POST /auth/login", a.login)
 	mux.HandleFunc("POST /auth/logout", a.logout)
@@ -613,6 +618,9 @@ func (a *Auth) resetPassword(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(ctx, `UPDATE accounts SET password_hash = $2 WHERE id = $1`, id, hash); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `UPDATE cli_grants SET revoked=true WHERE account_id=$1`, id); err != nil {
+			return err
+		}
 		_, err = tx.Exec(ctx, `DELETE FROM sessions WHERE account_id = $1`, id)
 		return err
 	})
@@ -666,6 +674,10 @@ func (a *Auth) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := a.pool.Exec(ctx, `UPDATE accounts SET password_hash = $2 WHERE id = $1`, s.account, hash); err != nil {
 		a.fail(w, r, fmt.Errorf("set password: %w", err))
+		return
+	}
+	if _, err := a.pool.Exec(ctx, `UPDATE cli_grants SET revoked=true WHERE account_id=$1`, s.account); err != nil {
+		a.fail(w, r, err)
 		return
 	}
 	if _, err := a.pool.Exec(ctx, `DELETE FROM sessions WHERE account_id = $1 AND token_hash <> $2`, s.account, s.hash); err != nil {

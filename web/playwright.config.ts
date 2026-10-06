@@ -88,7 +88,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } },
-      testIgnore: /(mobile|accounts|signin|host)\.spec/,
+      testIgnore: /(mobile|accounts|signin|host|cli)\.spec/,
     },
     // Safari handles focus on buttons differently, which the clock bar depends on.
     {
@@ -100,7 +100,7 @@ export default defineConfig({
     {
       name: 'accounts',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 }, baseURL: ACCOUNTS_URL },
-      testMatch: /accounts\.spec/,
+      testMatch: /(accounts|cli)\.spec/,
     },
     { name: 'signin', use: { ...desktop, baseURL: SIGNIN_URL }, testMatch: /signin\.spec/ },
     { name: 'host', use: { ...desktop, baseURL: HOST_URL }, testMatch: /host\.spec/ },

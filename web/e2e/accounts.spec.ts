@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ACCOUNTS_ENV } from '../playwright.config';
 import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
+import { installation } from './cli';
 import { lastWeek } from './fixtures';
 
 // A server with its own accounts: nobody is signed in until they accept an
@@ -222,6 +223,24 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
   await expect(page.getByText('Pia', { exact: true })).toBeVisible();
 
+  // The CLI uses the same browser passkey ceremony, then asks for approval.
+  await page.context().clearCookies();
+  const cli = installation();
+  const login = cli.start();
+  try {
+    await expect.poll(() => login.output()).toContain('/auth/cli/authorize?');
+    await page.goto(login.output().match(/http:\/\/\S+/)?.[0] as string);
+    await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+    await expect(page.getByRole('heading', { name: 'Authorize Timeclock CLI' })).toBeVisible();
+    await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
+    expect(await login.finished, login.output()).toBe(0);
+    expect(JSON.parse(cli.run(['status', '--json'])).person.email).toBe(email);
+    cli.run(['auth', 'logout']);
+  } finally {
+    login.child.kill();
+    cli.clean();
+  }
+
   // Removed, it no longer signs in.
   await page.goto('/account');
   await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toContainText('Last used');
@@ -269,7 +288,14 @@ test('workspace project and description requirements control clocks and manual e
   const descriptionRule = page.getByLabel('Require a description on every entry', { exact: true });
   await projectRule.click();
   await descriptionRule.click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // Wait for this write: a previous save toast may still be visible.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/v1/settings') && response.request().method() === 'PUT' && response.ok(),
+    ),
+    page.getByRole('button', { name: 'Save', exact: true }).click(),
+  ]);
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   await page.reload();
   expect(await settings()).toMatchObject({ requireProject: false, requireDescription: true });
@@ -308,7 +334,14 @@ test('workspace project and description requirements control clocks and manual e
   await page.goto('/settings');
   await projectRule.click();
   await descriptionRule.click();
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // Wait for this write: a previous save toast may still be visible.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/v1/settings') && response.request().method() === 'PUT' && response.ok(),
+    ),
+    page.getByRole('button', { name: 'Save', exact: true }).click(),
+  ]);
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
   await page.getByRole('link', { name: 'Timer', exact: true }).click();
