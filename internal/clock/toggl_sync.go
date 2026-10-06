@@ -336,12 +336,50 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 	if err != nil {
 		return err
 	}
+	links, err = togglUnsettledLinks(ctx, s.pool, links)
+	if err != nil {
+		return err
+	}
 	for _, l := range links {
 		if err = t.reconcile(ctx, s, c, client, l, people, projectMap); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Compare local snapshots in one read rather than rereading and acknowledging
+// every settled entry after every report window. Include all dates so edits to
+// older local entries still get pushed during the recent-window sync. Changed
+// entries are reread and validated by reconcile before any write.
+func togglUnsettledLinks(ctx context.Context, q querier, links []togglLink) ([]togglLink, error) {
+	rows, err := q.Query(ctx, `SELECT e.id,e.project_id,e.started_at,e.ended_at,e.note FROM time_entries e
+  JOIN toggl_entries t ON t.workspace_id=e.workspace_id AND t.entry_id=e.id WHERE e.workspace_id=$W`)
+	if err != nil {
+		return nil, err
+	}
+	local := map[uuid.UUID]togglState{}
+	var id uuid.UUID
+	var state togglState
+	_, err = pgx.ForEachRow(rows, []any{&id, &state.ProjectID, &state.Start, &state.End, &state.Note}, func() error {
+		local[id] = state
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	unsettled := make([]togglLink, 0)
+	for _, l := range links {
+		s, ok := local[l.id]
+		if !ok {
+			s = togglState{Deleted: true}
+		}
+		if l.issue == "" && !l.pending && s.equal(l.base) && s.equal(l.remote) {
+			continue
+		}
+		unsettled = append(unsettled, l)
+	}
+	return unsettled, nil
 }
 
 func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }
