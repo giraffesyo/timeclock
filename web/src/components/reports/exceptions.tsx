@@ -1,4 +1,4 @@
-import { AlertCircleIcon, InfoCircleIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
+import { AlertCircleIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { buttonClass } from '@/components/button';
@@ -12,9 +12,9 @@ import { type Day, dayToDate } from '@/lib/time';
 import { TimesheetLink, useStickyPeriod } from './shared';
 
 type Kind = Exception['kind'];
-type Severity = 'blocking' | 'check' | 'info';
+type Severity = 'blocking' | 'check';
 
-/** Most pressing first: what keeps a person out of payroll, then what to check, then what is only worth knowing. */
+/** Most pressing first: what keeps a person out of payroll, then what to check. Overtime is pay, not a problem, so it is not here. */
 const order: Kind[] = [
   'clock_running',
   'rejected',
@@ -23,7 +23,6 @@ const order: Kind[] = [
   'time_off_pending',
   'long_entry',
   'no_time',
-  'overtime',
 ];
 
 const severity: Record<Kind, Severity> = {
@@ -34,11 +33,10 @@ const severity: Record<Kind, Severity> = {
   time_off_pending: 'blocking',
   long_entry: 'check',
   no_time: 'check',
-  overtime: 'info',
 };
 
-const tones: Record<Severity, Tone> = { blocking: 'danger', check: 'warning', info: 'neutral' };
-const icons = { blocking: AlertCircleIcon, check: WarningTriangleIcon, info: InfoCircleIcon };
+const tones: Record<Severity, Tone> = { blocking: 'danger', check: 'warning' };
+const icons = { blocking: AlertCircleIcon, check: WarningTriangleIcon };
 
 const rank = (kind: Kind) => order.indexOf(kind);
 
@@ -58,7 +56,7 @@ function byPerson(exceptions: Exception[]): Group[] {
   }
   const out = [...groups.values()];
   for (const g of out) g.items.sort((a, b) => rank(a.kind) - rank(b.kind));
-  const top = (g: Group) => rank(g.items[0]?.kind ?? 'overtime');
+  const top = (g: Group) => rank(g.items[0]?.kind ?? 'no_time');
   return out.sort((a, b) => top(a) - top(b) || a.name.localeCompare(b.name));
 }
 

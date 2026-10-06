@@ -192,14 +192,13 @@ const (
 	ExceptionAwaitingApproval = "awaiting_approval" // a timesheet for an ended period is undecided
 	ExceptionRejected         = "rejected"          // a timesheet was sent back and not resubmitted
 	ExceptionTimeOffPending   = "time_off_pending"  // time off in the period is undecided
-	ExceptionOvertime         = "overtime"          // the person has overtime in the period
 	ExceptionNoTime           = "no_time"           // the period ended with nothing recorded
 )
 
 // Exception is something in a pay period that payroll should look at before
 // paying from it.
 type Exception struct {
-	Kind       string     `json:"kind" enum:"clock_running,long_entry,not_submitted,awaiting_approval,rejected,time_off_pending,overtime,no_time"`
+	Kind       string     `json:"kind" enum:"clock_running,long_entry,not_submitted,awaiting_approval,rejected,time_off_pending,no_time"`
 	PersonID   string     `json:"personId"`
 	PersonName string     `json:"personName"`
 	Day        *Date      `json:"day,omitempty" format:"date"`
