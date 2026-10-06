@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { DateTime } from 'luxon';
 import { ACCOUNTS_ENV } from '../playwright.config';
 import { address, authenticatorCode, join, manager, PASSWORD, signIn, workspaceKey } from './accounts';
 import { installation } from './cli';
@@ -234,6 +235,7 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
     await expect(page.getByRole('heading', { name: 'Authorize Timeclock CLI' })).toBeVisible();
     await page.getByRole('button', { name: 'Authorize CLI', exact: true }).click();
     expect(await login.finished, login.output()).toBe(0);
+    await expect(page.getByText('Authorization received. Return to your terminal.')).toBeVisible();
     expect(JSON.parse(cli.run(['status', '--json'])).person.email).toBe(email);
     cli.run(['auth', 'logout']);
   } finally {
@@ -361,7 +363,8 @@ test('workspace project and description requirements control clocks and manual e
   await page.reload();
   await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
   await expect(clock.getByRole('timer')).toBeVisible();
-  const started = (await (await request.get('/api/v1/me')).json()).running;
+  const session = await (await request.get('/api/v1/me')).json();
+  const started = session.running;
   await clock.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(clock.getByRole('alert')).toContainText('Add a description and choose a project');
   await clock.getByRole('button', { name: /^Project the clock is running on:/ }).click();
@@ -370,11 +373,11 @@ test('workspace project and description requirements control clocks and manual e
   await note.fill('Finish the review');
   await clock.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(clock.getByRole('timer')).toHaveCount(0);
-  const entries = (
-    await (
-      await request.get(`/api/v1/entries?from=${started.startedAt.slice(0, 10)}&to=${started.startedAt.slice(0, 10)}`)
-    ).json()
-  ).entries;
+  // Entry filters use the person's calendar date, which can differ from UTC.
+  const day = DateTime.fromISO(started.startedAt)
+    .setZone(session.person.timezone || session.settings.timezone)
+    .toISODate();
+  const entries = (await (await request.get(`/api/v1/entries?from=${day}&to=${day}`)).json()).entries;
   expect(entries.find((entry: { id: string }) => entry.id === started.id)).toMatchObject({
     startedAt: started.startedAt,
     note: 'Finish the review',
