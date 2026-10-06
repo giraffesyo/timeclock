@@ -930,6 +930,8 @@ export interface components {
             readonly $schema?: string;
             /** @description Runs payroll: sees everyone, approves anything, changes settings, exports reports. */
             admin: boolean;
+            /** @description The caller's profile image from the host directory; absent uses initials. */
+            avatarUrl?: string;
             info: components["schemas"]["Info"];
             /** @description Has people whose time they approve. */
             manager: boolean;

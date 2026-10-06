@@ -103,12 +103,15 @@ test('time off is requested, approved, and counted on the timesheet', async ({ m
   expect((await me.api.get(`/timesheet?day=${week.day(3)}`)).vacation).toBe(16);
 });
 
-test('only people who approve time get Team, and only admins get Settings', async ({ me, adminPerson }) => {
+test('everyone gets personal Settings, and only approvers get Team', async ({ me, adminPerson }) => {
   await me.page.goto('/');
   const nav = me.page.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Team' })).toHaveCount(0);
-  await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await nav.getByRole('link', { name: 'Settings' }).click();
+  await expect(
+    me.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
+  ).toHaveCount(0);
   const refused = await me.api.try('post', '/customers', { name: 'Not mine to add' });
   expect(refused.status()).toBe(403);
 
@@ -117,4 +120,8 @@ test('only people who approve time get Team, and only admins get Settings', asyn
   const adminNav = admin.page.getByRole('navigation', { name: 'Sections' });
   await expect(adminNav.getByRole('link', { name: 'Settings' })).toBeVisible();
   await expect(adminNav.getByRole('link', { name: 'Team' })).toBeVisible();
+  await adminNav.getByRole('link', { name: 'Settings' }).click();
+  await expect(
+    admin.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
+  ).toBeVisible();
 });

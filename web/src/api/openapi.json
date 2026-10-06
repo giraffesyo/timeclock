@@ -677,6 +677,10 @@
             "description": "Runs payroll: sees everyone, approves anything, changes settings, exports reports.",
             "type": "boolean"
           },
+          "avatarUrl": {
+            "description": "The caller's profile image from the host directory; absent uses initials.",
+            "type": "string"
+          },
           "info": {
             "$ref": "#/components/schemas/Info"
           },

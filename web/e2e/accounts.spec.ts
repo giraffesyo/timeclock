@@ -26,7 +26,7 @@ test('an invited admin sets a password, signs out, and signs back in', async ({ 
   await expect(
     page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Settings' }),
   ).toBeVisible();
-  await expect(page.getByText('Pat Admin')).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('Pat Admin')).toBeVisible();
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
@@ -68,7 +68,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
   const ada = await join(browser, new URL(link).pathname + new URL(link).search, 'Ada Lovelace');
   const nav = ada.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Settings' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Settings' })).toBeVisible();
 
   // The invitation is used: it is gone from the list, and its link no longer works.
   await admin.reload();
@@ -222,7 +222,7 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await page.getByRole('button', { name: 'Sign out' }).click();
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
-  await expect(page.getByText('Pia', { exact: true })).toBeVisible();
+  await expect(page.getByRole('complementary').getByText('Pia', { exact: true })).toBeVisible();
 
   // The CLI uses the same browser passkey ceremony, then asks for approval.
   await page.context().clearCookies();
@@ -290,7 +290,7 @@ test('workspace project and description requirements control clocks and manual e
   const descriptionRule = page.getByLabel('Require a description on every entry', { exact: true });
   await projectRule.click();
   await descriptionRule.click();
-  // Wait for this write: a previous save toast may still be visible.
+  // A previous save toast may still be visible; wait for this write before navigating.
   await Promise.all([
     page.waitForResponse(
       (response) =>
@@ -336,7 +336,6 @@ test('workspace project and description requirements control clocks and manual e
   await page.goto('/settings');
   await projectRule.click();
   await descriptionRule.click();
-  // Wait for this write: a previous save toast may still be visible.
   await Promise.all([
     page.waitForResponse(
       (response) =>

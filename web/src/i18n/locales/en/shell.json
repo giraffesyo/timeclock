@@ -13,8 +13,7 @@
       "track": "Track",
       "yours": "Your time",
       "payroll": "Payroll"
-    },
-    "integrations": "Integrations"
+    }
   },
   "home": "Back to {name}",
   "signOut": "Sign out",
@@ -29,12 +28,6 @@
   "toast": {
     "label": "Notifications",
     "close": "Close"
-  },
-  "mode": {
-    "label": "Light or dark",
-    "light": "Light",
-    "dark": "Dark",
-    "system": "Match the system"
   },
   "workspace": {
     "switch": "{name}: switch workspace",

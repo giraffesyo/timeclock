@@ -48,6 +48,8 @@ test('swiping the hours scrolls the calendar without adding time', async ({ me }
   const week = lastWeek();
   await page.goto(`/?day=${week.day(0)}`);
   const hours = page.getByRole('region', { name: 'Calendar hours' });
+  // The account header can put the lower part of the calendar below the screen.
+  await hours.scrollIntoViewIfNeeded();
   const box = await hours.boundingBox();
   if (!box) throw new Error('no hours');
   const initial = await hours.evaluate((el) => el.scrollTop);

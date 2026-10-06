@@ -17,6 +17,9 @@ type Person struct {
 	ID    string
 	Name  string
 	Email string
+	// AvatarURL is the person's profile image, supplied by the host. Empty
+	// uses initials. Use a same-origin path or an image URL allowed by the host's CSP.
+	AvatarURL string
 	// Admin runs payroll: they see everyone's time, approve anything, change
 	// settings and export reports.
 	Admin bool
