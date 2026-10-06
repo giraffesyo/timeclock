@@ -212,7 +212,7 @@
     "no": "No",
     "notSet": "Not set",
     "edit": "Edit…",
-    "profileManager": "Manager: {name}",
+    "profileManager": "Manager: <person>{name}</person>",
     "bulk": {
       "select": "Select {name}",
       "selectAll": "Select everyone",
