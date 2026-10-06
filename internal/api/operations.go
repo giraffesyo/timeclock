@@ -14,14 +14,15 @@ import (
 // --- Me ---
 
 type meBody struct {
-	Person   clock.Person   `json:"person"`
-	Admin    bool           `json:"admin" doc:"Runs payroll: sees everyone, approves anything, changes settings, exports reports."`
-	Manager  bool           `json:"manager" doc:"Has people whose time they approve."`
-	Settings clock.Settings `json:"settings"`
-	Today    clock.Date     `json:"today" format:"date" doc:"Today in the organization's time zone."`
-	Period   clock.Period   `json:"period" doc:"The current pay period."`
-	Running  *clock.Entry   `json:"running,omitempty" doc:"The caller's running clock."`
-	Info     Info           `json:"info"`
+	Person    clock.Person   `json:"person"`
+	AvatarURL string         `json:"avatarUrl,omitempty" doc:"The caller's profile image from the host directory; absent uses initials."`
+	Admin     bool           `json:"admin" doc:"Runs payroll: sees everyone, approves anything, changes settings, exports reports."`
+	Manager   bool           `json:"manager" doc:"Has people whose time they approve."`
+	Settings  clock.Settings `json:"settings"`
+	Today     clock.Date     `json:"today" format:"date" doc:"Today in the organization's time zone."`
+	Period    clock.Period   `json:"period" doc:"The current pay period."`
+	Running   *clock.Entry   `json:"running,omitempty" doc:"The caller's running clock."`
+	Info      Info           `json:"info"`
 }
 
 func registerMe(a huma.API, d Deps) {
@@ -49,7 +50,7 @@ func registerMe(a huma.API, d Deps) {
 			}
 			today := d.clock(ctx).TodayFor(cfg, actor.Person)
 			out := meBody{
-				Person: actor.Person, Admin: actor.Admin, Settings: cfg, Today: today,
+				Person: actor.Person, AvatarURL: actor.AvatarURL, Admin: actor.Admin, Settings: cfg, Today: today,
 				Period: cfg.PeriodOf(today), Running: running, Info: info,
 			}
 			for _, p := range people {

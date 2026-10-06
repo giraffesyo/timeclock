@@ -1,5 +1,5 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { TOOLTIP_ID } from '@parallelworks/ui';
+import { Avatar, TOOLTIP_ID } from '@parallelworks/ui';
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
@@ -8,7 +8,6 @@ import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
-  IntegrationsIcon,
   MoonIcon,
   OverviewIcon,
   ReportsIcon,
@@ -61,6 +60,18 @@ function ModeSwitch({ compact }: { compact?: boolean }) {
   );
 }
 
+function UserIdentity() {
+  const me = useSession();
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 px-2 py-2">
+      <span aria-hidden="true" className="shrink-0">
+        <Avatar src={me.avatarUrl} name={me.person.name} size="md" />
+      </span>
+      <span className="min-w-0 text-sm leading-snug font-medium wrap-anywhere">{me.person.name}</span>
+    </div>
+  );
+}
+
 /**
  * The frame every page sits in: the sections down the side, and the page on
  * a sheet beside them with the clock across its top. On a phone the sections
@@ -103,12 +114,7 @@ export function Shell({ children }: { children: ReactNode }) {
       links: [
         ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
         { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
-        ...(me.admin
-          ? [
-              { to: '/integrations', label: t('nav.integrations'), icon: <IntegrationsIcon /> },
-              { to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
-            ]
-          : []),
+        ...(me.admin ? [{ to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> }] : []),
       ],
     },
   ];
@@ -138,15 +144,17 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="flex flex-col gap-px border-t border-border pt-2">
+        <div className="flex shrink-0 flex-col gap-1 border-t border-border pt-2">
           {info.homeUrl && (
             <a href={info.homeUrl} className={item}>
               <BackIcon />
               {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
             </a>
           )}
-          <div className="flex h-8 items-center gap-2 pr-1 pl-2">
-            <span className="min-w-0 flex-1 truncate text-sm">{me.person.name}</span>
+          <UserIdentity />
+          <div className="flex flex-wrap items-center gap-1 px-1">
+            <ModeSwitch compact />
+            <span className="flex-1" />
             <ZoneButton className="shell-zone tabular" />
             <AccountLink className="shell-icon-button" />
             {info.signOutUrl && (
@@ -155,7 +163,6 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
             )}
           </div>
-          <ModeSwitch />
         </div>
       </aside>
 
@@ -168,7 +175,13 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
           <span className="ml-auto" />
           <ModeSwitch compact />
+        </div>
+        <div className="flex items-center gap-1 px-2 pb-2">
+          <div className="min-w-0 flex-1">
+            <UserIdentity />
+          </div>
           <ZoneButton className="shell-zone tabular" />
+          <AccountLink className="shell-icon-button" />
           {info.signOutUrl && (
             <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
               <SignOutIcon />

@@ -13,8 +13,7 @@
       "track": "Track",
       "yours": "Your time",
       "payroll": "Payroll"
-    },
-    "integrations": "Integrations"
+    }
   },
   "home": "Back to {name}",
   "signOut": "Sign out",

@@ -4,13 +4,14 @@ import { Page } from '@/components/page';
 import { Appearance } from '@/components/settings/appearance';
 import { Catalog } from '@/components/settings/catalog';
 import { History } from '@/components/settings/history';
+import { Integrations } from '@/components/settings/integrations';
 import { PayrollSettings } from '@/components/settings/payroll';
 import { People } from '@/components/settings/people';
 import { SignIn } from '@/components/settings/sso';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 
-const TABS = ['payroll', 'projects', 'people', 'appearance', 'signin', 'history'] as const;
+const TABS = ['payroll', 'projects', 'people', 'integrations', 'appearance', 'signin', 'history'] as const;
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
@@ -37,7 +38,7 @@ function SettingsPage() {
 
   return (
     <Page title={t('title')} description={t('description')} wide={tab === 'people' || tab === 'history'}>
-      <nav aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
+      <nav aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
         {TABS.map((name) => (
           <Link
             key={name}
@@ -58,6 +59,7 @@ function SettingsPage() {
       {tab === 'payroll' && <PayrollSettings />}
       {tab === 'projects' && <Catalog />}
       {tab === 'people' && <People />}
+      {tab === 'integrations' && <Integrations />}
       {tab === 'appearance' && <Appearance />}
       {tab === 'signin' && <SignIn />}
       {tab === 'history' && <History />}

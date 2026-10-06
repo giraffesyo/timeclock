@@ -1,7 +1,6 @@
 {
   "title": "Integrations",
   "description": "Connect the tools your company uses.",
-  "adminOnly": "An admin can manage your company’s integrations.",
   "otherConnections": "Other connections",
   "googleCalendar": "Google Calendar",
   "gusto": "Gusto",
