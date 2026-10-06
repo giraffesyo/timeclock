@@ -1,8 +1,21 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { ConfirmModal } from '@parallelworks/ui';
-import { LoaderIcon, MenuIcon, RefreshIcon } from '@parallelworks/ui/icons';
-import { type RowMenuItem, useRowMenu } from '@parallelworks/ui/list';
-import { useState } from 'react';
+import { ConfirmModal, Table } from '@parallelworks/ui';
+import { LoaderIcon, RefreshIcon } from '@parallelworks/ui/icons';
+import {
+  ListColumns,
+  ListDisplayMenu,
+  ListRow,
+  ListRowActionsProvider,
+  type ListView,
+  listTableProps,
+  type OpenMenu,
+  type RowMenuItem,
+  RowSelectCheckbox,
+  useListNavigate,
+  useListView,
+  useRowMenu,
+} from '@parallelworks/ui/list';
+import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
@@ -12,7 +25,6 @@ import { PersonIdentity } from '@/components/person-identity';
 import { Invites } from '@/components/settings/invites';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
-import { cn } from '@/lib/cn';
 import {
   PartialFailure,
   type Person,
@@ -25,9 +37,6 @@ import {
 } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { timeZones } from '@/lib/zone';
-
-const th = 'px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground first:pl-4 last:pr-4';
-const td = 'px-3 py-2 align-middle first:pl-4 last:pr-4';
 
 /** Something to do to a group of people, shown in the menu and the selection bar. */
 interface Action {
@@ -172,97 +181,95 @@ function PersonDialog({ person, people, onClose }: { person: Person; people: Per
   );
 }
 
-/** One person. Changes go through the people menu, from ⋯ or a right click. */
+/** One person, on the UI package's list row: ⋯ and a right click open the people menu. */
 function PersonRow({
   person,
   people,
+  view,
+  items,
+  openMenu,
   selected,
+  selectionActive,
   onSelect,
-  onMenu,
+  onEdit,
 }: {
   person: Person;
   people: Person[];
+  view: ListView<Person>;
+  /** The menu for this person alone; openMenu decides who it is for when it opens. */
+  items: RowMenuItem[];
+  openMenu: OpenMenu;
   selected: boolean;
+  /** While anyone is selected, a click on a row toggles it. */
+  selectionActive: boolean;
   /** Toggles the row; with Shift, everything from the last row toggled. */
   onSelect: (range: boolean) => void;
-  /** Opens the people menu for this row at the pointer. */
-  onMenu: (at: { x: number; y: number }) => void;
+  onEdit: () => void;
 }) {
   const t = useTranslations('settings.people');
   const { settings, info } = useSession();
+  const goTo = useListNavigate();
   const effectiveManagerId = person.managerOverrideId || person.directoryManagerId;
   const manager = people.find((p) => p.id === effectiveManagerId);
 
-  return (
-    <tr
-      className={cn(!person.active && 'text-muted-foreground', selected && 'bg-primary/8')}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        // The keyboard's menu key reports no pointer: open beside the row instead.
-        const box = e.currentTarget.getBoundingClientRect();
-        onMenu(e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: box.left + 24, y: box.bottom });
-      }}
-      onKeyDown={(e) => {
-        // Not every browser turns the menu keys into a contextmenu event.
-        if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
-        e.preventDefault();
-        const box = e.currentTarget.getBoundingClientRect();
-        onMenu({ x: box.left + 24, y: box.bottom });
-      }}
-    >
-      <td className={`${td} w-8 !pr-0`}>
-        <input
-          type="checkbox"
-          className="size-4 cursor-pointer accent-(--color-primary) align-middle"
-          aria-label={t('bulk.select', { name: person.name })}
-          checked={selected}
-          onClick={(e) => onSelect(e.shiftKey)}
-          onChange={() => {}}
-        />
-      </td>
-      <td className={`${td} whitespace-nowrap`}>
-        <span className="flex items-center gap-2">
-          <PersonIdentity person={person} people={people} />
-          {person.admin && (
-            <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
-              <span title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}>
-                {t('admin')}
-              </span>
-            </Chip>
-          )}
-        </span>
-      </td>
-      <td className={`${td} whitespace-nowrap text-muted-foreground`}>{person.email}</td>
-      <td className={td}>
-        {manager ? (
-          <PersonIdentity person={manager} people={people} />
-        ) : (
-          <span>{effectiveManagerId || t('adminApproves')}</span>
+  const cells: Record<string, ReactNode> = {
+    name: (
+      <span className="flex items-center gap-2">
+        <PersonIdentity person={person} people={people} />
+        {person.admin && (
+          <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
+            <span title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}>
+              {t('admin')}
+            </span>
+          </Chip>
         )}
-      </td>
-      <td className={`${td} whitespace-nowrap`}>{person.timezone || settings.timezone}</td>
-      <td className={td}>{person.overtimeExempt ? t('yes') : t('no')}</td>
-      <td className={`${td} whitespace-nowrap`}>
+      </span>
+    ),
+    email: <span className="text-muted-foreground">{person.email}</span>,
+    manager: manager ? (
+      <PersonIdentity person={manager} people={people} />
+    ) : (
+      <span>{effectiveManagerId || t('adminApproves')}</span>
+    ),
+    timezone: person.timezone || settings.timezone,
+    exempt: person.overtimeExempt ? t('yes') : t('no'),
+    timesheets: (
+      <>
         {person.submitsTimesheets ? t('submits') : t('reportsOnly')}
         {person.submitsTimesheetsOverride == null && <span className="text-muted-foreground"> · {t('byDefault')}</span>}
-      </td>
-      <td className={td}>{person.payrollId || t('notSet')}</td>
-      <td className={td}>{person.active ? t('active') : t('inactive')}</td>
-      <td className={`${td} w-8`}>
-        <button
-          type="button"
-          className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md align-middle text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={t('rowMenu', { name: person.name })}
-          aria-haspopup="menu"
-          onClick={(e) => {
-            const box = e.currentTarget.getBoundingClientRect();
-            onMenu({ x: box.right, y: box.bottom });
-          }}
-        >
-          <MenuIcon aria-hidden className="size-4" />
-        </button>
-      </td>
-    </tr>
+      </>
+    ),
+    payrollId: person.payrollId || t('notSet'),
+    active: person.active ? t('active') : t('inactive'),
+  };
+
+  return (
+    <ListRow
+      href={null}
+      onActivate={onEdit}
+      items={items}
+      goTo={goTo}
+      openMenu={openMenu}
+      selected={selected}
+      selectionActive={selectionActive}
+      onRowSelect={(e) => onSelect(e.shiftKey)}
+      className={person.active ? undefined : 'text-muted-foreground'}
+      leading={
+        <Table.Item className="w-8 py-1.5">
+          <RowSelectCheckbox
+            checked={selected}
+            label={t('bulk.select', { name: person.name })}
+            onToggle={(e) => onSelect(e.shiftKey)}
+          />
+        </Table.Item>
+      }
+    >
+      {view.visibleColumns.map((col) => (
+        <Table.Item key={col.key} className="py-1.5">
+          {cells[col.key]}
+        </Table.Item>
+      ))}
+    </ListRow>
   );
 }
 
@@ -276,6 +283,20 @@ export function People() {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [last, setLast] = useState<string | null>(null);
   const { openMenu, contextMenu } = useRowMenu();
+  const view = useListView<Person>({
+    storageKey: 'timeclock.settings.people',
+    columns: [
+      { key: 'name', label: t('columns.name'), alwaysVisible: true },
+      { key: 'email', label: t('columns.email'), priority: 'low' },
+      { key: 'manager', label: t('columns.manager') },
+      { key: 'timezone', label: t('columns.timezone'), priority: 'medium' },
+      { key: 'exempt', label: t('columns.exempt'), priority: 'low' },
+      { key: 'timesheets', label: t('columns.timesheets'), priority: 'medium' },
+      { key: 'payrollId', label: t('columns.payrollId'), priority: 'low' },
+      { key: 'active', label: t('columns.active'), priority: 'medium' },
+    ],
+    defaultShowColumnHeaders: true,
+  });
   const admins = useSetAdmins();
   const me = useSession();
   // The action waiting to be confirmed.
@@ -301,15 +322,22 @@ export function People() {
     setLast(id);
   };
   // A right click on a row outside the selection acts on that row alone, as in a file list.
-  const openRowMenu = (person: Person, at: { x: number; y: number }) => {
-    let group = chosen;
-    if (!selected.has(person.id)) {
-      setSelected(new Set([person.id]));
-      setLast(person.id);
-      group = [person];
-    }
-    openMenu(at.x, at.y, actionsFor(group).map(toMenuItem));
-  };
+  const openRowMenu =
+    (person: Person): OpenMenu =>
+    (x, y, _items, onClose) => {
+      let group = chosen;
+      if (!selected.has(person.id)) {
+        setSelected(new Set([person.id]));
+        setLast(person.id);
+        group = [person];
+      }
+      // The keyboard's menu key reports no pointer: open beside what has focus instead.
+      if (!x && !y && document.activeElement) {
+        const box = document.activeElement.getBoundingClientRect();
+        [x, y] = [box.left + 24, box.bottom];
+      }
+      openMenu(x, y, actionsFor(group).map(toMenuItem), onClose);
+    };
 
   /** Applies the patch to those in the group it would change. */
   const apply = (
@@ -487,9 +515,12 @@ export function People() {
         flush
         title={t('title')}
         actions={
-          <Button size="sm" loading={sync.isPending} icon={<RefreshIcon aria-hidden />} onClick={() => sync.mutate()}>
-            {t('sync')}
-          </Button>
+          <>
+            <ListDisplayMenu view={view} />
+            <Button size="sm" loading={sync.isPending} icon={<RefreshIcon aria-hidden />} onClick={() => sync.mutate()}>
+              {t('sync')}
+            </Button>
+          </>
         }
       >
         {sync.isError && <ErrorNote className="m-3" context={t('syncFailed')} error={sync.error} />}
@@ -505,7 +536,18 @@ export function People() {
         ) : people.data.length === 0 ? (
           <Empty>{t('empty')}</Empty>
         ) : (
-          <div className="overflow-x-auto">
+          // Not every browser turns the menu keys into a contextmenu event: send the row one.
+          // biome-ignore lint/a11y/noStaticElementInteractions: forwards the menu keys to the focused row
+          <div
+            className="@container"
+            onKeyDown={(e) => {
+              if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+              const row = (e.target as HTMLElement).closest('tbody tr');
+              if (!row) return;
+              e.preventDefault();
+              row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+            }}
+          >
             {chosen.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/50 px-4 py-2">
                 <span className="mr-1 text-sm font-medium" role="status">
@@ -529,13 +571,13 @@ export function People() {
                 </Button>
               </div>
             )}
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th scope="col" className={`${th} w-8 !pr-0`}>
+            <ListRowActionsProvider view={view}>
+              <Table {...listTableProps} wrapperClassName="overflow-x-auto" tbodyClassName="divide-y divide-border">
+                {view.showColumnHeaders && (
+                  <Table.Header className="w-8 py-2" caps={false}>
                     <input
                       type="checkbox"
-                      className="size-4 cursor-pointer accent-(--color-primary) align-middle"
+                      className="h-4 w-4 cursor-pointer rounded border-(--theme-border) align-middle"
                       aria-label={t('bulk.selectAll')}
                       checked={chosen.length > 0 && chosen.length === list.length}
                       ref={(el) => {
@@ -543,49 +585,25 @@ export function People() {
                       }}
                       onChange={(e) => setSelected(new Set(e.target.checked ? list.map((p) => p.id) : []))}
                     />
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.name')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.email')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.manager')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.timezone')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.exempt')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.timesheets')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.payrollId')}
-                  </th>
-                  <th scope="col" className={th}>
-                    {t('columns.active')}
-                  </th>
-                  <th scope="col" className={th}>
-                    <span className="sr-only">{t('columns.actions')}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+                  </Table.Header>
+                )}
+                {view.showColumnHeaders && <ListColumns view={view} />}
                 {people.data.map((p) => (
                   <PersonRow
                     key={p.id}
                     person={p}
                     people={people.data}
+                    view={view}
+                    items={actionsFor([p]).map(toMenuItem)}
+                    openMenu={openRowMenu(p)}
                     selected={selected.has(p.id)}
+                    selectionActive={chosen.length > 0}
                     onSelect={(range) => select(p.id, range)}
-                    onMenu={(at) => openRowMenu(p, at)}
+                    onEdit={() => setEditing(p)}
                   />
                 ))}
-              </tbody>
-            </table>
+              </Table>
+            </ListRowActionsProvider>
           </div>
         )}
       </Panel>

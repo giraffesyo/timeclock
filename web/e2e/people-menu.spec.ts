@@ -98,11 +98,11 @@ for (const mobile of [false, true]) {
       }).toPass();
       return items;
     };
-    const fromButton = await open(row.getByRole('button', { name: 'Actions for Ada Lovelace' }));
+    const fromButton = await open(row.getByRole('button', { name: 'More actions' }));
     expect(fromButton[0]).toBe('Edit…');
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
-    expect(await open(row.getByText(employee.email), 'right')).toEqual(fromButton);
+    expect(await open(row.getByRole('cell').first(), 'right')).toEqual(fromButton);
     await page.screenshot({ path: `/tmp/timeclock-people-menu-${device}.png` });
     await testInfo.attach(`People menu ${device}`, {
       path: `/tmp/timeclock-people-menu-${device}.png`,
@@ -110,7 +110,7 @@ for (const mobile of [false, true]) {
     });
     await page.keyboard.press('Escape');
     await expect(async () => {
-      await row.getByText(employee.email).click({ button: 'right' });
+      await row.getByRole('cell').first().click({ button: 'right' });
       await menu.getByRole('button', { name: 'Edit…' }).click({ timeout: 1000 });
     }).toPass();
     const dialog = page.getByRole('dialog', { name: 'Edit Ada Lovelace' });
@@ -136,5 +136,21 @@ for (const mobile of [false, true]) {
     expect(body.managerId).toBe('');
     expect(body.payrollId).toBe('PAY-123');
     await expect(dialog).toHaveCount(0);
+
+    // The Display menu chooses the columns.
+    if (!mobile) {
+      await page.getByRole('button', { name: 'Display options' }).click();
+      const display = page.getByRole('menu');
+      await expect(display).toBeVisible();
+      await page.screenshot({ path: `/tmp/timeclock-people-display-${device}.png` });
+      await testInfo.attach(`People display ${device}`, {
+        path: `/tmp/timeclock-people-display-${device}.png`,
+        contentType: 'image/png',
+      });
+      await expect(page.getByRole('columnheader', { name: 'Email' })).toHaveCount(1);
+      await display.getByRole('button', { name: 'Email' }).click();
+      await expect(page.getByRole('columnheader', { name: 'Email' })).toHaveCount(0);
+      await expect(row.getByText(employee.email)).toHaveCount(0);
+    }
   });
 }

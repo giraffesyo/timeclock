@@ -151,7 +151,6 @@
       "payrollId": "Payroll ID",
       "active": "Active",
       "timezone": "Time zone",
-      "actions": "Actions",
       "timesheets": "Timesheets"
     },
     "saving": "Saving",
@@ -188,7 +187,7 @@
       "activated": "{count, plural, one {# person is} other {# people are}} active again.",
       "deactivated": "{count, plural, one {# person was} other {# people were}} deactivated.",
       "failed": "Couldn’t change {count} of {total, plural, one {# person} other {# people}}.",
-      "hint": "Select people, right-click one, or use ⋮ to change several at once.",
+      "hint": "Select people, right-click one, or use ⋯ to change several at once.",
       "submits": "Require timesheets",
       "reportsOnly": "Reports only, not in payroll",
       "timesheetsDefault": "Use the workspace default for timesheets",
@@ -209,7 +208,6 @@
     "admin": "Admin",
     "theHost": "the host application",
     "adminFromHost": "An admin in {host}: only {host} can change that.",
-    "rowMenu": "Actions for {name}",
     "confirm": {
       "exempt": {
         "title": "Mark {who} overtime exempt?",
