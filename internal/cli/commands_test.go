@@ -20,13 +20,13 @@ import (
 func runCLI(t *testing.T, server string, args ...string) (string, error) {
 	t.Helper()
 	t.Setenv("TIMECLOCK_TOKEN", "")
-	t.Setenv("TIMECLOCK_URL", "")
+	t.Setenv("TIMECLOCK_URL", server)
 	t.Setenv("TIMECLOCK_CREDENTIAL_STORE", "")
 	cmd := New("test")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs(append([]string{"--server", server, "--config", filepath.Join(t.TempDir(), "config.json"), "--credential-store=file"}, args...))
+	cmd.SetArgs(append([]string{"--config", filepath.Join(t.TempDir(), "config.json"), "--credential-store=file"}, args...))
 	err := cmd.ExecuteContext(t.Context())
 	return out.String(), err
 }

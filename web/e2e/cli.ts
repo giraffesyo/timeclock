@@ -8,11 +8,11 @@ import { ACCOUNTS_URL } from '../playwright.config';
 export function installation(server = ACCOUNTS_URL) {
   const dir = mkdtempSync(joinPath(tmpdir(), 'timeclock-cli-'));
   const config = joinPath(dir, 'config.json');
-  const flags = ['--server', server, '--config', config, '--credential-store=file'];
+  const flags = ['--config', config, '--credential-store=file'];
   const env = {
     ...process.env,
     TIMECLOCK_TOKEN: '',
-    TIMECLOCK_URL: '',
+    TIMECLOCK_URL: server,
     TIMECLOCK_CONFIG: '',
     TIMECLOCK_CREDENTIAL_STORE: '',
   };
