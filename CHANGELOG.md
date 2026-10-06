@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.8.0...timeclock-v0.9.0) (2026-10-06)
+
+
+### Features
+
+* add user menu and read-only people profiles ([#34](https://github.com/giraffesyo/timeclock/issues/34)) ([77112b4](https://github.com/giraffesyo/timeclock/commit/77112b4326c8b2c98a7b841088a66f9f4f1b6e7a))
+
+
+### Bug Fixes
+
+* resume bounded Toggl history imports promptly ([#37](https://github.com/giraffesyo/timeclock/issues/37)) ([91ba6e8](https://github.com/giraffesyo/timeclock/commit/91ba6e8dbc72a1ecac872836bb49eb8ab86b15ff))
+* use one Toggl report pagination cursor ([#36](https://github.com/giraffesyo/timeclock/issues/36)) ([9d8375d](https://github.com/giraffesyo/timeclock/commit/9d8375d3f181e7104c6c3da4ac9b2b3e8a6a4049))
+
 ## [0.8.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.7.0...timeclock-v0.8.0) (2026-10-06)
 
 
