@@ -273,7 +273,7 @@ test.describe('a workspace’s single sign-on', () => {
 
     // The admin sees them among the workspace's people.
     await ws.admin.goto('/settings?tab=people');
-    await expect(ws.admin.getByRole('row', { name: /^Ines Provider/ })).toBeVisible();
+    await expect(ws.admin.getByRole('checkbox', { name: 'Select Ines Provider', exact: true })).toBeVisible();
 
     // Someone the provider knows but the workspace doesn't is turned away.
     const stranger = await visitor(browser);
@@ -316,7 +316,7 @@ test.describe('a workspace’s single sign-on', () => {
     await expect(sections(page).getByRole('link', { name: 'Team' })).toHaveCount(0);
 
     await ws.admin.goto('/settings?tab=people');
-    await expect(ws.admin.getByRole('row', { name: /^Nell Newcomer/ })).toBeVisible();
+    await expect(ws.admin.getByRole('checkbox', { name: 'Select Nell Newcomer', exact: true })).toBeVisible();
 
     // Next time their address is offered the provider on the sign-in page.
     await page.getByRole('button', { name: /: user menu$/ }).click();

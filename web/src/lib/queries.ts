@@ -288,6 +288,39 @@ export function useUpdatePerson() {
   );
 }
 
+/**
+ * Changes several people at once, one request each. Every change is tried;
+ * the error, if any, counts those that failed, and the list is read again
+ * once at the end either way.
+ */
+export function useUpdatePeople() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (updates: (PersonUpdate & { id: string })[]) => {
+      const results = await Promise.allSettled(
+        updates.map(({ id, ...body }) =>
+          api.PUT('/api/v1/people/{id}', { params: { path: { id } }, body }).then(unwrap),
+        ),
+      );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0)
+        throw new PartialFailure(failed.length, updates.length, (failed[0] as PromiseRejectedResult).reason);
+    },
+    onSettled: () => client.invalidateQueries(),
+  });
+}
+
+/** Some of a batch of changes failed: how many, and the first reason. */
+export class PartialFailure extends Error {
+  constructor(
+    readonly failed: number,
+    readonly total: number,
+    override readonly cause: unknown,
+  ) {
+    super(`${failed} of ${total} changes failed`);
+  }
+}
+
 /** Sets the time zone the caller's own days are cut in; empty is the organization's. */
 export function useSetOwnTimezone() {
   return useWrite(async (timezone: string) => unwrap(await api.PUT('/api/v1/me/timezone', { body: { timezone } })));
