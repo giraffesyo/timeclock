@@ -1,4 +1,4 @@
-import { ConfirmModal } from '@parallelworks/ui';
+import { Avatar, ConfirmModal } from '@parallelworks/ui';
 import { CheckIcon, DownloadIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -161,14 +161,17 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                 {rows.map((r) => (
                   <tr key={r.person.id} className={rowLine}>
                     <th scope="row" className={`${td} text-left font-normal`}>
-                      <TimesheetLink
-                        person={r.person.id}
-                        day={r.period.start}
-                        label={tr('openTimesheetFor', { name: r.person.name })}
-                        className="font-medium whitespace-nowrap hover:underline"
-                      >
-                        {r.person.name}
-                      </TimesheetLink>
+                      <span className="flex items-center gap-2">
+                        <Avatar src={r.person.avatarUrl} name={r.person.name} size="sm" className="shrink-0" />
+                        <TimesheetLink
+                          person={r.person.id}
+                          day={r.period.start}
+                          label={tr('openTimesheetFor', { name: r.person.name })}
+                          className="font-medium whitespace-nowrap hover:underline"
+                        >
+                          {r.person.name}
+                        </TimesheetLink>
+                      </span>
                       {(r.running || r.pendingTimeOff > 0) && (
                         <div className="mt-0.5 space-x-2 text-xs whitespace-nowrap text-muted-foreground">
                           {r.running && <span>{t('clockRunning')}</span>}

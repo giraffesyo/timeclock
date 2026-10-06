@@ -1,4 +1,5 @@
 import { ConfirmModal, TOOLTIP_ID } from '@parallelworks/ui';
+import { CloseIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
@@ -113,17 +114,24 @@ export function ZoneBanner() {
     setKept(pair);
   };
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-info-subtle px-4 py-2.5 text-sm text-info">
-      <p className="min-w-0 flex-1 basis-64">{t('banner', { here: zoneCity(here), zone: zoneCity(zone) })}</p>
-      <div className="flex gap-2">
+    <div className="flex items-start gap-2 rounded-lg bg-info-subtle py-2 pr-2 pl-4 text-sm text-info">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 py-0.5">
+        <p>{t('banner', { here: zoneCity(here), zone: zoneCity(zone) })}</p>
         <Button size="sm" variant="primary" loading={save.isPending} onClick={() => save.mutate(here)}>
           {t('switch', { zone: zoneCity(here) })}
         </Button>
-        <Button size="sm" onClick={keep}>
-          {t('keep', { zone: zoneCity(zone) })}
-        </Button>
+        {save.isError && <ErrorNote className="basis-full" context={t('saveFailed')} error={save.error} />}
       </div>
-      {save.isError && <ErrorNote className="basis-full" context={t('saveFailed')} error={save.error} />}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="w-7 px-0 text-info"
+        icon={<CloseIcon aria-hidden />}
+        aria-label={t('keep', { zone: zoneCity(zone) })}
+        data-tooltip-id={TOOLTIP_ID}
+        data-tooltip-content={t('keep', { zone: zoneCity(zone) })}
+        onClick={keep}
+      />
     </div>
   );
 }

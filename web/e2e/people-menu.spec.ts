@@ -124,8 +124,13 @@ for (const mobile of [false, true]) {
       await menu.getByRole('button', { name: 'Edit…' }).click({ timeout: 1000 });
     }).toPass();
     const dialog = page.getByRole('dialog', { name: 'Edit Ada Lovelace' });
-    await expect(dialog.getByRole('combobox', { name: 'Manager' })).toHaveValue('');
-    await expect(dialog.getByRole('option', { name: 'From directory: Grace Hopper' })).toHaveCount(1);
+    const managerPicker = dialog.getByRole('button', { name: 'Manager' });
+    await expect(managerPicker).toHaveText('From directory: Grace Hopper');
+    await managerPicker.click();
+    await expect(page.getByRole('option', { name: 'From directory: Grace Hopper' })).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     // Editing happens in the dialog, so the table keeps its width.
     await expect(row.getByRole('combobox')).toHaveCount(0);
     if (!mobile) {

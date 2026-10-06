@@ -58,7 +58,7 @@ for (const mobile of [false, true]) {
     await page.getByLabel('Toggl API token').fill('mock-token');
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
     await page.getByRole('combobox', { name: 'Toggl workspace' }).selectOption('42');
-    await expect(page.getByRole('combobox', { name: 'Trial teammate' })).toHaveValue(me.id);
+    await expect(page.getByRole('button', { name: 'Trial teammate' })).toContainText(me.name);
     await page.getByRole('button', { name: 'Connect and start syncing' }).click();
     await expect(page.getByRole('button', { name: 'Manage connection' })).toBeVisible();
     expect(setup).toMatchObject({ token: 'mock-token', workspaceId: 42, from: '', people });
@@ -100,7 +100,7 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
     await page.getByLabel('Toggl API token').fill(sandbox.token);
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
     await page.getByRole('combobox', { name: 'Toggl workspace' }).selectOption(String(sandbox.id));
-    await expect(page.getByRole('combobox', { name: 'Toggl teammate' })).toHaveValue(me.id);
+    await expect(page.getByRole('button', { name: 'Toggl teammate' })).toContainText(me.name);
     await expect(page.getByRole('combobox', { name: 'Time entry history' })).toHaveValue('all');
     await page.getByRole('button', { name: 'Connect and start syncing' }).click();
     await expect(page.getByRole('button', { name: 'Manage connection' })).toBeVisible();

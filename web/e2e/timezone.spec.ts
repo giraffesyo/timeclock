@@ -29,7 +29,12 @@ test('a browser in another zone is offered its own time, and times follow', asyn
 test('keeping the organization’s zone is remembered', async ({ someone }) => {
   const pat = await someone('pat', { timezoneId: PACIFIC });
   await pat.page.goto('/');
-  await pat.page.getByRole('button', { name: 'Keep Chicago time' }).click();
+  // Next to the offer to switch, an X keeps the zone shown and dismisses the banner.
+  await expect(pat.page.getByRole('button', { name: 'Use Los Angeles time' })).toBeVisible();
+  const dismiss = pat.page.getByRole('button', { name: 'Keep Chicago time' });
+  await expect(dismiss).toHaveText('');
+  await expect(dismiss.locator('svg')).toBeVisible();
+  await dismiss.click();
   await expect(pat.page.getByText(/This browser is in/)).toHaveCount(0);
   await pat.page.reload();
   await expect(pat.page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
