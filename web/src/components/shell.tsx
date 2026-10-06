@@ -1,53 +1,77 @@
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { Avatar } from '@parallelworks/ui';
+import { Avatar, TOOLTIP_ID } from '@parallelworks/ui';
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
+  KeyIcon,
+  MoonIcon,
   OverviewIcon,
   ReportsIcon,
   SettingsIcon,
   SignOutIcon,
+  SunIcon,
+  SystemIcon,
   TeamIcon,
   TimeOffIcon,
   TimerIcon,
   TimesheetIcon,
 } from '@/components/nav-icons';
-import { AccountLink, WorkspaceSwitcher } from '@/components/workspace-switcher';
-import { ZoneButton } from '@/components/zone';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { ZoneDialog, zoneCity } from '@/components/zone';
 import { useSession } from '@/lib/session';
+import { onThemeChange, readPreference, setPreference } from '@/lib/theme';
+import { useZone } from '@/lib/zone';
 
 const item =
   'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground md:h-7';
 const itemActive = '!bg-foreground/[0.07] !font-medium !text-foreground';
 
-function UserIdentity() {
-  const me = useSession();
+const MODES = [
+  { value: 'light', icon: <SunIcon /> },
+  { value: 'dark', icon: <MoonIcon /> },
+  { value: 'system', icon: <SystemIcon /> },
+] as const;
+
+/** Light, dark, or whatever the system is in. Inside a host this is the host's own choice, kept in step. */
+function ModeSwitch() {
+  const t = useTranslations('shell.mode');
+  const preference = useSyncExternalStore(onThemeChange, readPreference);
   return (
-    <div className="flex min-w-0 items-center gap-2.5 px-2 py-2">
-      <span aria-hidden="true" className="shrink-0">
-        <Avatar src={me.avatarUrl} name={me.person.name} size="md" />
-      </span>
-      <span className="min-w-0 text-sm leading-snug font-medium wrap-anywhere">{me.person.name}</span>
-    </div>
+    <fieldset aria-label={t('label')} className="flex gap-1">
+      {MODES.map((m) => (
+        <button
+          key={m.value}
+          type="button"
+          className="shell-icon-button"
+          aria-label={t(m.value)}
+          aria-pressed={preference === m.value}
+          data-tooltip-id={TOOLTIP_ID}
+          data-tooltip-content={t(m.value)}
+          onClick={() => setPreference(m.value)}
+        >
+          {m.icon}
+        </button>
+      ))}
+    </fieldset>
   );
 }
 
-/**
- * The frame every page sits in: the sections down the side, and the page on
- * a sheet beside them with the clock across its top. On a phone the sections
- * are a strip above the clock.
- */
-export function Shell({ children }: { children: ReactNode }) {
-  const t = useTranslations('shell');
-  const errorMessage = useErrorMessage();
-  const me = useSession();
-  const { info } = me;
+const userAction =
+  'flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm hover:bg-(--theme-hover) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
+function UserMenu({ mobile = false }: { mobile?: boolean }) {
+  const t = useTranslations('shell');
+  const tz = useTranslations('zone');
+  const errorMessage = useErrorMessage();
+  const { person, avatarUrl, info } = useSession();
+  const zone = useZone();
+  const [zoneOpen, setZoneOpen] = useState(false);
   const signOut = async () => {
     if (!info.signOutUrl) return;
     try {
@@ -58,6 +82,85 @@ export function Shell({ children }: { children: ReactNode }) {
       toast.error(t('signOutFailed'), { description: errorMessage(err) });
     }
   };
+
+  return (
+    <>
+      <Popover className={mobile ? 'ml-auto min-w-0 max-w-[60%]' : 'min-w-0'}>
+        {({ close }) => (
+          <>
+            <PopoverButton
+              aria-label={t('userMenu', { name: person.name })}
+              className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-foreground/5 data-open:bg-foreground/5"
+            >
+              <Avatar src={avatarUrl || person.avatarUrl} name={person.name} size="sm" className="shrink-0" />
+              <span className="min-w-0 flex-1 wrap-anywhere">{person.name}</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden
+                className="shrink-0"
+              >
+                <path d="m5 6 3 3 3-3" />
+              </svg>
+            </PopoverButton>
+            <PopoverPanel
+              anchor={mobile ? 'bottom end' : 'top start'}
+              focus
+              className="popover z-50 w-72 max-w-[calc(100vw-1rem)] p-1 [--anchor-gap:8px] [--anchor-padding:8px]"
+            >
+              <Link to="/settings" className={userAction} onClick={() => close()}>
+                <SettingsIcon />
+                {t('nav.settings')}
+              </Link>
+              {info.accountsUrl && (
+                <Link to="/account" className={userAction} onClick={() => close()}>
+                  <KeyIcon />
+                  {t('account')}
+                </Link>
+              )}
+              <button
+                type="button"
+                className={userAction}
+                aria-label={tz('button', { zone })}
+                onClick={() => {
+                  close();
+                  setZoneOpen(true);
+                }}
+              >
+                <BrandIcon />
+                <span>{tz('label')}</span>
+                <span className="ml-auto truncate text-xs text-muted-foreground">{zoneCity(zone)}</span>
+              </button>
+              <div className="flex min-h-10 items-center justify-between gap-3 px-3 py-1">
+                <span className="text-sm">{t('theme')}</span>
+                <ModeSwitch />
+              </div>
+              {info.signOutUrl && (
+                <div className="mt-1 border-t border-border pt-1">
+                  <button type="button" className={userAction} onClick={signOut}>
+                    <SignOutIcon />
+                    {t('signOut')}
+                  </button>
+                </div>
+              )}
+            </PopoverPanel>
+          </>
+        )}
+      </Popover>
+      {zoneOpen && <ZoneDialog onClose={() => setZoneOpen(false)} />}
+    </>
+  );
+}
+
+/** The page frame, with sidebar navigation on desktop and a top strip on phones. */
+export function Shell({ children }: { children: ReactNode }) {
+  const t = useTranslations('shell');
+  const me = useSession();
+  const { info } = me;
 
   const groups = [
     {
@@ -79,7 +182,6 @@ export function Shell({ children }: { children: ReactNode }) {
       links: [
         ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
         { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
-        { to: '/settings', label: t('nav.settings'), icon: <SettingsIcon /> },
       ],
     },
   ];
@@ -109,46 +211,25 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="flex shrink-0 flex-col gap-1 border-t border-border pt-2">
+        <div className="flex flex-col gap-px border-t border-border pt-2">
           {info.homeUrl && (
             <a href={info.homeUrl} className={item}>
               <BackIcon />
               {info.homeLabel ? t('home', { name: info.homeLabel }) : null}
             </a>
           )}
-          <UserIdentity />
-          <div className="flex flex-wrap items-center gap-1 px-1">
-            <ZoneButton className="shell-zone tabular" />
-            <span className="flex-1" />
-            <AccountLink className="shell-icon-button" />
-            {info.signOutUrl && (
-              <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
-                <SignOutIcon />
-              </button>
-            )}
-          </div>
+          <UserMenu />
         </div>
       </aside>
 
       {/* A phone: the name and the way out, then the sections as a strip. */}
       <header className="shell-top">
-        <div className="flex h-12 items-center gap-2 px-4">
+        <div className="flex min-h-12 items-center gap-2 px-4">
           <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
             <BrandIcon className="text-primary" />
             {t('name')}
           </Link>
-        </div>
-        <div className="flex items-center gap-1 px-2 pb-2">
-          <div className="min-w-0 flex-1">
-            <UserIdentity />
-          </div>
-          <ZoneButton className="shell-zone tabular" />
-          <AccountLink className="shell-icon-button" />
-          {info.signOutUrl && (
-            <button type="button" className="shell-icon-button" aria-label={t('signOut')} onClick={signOut}>
-              <SignOutIcon />
-            </button>
-          )}
+          <UserMenu mobile />
         </div>
         <nav aria-label={t('nav.label')} className="flex gap-1 overflow-x-auto px-3 pb-2">
           {links.map((l) => link(l, 'shrink-0'))}

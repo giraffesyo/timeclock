@@ -43,7 +43,8 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   await expect(page.getByRole('link', { name: 'Back to Example Portal' }).first()).toHaveAttribute('href', '/');
   await expect(page.getByRole('link', { name: 'Account and sign-in' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
-  await expect(sections(page).getByRole('link', { name: 'Settings' })).toBeVisible();
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 
   // The clock works, against the API under the same path.
   await page.getByRole('textbox', { name: 'What you are working on' }).fill('Site visit');

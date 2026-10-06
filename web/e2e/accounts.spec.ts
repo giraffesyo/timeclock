@@ -23,11 +23,12 @@ test('an invited admin sets a password, signs out, and signs back in', async ({ 
   const page = await join(browser, manage('invite', 'default', email, '--admin'), 'Pat Admin');
 
   // They run payroll here, so they have Settings.
-  await expect(
-    page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Settings' }),
-  ).toBeVisible();
+  await page.getByRole('button', { name: /: user menu$/ }).click();
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('complementary').getByText('Pat Admin')).toBeVisible();
 
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 
@@ -68,7 +69,8 @@ test('an admin invites someone from Settings, and they join as a member', async 
   const ada = await join(browser, new URL(link).pathname + new URL(link).search, 'Ada Lovelace');
   const nav = ada.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Settings' })).toBeVisible();
+  await ada.getByRole('button', { name: /: user menu$/ }).click();
+  await expect(ada.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 
   // The invitation is used: it is gone from the list, and its link no longer works.
   await admin.reload();
@@ -118,6 +120,7 @@ test('someone in two workspaces switches between them, and each has its own time
 test('the signed-in person changes their password', async ({ browser }) => {
   const email = address('kit');
   const page = await join(browser, manage('invite', 'default', email), 'Kit');
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('link', { name: 'Account and sign-in' }).click();
   await page.getByRole('button', { name: 'Change password' }).click();
   const dialog = page.getByRole('dialog', { name: 'Change password' });
@@ -126,6 +129,7 @@ test('the signed-in person changes their password', async ({ browser }) => {
   await dialog.getByRole('button', { name: 'Change password' }).click();
   await expect(dialog).toBeHidden();
 
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, email, PASSWORD);
   await expect(page.getByRole('alert')).toBeVisible();
@@ -161,6 +165,7 @@ test('an authenticator app is asked for after the password, and a recovery code 
   await expect(page.getByText('10 recovery codes left.')).toBeVisible();
 
   // Now the password is only the first step.
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, email, PASSWORD);
   await expect(page.getByRole('heading', { name: 'Enter your code' })).toBeVisible();
@@ -173,6 +178,7 @@ test('an authenticator app is asked for after the password, and a recovery code 
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
 
   // Without the phone: a recovery code, once.
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, email, PASSWORD);
   await page.getByRole('button', { name: 'Use a recovery code' }).click();
@@ -188,6 +194,7 @@ test('an authenticator app is asked for after the password, and a recovery code 
   await off.getByLabel('Your password').fill(PASSWORD);
   await off.getByRole('button', { name: 'Turn off' }).click();
   await expect(page.getByRole('button', { name: 'Set up' })).toBeVisible();
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await signIn(page, email, PASSWORD);
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
@@ -219,6 +226,7 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await expect(gate).toBeHidden();
   await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toBeVisible();
 
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
   await expect(page.getByRole('form', { name: 'Clock' })).toBeVisible();
@@ -248,6 +256,7 @@ test('a passkey signs in on its own, with no password or code', async ({ browser
   await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toContainText('Last used');
   await page.getByRole('button', { name: 'Remove the passkey Work laptop' }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Work laptop' })).toHaveCount(0);
+  await page.getByRole('button', { name: /: user menu$/ }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
   await expect(page.getByRole('alert')).toBeVisible();

@@ -108,7 +108,8 @@ test('everyone gets personal Settings, and only approvers get Team', async ({ me
   const nav = me.page.getByRole('navigation', { name: 'Sections' });
   await expect(nav.getByRole('link', { name: 'Timer' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Team' })).toHaveCount(0);
-  await nav.getByRole('link', { name: 'Settings' }).click();
+  await me.page.getByRole('button', { name: /: user menu$/ }).click();
+  await me.page.getByRole('link', { name: 'Settings', exact: true }).click();
   await expect(
     me.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
   ).toHaveCount(0);
@@ -118,9 +119,10 @@ test('everyone gets personal Settings, and only approvers get Team', async ({ me
   const admin = await adminPerson();
   await admin.page.goto('/');
   const adminNav = admin.page.getByRole('navigation', { name: 'Sections' });
-  await expect(adminNav.getByRole('link', { name: 'Settings' })).toBeVisible();
+  await admin.page.getByRole('button', { name: /: user menu$/ }).click();
+  await expect(admin.page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
   await expect(adminNav.getByRole('link', { name: 'Team' })).toBeVisible();
-  await adminNav.getByRole('link', { name: 'Settings' }).click();
+  await admin.page.getByRole('link', { name: 'Settings', exact: true }).click();
   await expect(
     admin.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
   ).toBeVisible();

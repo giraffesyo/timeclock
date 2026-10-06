@@ -1,0 +1,42 @@
+import { Avatar } from '@parallelworks/ui';
+import { HoverCardRow, HoverCardTrigger, UserHoverCard } from '@parallelworks/ui/list';
+import { useTranslations } from 'use-intl';
+import { BrandIcon, TeamIcon } from '@/components/nav-icons';
+import type { Person } from '@/lib/queries';
+import { useSession } from '@/lib/session';
+
+/** Foundation's shared identity and profile card, for people and their managers. */
+export function PersonIdentity({ person, people }: { person: Person; people: Person[] }) {
+  const t = useTranslations('settings.people');
+  const { settings } = useSession();
+  const name = person.name || person.email || person.id;
+  const manager = people.find((p) => p.id === person.managerId);
+  return (
+    <HoverCardTrigger
+      className="inline-flex"
+      card={(placement) => (
+        <UserHoverCard
+          {...placement}
+          username={person.email || person.id}
+          name={name}
+          avatarSrc={person.avatarUrl}
+          badge={person.active ? t('active') : t('inactive')}
+        >
+          <HoverCardRow icon={<TeamIcon />}>
+            {t('profileManager', { name: manager?.name || manager?.email || person.managerId || t('adminApproves') })}
+          </HoverCardRow>
+          <HoverCardRow icon={<BrandIcon />}>{person.timezone || settings.timezone}</HoverCardRow>
+        </UserHoverCard>
+      )}
+    >
+      <button
+        type="button"
+        aria-label={name}
+        className="flex min-h-9 items-center gap-2 rounded-md text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <Avatar src={person.avatarUrl} name={name} size="sm" className="shrink-0" />
+        <span>{name}</span>
+      </button>
+    </HoverCardTrigger>
+  );
+}

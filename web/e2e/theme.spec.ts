@@ -13,7 +13,8 @@ for (const mobile of [false, true]) {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Dark', exact: true })).toHaveCount(0);
-    await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: /: user menu$/ }).click();
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
     const html = page.locator('html');
     const preference = page.getByRole('group', { name: 'Color theme' });
     await expect(page.getByRole('heading', { name: 'Workspace colors' })).toHaveCount(0);

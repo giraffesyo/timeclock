@@ -112,6 +112,7 @@ test.describe('email', () => {
   test('a forgotten password is replaced from an emailed link, which works once', async ({ browser }) => {
     const email = address('kit');
     const page = await join(browser, manage('invite', 'default', email), 'Kit', from());
+    await page.getByRole('button', { name: /: user menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await mailedLink(email); // the invitation
 
@@ -132,6 +133,7 @@ test.describe('email', () => {
     await expect(clock(page)).toBeVisible();
 
     // The old password is gone, and the new one works.
+    await page.getByRole('button', { name: /: user menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await signIn(page, email, PASSWORD);
     await expect(page.getByRole('alert')).toHaveText('That email and password don’t match.');
@@ -151,6 +153,7 @@ test.describe('email', () => {
     const email = address('tova');
     const page = await join(browser, manage('invite', 'default', email), 'Tova', from());
     const { key } = await addAuthenticator(page);
+    await page.getByRole('button', { name: /: user menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await forgot(page, email);
     await page.goto(await mailedLink(email, 2));
@@ -183,6 +186,7 @@ test.describe('passwords', () => {
   test('repeated wrong passwords pause sign-in, for that account and from that address only', async ({ browser }) => {
     const email = address('tess');
     const page = await join(browser, manage('invite', 'default', email), 'Tess', from());
+    await page.getByRole('button', { name: /: user menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
 
     const attempt = async (password: string) => {
@@ -204,6 +208,7 @@ test.describe('passwords', () => {
     // Someone else, somewhere else, isn't slowed by it.
     const other = address('uma');
     const theirs = await join(browser, manage('invite', 'default', other), 'Uma', from());
+    await theirs.getByRole('button', { name: /: user menu$/ }).click();
     await theirs.getByRole('button', { name: 'Sign out' }).click();
     await signIn(theirs, other, PASSWORD);
     await expect(clock(theirs)).toBeVisible();
@@ -314,6 +319,7 @@ test.describe('a workspace’s single sign-on', () => {
     await expect(ws.admin.getByRole('row', { name: /^Nell Newcomer/ })).toBeVisible();
 
     // Next time their address is offered the provider on the sign-in page.
+    await page.getByRole('button', { name: /: user menu$/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -367,6 +373,7 @@ test.describe('a workspace’s single sign-on', () => {
     await pau.getByRole('link', { name: 'Continue with Strict Co single sign-on' }).click();
     await atProvider(pau, email, 'Pau');
     await expect(clock(pau)).toBeVisible();
+    await pau.getByRole('button', { name: /: user menu$/ }).click();
     await pau.getByRole('button', { name: 'Sign out' }).click();
     await pau.getByLabel('Email').fill(email);
     await pau.getByRole('button', { name: 'Continue' }).click();

@@ -31,8 +31,9 @@ for (const mobile of [false, true]) {
         overflow: getComputedStyle(el).textOverflow,
       })),
     ).toEqual({ fits: true, overflow: 'clip' });
-    await expect(account.getByRole('link', { name: 'Account and sign-in' })).toBeVisible();
-    await expect(account.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await account.getByRole('button', { name: /: user menu$/ }).click();
+    await expect(page.getByRole('link', { name: 'Account and sign-in' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await account.screenshot({ path: `/tmp/timeclock-account-${mobile ? 'mobile' : 'desktop'}.png` });
 

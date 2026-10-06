@@ -957,6 +957,13 @@
           "active": {
             "type": "boolean"
           },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "directoryManagerId": {
+            "description": "The manager supplied by the host directory, used when no local override is set.",
+            "type": "string"
+          },
           "email": {
             "type": "string"
           },
@@ -965,6 +972,10 @@
           },
           "managerId": {
             "description": "Who approves this person's time; empty when no one is assigned.",
+            "type": "string"
+          },
+          "managerOverrideId": {
+            "description": "The local manager override; empty follows the directory.",
             "type": "string"
           },
           "name": {
@@ -989,8 +1000,11 @@
           "id",
           "name",
           "email",
+          "avatarUrl",
           "timezone",
           "managerId",
+          "managerOverrideId",
+          "directoryManagerId",
           "overtimeExempt",
           "payrollId",
           "active"

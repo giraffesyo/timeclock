@@ -1042,10 +1042,15 @@ export interface components {
              */
             readonly $schema?: string;
             active: boolean;
+            avatarUrl: string;
+            /** @description The manager supplied by the host directory, used when no local override is set. */
+            directoryManagerId: string;
             email: string;
             id: string;
             /** @description Who approves this person's time; empty when no one is assigned. */
             managerId: string;
+            /** @description The local manager override; empty follows the directory. */
+            managerOverrideId: string;
             name: string;
             overtimeExempt: boolean;
             /** @description The person's id in the payroll system, for the export. */
