@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./invite-DIo90vTd.js","./clsx-vqjabRLh.js","./page-C96KsG4q.js","./useQuery-CBjIHiJp.js","./field-7N3LcJO9.js","./accounts-DaYMSXlP.js","./auth-page-BtNlAGeG.js"])))=>i.map(i=>d[i]);
+import{n as e,t}from"./lazyRouteComponent-Cbpcycsv.js";import{t as n}from"./preload-helper-BaNbYf_w.js";var r=e(`/invite`)({component:t(()=>n(()=>import(`./invite-DIo90vTd.js`),__vite__mapDeps([0,1,2,3,4,5,6]),import.meta.url),`component`),validateSearch:e=>({token:typeof e.token==`string`?e.token:void 0})});export{r as t};
