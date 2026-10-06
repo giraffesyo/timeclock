@@ -494,6 +494,11 @@ test('the project menu escapes the entry popover and stays selectable at viewpor
     await expect(menu).toBeHidden();
     await expect(edit).toBeVisible();
     await expect(edit.getByRole('button', { name: /^Project:/ })).toContainText(chosen);
+    // Save with this test's own project: the last one belongs to whichever test
+    // sorts there, and may be archived or changed before this saves.
+    await edit.getByRole('button', { name: /^Project:/ }).click();
+    await menu.getByRole('option', { name: 'Platform', exact: true }).click();
+    await expect(edit.getByRole('button', { name: /^Project:/ })).toContainText('Acme / Platform');
     await edit.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(edit).toBeHidden();
   }
