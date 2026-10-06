@@ -22,6 +22,9 @@ type fakeToggl struct {
 	failCreate           bool
 	calls                int
 	projects             []toggl.Project
+	// slowerThan makes reports spanning more days than this too slow to answer.
+	slowerThan int
+	slow       time.Duration
 }
 
 func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +48,11 @@ func (f *fakeToggl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if body.From < "2006-01-01" {
 			http.Error(w, "start_date must be on or after 2006-01-01", http.StatusBadRequest)
 			return
+		}
+		from, _ := time.Parse(time.DateOnly, body.From)
+		to, _ := time.Parse(time.DateOnly, body.To)
+		if f.slowerThan > 0 && to.Sub(from) > time.Duration(f.slowerThan)*24*time.Hour {
+			time.Sleep(f.slow)
 		}
 		groups := []any{}
 		for _, e := range f.entries {

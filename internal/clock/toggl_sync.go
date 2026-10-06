@@ -163,7 +163,14 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 			continue
 		}
 		if err := t.syncWindow(ctx, s, c, client, w.From, w.To); err != nil {
-			return err
+			if ctx.Err() != nil || !toggl.Timeout(err) {
+				return err
+			}
+			// Too slow to finish: drop it, and the sweep asks for less at a time.
+			if _, err := s.pool.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2`, w.From, w.To); err != nil {
+				return err
+			}
+			continue
 		}
 		if w.From.Equal(cursor) {
 			cursor = w.To
@@ -178,14 +185,26 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 	// Four bounded windows per job. A failed window never advances the cursor;
 	// completed windows survive rate limits and process restarts. Continue
 	// sweeping after the first import to discover edits to historical time.
-	for i := 0; i < 4 && cursor.Before(recent); i++ {
-		to := cursor.AddDate(0, 0, 360)
+	// Toggl's reports API can take longer than a request may for a year of a
+	// busy company's time: a window that times out is asked for again in
+	// halves, down to a week, and the run carries on at the smaller size.
+	days := 360
+	for i := 0; i < 4 && cursor.Before(recent); {
+		to := cursor.AddDate(0, 0, days)
 		if to.After(recent) {
 			to = recent
 		}
 		if err := t.syncWindow(ctx, s, c, client, cursor, to); err != nil {
-			return err
+			if ctx.Err() != nil || !toggl.Timeout(err) || days <= 7 {
+				return err
+			}
+			if _, err := s.pool.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2`, cursor, to); err != nil {
+				return err
+			}
+			days /= 2
+			continue
 		}
+		i++
 		cursor = to
 		if _, err := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET history_cursor=$1 WHERE workspace_id=$W`, cursor); err != nil {
 			return err
