@@ -31,7 +31,13 @@ func TestReportPaginationAndAuthentication(t *testing.T) {
 		if calls == 1 {
 			w.Header().Set("X-Next-ID", "12")
 			w.Header().Set("X-Next-Row-Number", "2")
-		} else if body["first_id"] != float64(12) || body["first_row_number"] != float64(2) {
+			w.Header().Set("X-Next-Timestamp", "1790845200")
+		} else if body["first_id"] != nil || body["first_timestamp"] != nil {
+			// Toggl applies these as additional offsets, returning an empty
+			// page even though the row cursor alone still has entries.
+			_, _ = w.Write([]byte(`[]`))
+			return
+		} else if body["first_row_number"] != float64(2) {
 			t.Error("missing continuation")
 		}
 		_ = json.NewEncoder(w).Encode([]any{map[string]any{"user_id": 7, "description": "work", "time_entries": []any{map[string]any{"id": calls, "start": "2026-10-01T09:00:00Z", "stop": "2026-10-01T10:00:00Z", "seconds": 3600}}}})
@@ -44,6 +50,27 @@ func TestReportPaginationAndAuthentication(t *testing.T) {
 	}
 	if calls != 2 || len(entries) != 2 || entries[1].UserID != 7 || entries[1].WorkspaceID != 42 || entries[1].Duration != 3600 {
 		t.Fatalf("incomplete report: %#v", entries)
+	}
+}
+
+func TestReportPageResumesLegacyMixedCursor(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body["first_row_number"] != float64(1001) || body["first_id"] != nil || body["first_timestamp"] != nil {
+			t.Errorf("mixed pagination methods in resumed request: %v", body)
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	c := Client{BaseURL: server.URL, HTTP: server.Client()}
+	_, _, err := c.ReportPage(t.Context(), 42, "2026-10-01", "2026-10-02", ReportCursor{
+		"first_row_number": 1001, "first_id": 12, "first_timestamp": 1790845200,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 func TestReportFailureDoesNotReturnPartialData(t *testing.T) {
