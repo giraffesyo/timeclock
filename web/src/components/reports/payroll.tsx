@@ -14,7 +14,7 @@ import { useSession } from '@/lib/session';
 import type { Day } from '@/lib/time';
 import { ReportTable, rowLine, TimesheetLink, td, tdNum, textLink, th, thNum, useStickyPeriod } from './shared';
 
-const total = (r: PayrollRow) => r.regular + r.overtime + r.vacation + r.sick;
+const total = (r: PayrollRow) => r.regular + r.overtime + r.vacation + r.sick + r.holiday;
 
 /** Who is ready to be paid for a pay period, and the file that pays them. */
 export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | undefined) => void }) {
@@ -144,6 +144,9 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                     {tc('columns.sick')}
                   </th>
                   <th scope="col" className={thNum}>
+                    {tc('columns.holiday')}
+                  </th>
+                  <th scope="col" className={thNum}>
                     {tc('columns.total')}
                   </th>
                   <th scope="col" className={th}>
@@ -198,6 +201,9 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                       <Hours value={r.sick} />
                     </td>
                     <td className={tdNum}>
+                      <Hours value={r.holiday} />
+                    </td>
+                    <td className={tdNum}>
                       <Hours value={total(r)} strong />
                     </td>
                     <td className={td}>
@@ -232,6 +238,9 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                   </td>
                   <td className={tdNum}>
                     <Hours value={sum((r) => r.sick)} />
+                  </td>
+                  <td className={tdNum}>
+                    <Hours value={sum((r) => r.holiday)} />
                   </td>
                   <td className={tdNum}>
                     <Hours value={sum(total)} strong />

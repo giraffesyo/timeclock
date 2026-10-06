@@ -31,6 +31,12 @@ var (
 		Title:  "Time off already recorded",
 		Doc:    "The person already has time off of this kind on one of these days.",
 	})
+	ErrHolidayTaken = Problems.Define(problem.Type{
+		Code:   "holiday_day_taken",
+		Status: http.StatusConflict,
+		Title:  "Day already a holiday",
+		Doc:    "Another holiday already covers one of these days. A day is one holiday, so it is never paid twice.",
+	})
 	ErrLocked = Problems.Define(problem.Type{
 		Code:   "period_locked",
 		Status: http.StatusConflict,

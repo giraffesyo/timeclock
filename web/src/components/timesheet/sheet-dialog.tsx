@@ -26,6 +26,7 @@ function Totals({ summary }: { summary: PeriodSummary }) {
     [tc('overtime'), summary.overtime],
     [tc('vacation'), summary.vacation],
     [tc('sick'), summary.sick],
+    [tc('holiday'), summary.holiday],
     [tc('total'), totalHours(summary)],
   ] as const;
   return (
@@ -34,7 +35,7 @@ function Totals({ summary }: { summary: PeriodSummary }) {
         <span className="text-muted-foreground">{t('period')}</span>
         <span className="tabular font-medium">{periodLabel(summary.period)}</span>
       </div>
-      <dl className="grid grid-cols-5 gap-2 px-3 py-2">
+      <dl className="grid grid-cols-3 gap-2 sm:grid-cols-6 px-3 py-2">
         {figures.map(([label, value]) => (
           <div key={label} className="min-w-0">
             <dt className="truncate text-xs text-muted-foreground">{label}</dt>

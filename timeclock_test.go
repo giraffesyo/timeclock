@@ -163,7 +163,7 @@ func TestMountedInAHost(t *testing.T) {
 	rec, _ = call(t, h, "pat", http.MethodGet, api+"/reports/payroll.csv?all=true", "")
 	lines := strings.Split(strings.TrimSpace(rec.Body.String()), "\n")
 	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/csv") ||
-		lines[0] != "last_name,first_name,gusto_employee_id,regular_hours,overtime_hours,double_overtime_hours,pto_hours,sick_hours" ||
+		lines[0] != "last_name,first_name,gusto_employee_id,regular_hours,overtime_hours,double_overtime_hours,holiday_hours,pto_hours,sick_hours" ||
 		len(lines) != 3 || !strings.HasPrefix(lines[1], "Lovelace,Ada,") {
 		t.Fatalf("payroll csv: %d %q\n%s", rec.Code, rec.Header().Get("Content-Type"), rec.Body)
 	}

@@ -177,6 +177,12 @@ function TimerPage() {
                 <span className="text-xs text-muted-foreground">{t('period.timeOff')}</span>
               </span>
             )}
+            {sheet.data.holiday > 0 && (
+              <span className="flex items-baseline gap-1.5">
+                <Hours value={sheet.data.holiday} strong />
+                <span className="text-xs text-muted-foreground">{t('period.holiday')}</span>
+              </span>
+            )}
             <span className="ml-auto flex items-center gap-3">
               <SheetStatus timesheet={sheet.data.timesheet} reportsOnly={!sheet.data.person.submitsTimesheets} />
               <Link to="/timesheet" className={buttonClass('outline', 'sm')}>

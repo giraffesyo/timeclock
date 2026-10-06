@@ -143,6 +143,7 @@ func New(mux *http.ServeMux, deps Deps) huma.API {
 	registerIntegrations(a, deps)
 	registerMe(a, deps)
 	registerSettings(a, deps)
+	registerHolidays(a, deps)
 	registerPeople(a, deps)
 	registerCatalog(a, deps)
 	registerEntries(a, deps)

@@ -42,7 +42,7 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 		switch {
 		case !p.SubmitsTimesheets:
 			// Time for reports only: nothing to submit, approve or chase.
-		case sum.Timesheet == nil && ended && sum.Regular+sum.Overtime+sum.Vacation+sum.Sick+sum.PendingTimeOff == 0 && !sum.Running:
+		case sum.Timesheet == nil && ended && sum.Regular+sum.Overtime+sum.Vacation+sum.Sick+sum.Holiday+sum.PendingTimeOff == 0 && !sum.Running:
 			add(Exception{Kind: ExceptionNoTime})
 		case sum.Timesheet == nil && ended:
 			add(Exception{Kind: ExceptionNotSubmitted})

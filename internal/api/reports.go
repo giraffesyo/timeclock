@@ -138,13 +138,13 @@ func registerReports(a huma.API, d Deps) {
 			if err != nil {
 				return nil, err
 			}
-			rows := [][]string{{"last_name", "first_name", "gusto_employee_id", "regular_hours", "overtime_hours", "double_overtime_hours", "pto_hours", "sick_hours"}}
+			rows := [][]string{{"last_name", "first_name", "gusto_employee_id", "regular_hours", "overtime_hours", "double_overtime_hours", "holiday_hours", "pto_hours", "sick_hours"}}
 			for _, r := range report.Rows {
 				if !r.Ready && !in.All {
 					continue
 				}
 				first, last := splitName(r.Person.Name)
-				rows = append(rows, []string{last, first, r.Person.PayrollID, hours(r.Regular), hours(r.Overtime), hours(0), hours(r.Vacation), hours(r.Sick)})
+				rows = append(rows, []string{last, first, r.Person.PayrollID, hours(r.Regular), hours(r.Overtime), hours(0), hours(r.Holiday), hours(r.Vacation), hours(r.Sick)})
 			}
 			return csvFile(fmt.Sprintf("payroll-%s-to-%s.csv", report.Period.Start, report.Period.End), rows)
 		})

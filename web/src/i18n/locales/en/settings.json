@@ -61,6 +61,12 @@
       "timeOffOn": "Vacation and sick time wait for the person’s manager or an admin before they count.",
       "timeOffOff": "Off: time off is recorded at once and counts toward payroll without review."
     },
+    "holidayPay": {
+      "title": "Holiday pay",
+      "label": "Pay company holidays",
+      "on": "People are paid the hours of each company holiday below, without recording any time. Set it per person in People.",
+      "off": "Off: company holidays are shown but not paid, unless set otherwise for someone in People."
+    },
     "entries": {
       "title": "Time entries",
       "requireDescription": "Require a description on every entry",
@@ -83,6 +89,32 @@
       "description": "This moves every pay period boundary from now on. The current period becomes {current}, and the next {next}. Timesheets already submitted keep the period they were submitted for.",
       "action": "Change pay periods"
     }
+  },
+  "holidays": {
+    "title": "Company holidays",
+    "hint": "Each holiday pays its hours to everyone with holiday pay, as Holiday hours beside vacation and sick. Holiday hours are never overtime. Enter the days the company observes them.",
+    "add": "Add holiday",
+    "addTitle": "Add a holiday",
+    "editTitle": "Edit holiday",
+    "edit": "Edit",
+    "editFor": "Edit {name}",
+    "deleteFor": "Delete {name}",
+    "name": "Name",
+    "namePlaceholder": "New Year’s Day",
+    "days": "Days observed",
+    "daysHint": "A holiday can cover several days. Each pays {hours} hours unless you set other hours for it.",
+    "dayLabel": "Day {n}",
+    "hoursLabel": "Hours on day {n}",
+    "hoursUnit": "hours",
+    "removeDay": "Remove day {n}",
+    "addDay": "Add a day",
+    "dayWithHours": "{date} ({hours} h)",
+    "empty": "No holidays yet. Add the days your company observes, and everyone with holiday pay is paid for them.",
+    "loadFailed": "Couldn’t load holidays.",
+    "saveFailed": "Couldn’t save the holiday.",
+    "deleteTitle": "Delete {name}?",
+    "deleteDescription": "Its days are no longer paid. Days in submitted or approved timesheets can’t change until the timesheet is sent back.",
+    "deleteFailed": "Couldn’t delete the holiday."
   },
   "catalog": {
     "title": "Customers and projects",
@@ -158,7 +190,8 @@
       "payrollId": "Payroll ID",
       "active": "Active",
       "timezone": "Time zone",
-      "timesheets": "Timesheets"
+      "timesheets": "Timesheets",
+      "holidayPay": "Holiday pay"
     },
     "saving": "Saving",
     "saveFailed": "Couldn’t save {name}.",
@@ -167,7 +200,8 @@
       "exempt": "Overtime exempt: all of the person’s hours are regular, whatever the weekly threshold.",
       "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export.",
       "active": "Active: inactive people are left out of reports and exceptions.",
-      "timesheets": "Timesheets: people who submit are in payroll. “Reports only” tracks time for project reports and the overview, with no timesheet and no payroll."
+      "timesheets": "Timesheets: people who submit are in payroll. “Reports only” tracks time for project reports and the overview, with no timesheet and no payroll.",
+      "holidayPay": "Holiday pay: who is paid for the company holidays in Settings → Payroll. They’re paid without recording any time."
     },
     "timezoneDefault": "The organization’s",
     "managerDirectory": "From directory: {name}",
@@ -206,7 +240,13 @@
       "ownAdmin": "You can’t remove your own admin.",
       "madeAdmin": "{count, plural, one {# person is} other {# people are}} now an admin.",
       "removedAdmin": "{count, plural, one {# person is} other {# people are}} no longer an admin.",
-      "people": "{count, plural, one {# person} other {# people}}"
+      "people": "{count, plural, one {# person} other {# people}}",
+      "payHolidays": "Pay company holidays",
+      "noHolidayPay": "Don’t pay company holidays",
+      "holidayPayDefault": "Use the workspace default for holiday pay",
+      "madePayHolidays": "{count, plural, one {# person is} other {# people are}} paid for company holidays now.",
+      "madeNoHolidayPay": "{count, plural, one {# person isn’t} other {# people aren’t}} paid for company holidays now.",
+      "followHolidayDefault": "{count, plural, one {# person follows} other {# people follow}} the workspace default for holiday pay."
     },
     "timesheetsDefault": "Default: {value}",
     "submits": "Submits",
@@ -251,13 +291,28 @@
       "deactivate": {
         "title": "Deactivate {who}?",
         "description": "They are left out of payroll reports, the Gusto export and exceptions from now on. Their recorded time is kept, and you can make them active again."
+      },
+      "payHolidays": {
+        "title": "Pay {who} for company holidays?",
+        "description": "Company holidays pay them their hours, as Holiday hours on their timesheet."
+      },
+      "noHolidayPay": {
+        "title": "Stop paying {who} for company holidays?",
+        "description": "Company holidays are shown on their timesheet but not paid."
+      },
+      "holidayPayDefault": {
+        "title": "Use the workspace default for {who}?",
+        "description": "Whether company holidays pay them follows Settings → Payroll."
       }
     },
     "editTitle": "Edit {name}",
     "managerHint": "Who approves their timesheets and time off. Left to the directory, it follows the host’s directory; with none, an admin approves.",
     "payrollIdHint": "Their id in Gusto, written to the payroll export.",
     "exemptOn": "All of their hours are regular.",
-    "exemptOff": "Hours over the weekly threshold are overtime."
+    "exemptOff": "Hours over the weekly threshold are overtime.",
+    "holidayPayDefault": "Default: {value}",
+    "paid": "Paid",
+    "notPaid": "Not paid"
   },
   "history": {
     "title": "Changes to payroll data",
@@ -297,7 +352,10 @@
       "customer_save": "Saved a customer",
       "customer_delete": "Deleted a customer",
       "project_save": "Saved a project",
-      "project_delete": "Deleted a project"
+      "project_delete": "Deleted a project",
+      "holiday_create": "Added a holiday",
+      "holiday_update": "Changed a holiday",
+      "holiday_delete": "Deleted a holiday"
     }
   },
   "appearance": {

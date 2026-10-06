@@ -73,14 +73,14 @@ export function DayTable({
       }
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] border-collapse text-sm">
+        <table className="w-full min-w-[39rem] border-collapse text-sm">
           <caption className="sr-only">{t('caption')}</caption>
           <thead>
             <tr className="text-xs text-muted-foreground">
               <th scope="col" className="px-4 py-2 text-left font-medium">
                 {t('day')}
               </th>
-              {(['regular', 'overtime', 'vacation', 'sick', 'total'] as const).map((c) => (
+              {(['regular', 'overtime', 'vacation', 'sick', 'holiday', 'total'] as const).map((c) => (
                 <th key={c} scope="col" className={cn(num, 'w-20 font-medium', c === 'total' && 'pr-4')}>
                   {tc(c)}
                 </th>
@@ -123,6 +123,11 @@ export function DayTable({
                           {format.dateTime(date, { month: 'short', day: 'numeric' })}
                         </span>
                         {d.day === today && <Chip tone="info">{t('today')}</Chip>}
+                        {d.holidayName && (
+                          <Chip tone="neutral" className="max-w-40 truncate">
+                            {d.holidayName}
+                          </Chip>
+                        )}
                         {dayEntries.length > 0 && (
                           <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
                             {t('entryCount', { count: dayEntries.length })}
@@ -142,13 +147,16 @@ export function DayTable({
                     <td className={num}>
                       <Hours value={d.sick} />
                     </td>
+                    <td className={num}>
+                      <Hours value={d.holiday} />
+                    </td>
                     <td className={cn(num, 'pr-4')}>
                       <Hours value={totalHours(d)} strong />
                     </td>
                   </tr>
                   {isOpen && (
                     <tr id={rowId} className="border-t border-border bg-background">
-                      <td colSpan={6} className="p-0">
+                      <td colSpan={7} className="p-0">
                         {entries.isError ? (
                           <ErrorNote className="m-3" context={t('loadFailed')} error={entries.error} />
                         ) : entries.isPending ? (
@@ -204,6 +212,9 @@ export function DayTable({
               </td>
               <td className={num}>
                 <Hours value={summary.sick} strong />
+              </td>
+              <td className={num}>
+                <Hours value={summary.holiday} strong />
               </td>
               <td className={cn(num, 'pr-4')}>
                 <Hours value={totalHours(summary)} strong />

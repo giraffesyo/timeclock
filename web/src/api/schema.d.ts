@@ -178,6 +178,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/holidays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The company's holidays, by their first day */
+        get: operations["list-holidays"];
+        put?: never;
+        /** Add a company holiday */
+        post: operations["create-holiday"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/holidays/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rename a company holiday or change its days */
+        put: operations["update-holiday"];
+        post?: never;
+        /** Remove a company holiday */
+        delete: operations["delete-holiday"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/info": {
         parameters: {
             query?: never;
@@ -758,6 +794,13 @@ export interface components {
         DaySummary: {
             /** Format: date */
             day: string;
+            /**
+             * Format: double
+             * @description Paid company holiday hours: not time worked, so never overtime.
+             */
+            holiday: number;
+            /** @description The company holiday on this day. */
+            holidayName?: string;
             /** Format: double */
             overtime: number;
             /** Format: double */
@@ -868,6 +911,46 @@ export interface components {
              */
             type: string;
         };
+        Holiday: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Holiday.json
+             */
+            readonly $schema?: string;
+            days: components["schemas"]["HolidayDay"][] | null;
+            id: string;
+            name: string;
+        };
+        HolidayDay: {
+            /** Format: date */
+            day: string;
+            /**
+             * Format: double
+             * @description Paid hours on the day.
+             */
+            hours: number;
+        };
+        HolidayDayInput: {
+            /** Format: date */
+            day: string;
+            /**
+             * Format: double
+             * @description Paid hours on the day. Absent or 0 pays 8.
+             */
+            hours?: number;
+        };
+        HolidayInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/HolidayInput.json
+             */
+            readonly $schema?: string;
+            /** @description The observed days. A holiday can cover several days, not necessarily in a row. */
+            days: components["schemas"]["HolidayDayInput"][] | null;
+            name: string;
+        };
         "Hours-by-dayResponse": {
             /**
              * Format: uri
@@ -931,6 +1014,15 @@ export interface components {
             readonly $schema?: string;
             entries: components["schemas"]["Entry"][] | null;
         };
+        "List-holidaysResponse": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/List-holidaysResponse.json
+             */
+            readonly $schema?: string;
+            holidays: components["schemas"]["Holiday"][] | null;
+        };
         "List-projectsResponse": {
             /**
              * Format: uri
@@ -980,6 +1072,11 @@ export interface components {
         };
         PayrollRow: {
             days: components["schemas"]["DaySummary"][] | null;
+            /**
+             * Format: double
+             * @description Paid company holiday hours.
+             */
+            holiday: number;
             /** Format: double */
             overtime: number;
             /** Format: double */
@@ -1028,6 +1125,11 @@ export interface components {
              */
             readonly $schema?: string;
             days: components["schemas"]["DaySummary"][] | null;
+            /**
+             * Format: double
+             * @description Paid company holiday hours.
+             */
+            holiday: number;
             /** Format: double */
             overtime: number;
             /** Format: double */
@@ -1065,6 +1167,10 @@ export interface components {
             /** @description The manager supplied by the host directory, used when no local override is set. */
             directoryManagerId: string;
             email: string;
+            /** @description They are paid for company holidays. */
+            holidayPay: boolean;
+            /** @description Set for this person; null follows the workspace's holiday pay. */
+            holidayPayOverride: boolean | null;
             /** @description The host application makes them an admin; only the host can take that away. */
             hostAdmin: boolean;
             id: string;
@@ -1095,6 +1201,8 @@ export interface components {
             readonly $schema?: string;
             /** @description Inactive people are left out of payroll reports and exceptions. */
             active: boolean;
+            /** @description Whether they are paid for company holidays. Absent or null follows the workspace's setting. */
+            holidayPay?: boolean | null;
             /** @description Who approves this person's time. Empty defers to the host's directory. */
             managerId: string;
             overtimeExempt: boolean;
@@ -1258,6 +1366,8 @@ export interface components {
              * @description The first day of some weekly or biweekly pay period.
              */
             cycleAnchor: string;
+            /** @description People are paid for company holidays, unless set otherwise for them. */
+            holidayPay: boolean;
             /**
              * Format: double
              * @description An entry or a running clock longer than this is an exception.
@@ -1959,6 +2069,132 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ExceptionsBody"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-holidays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["List-holidaysResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-holiday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolidayInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Holiday"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-holiday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolidayInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Holiday"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-holiday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

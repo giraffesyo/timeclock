@@ -6,6 +6,7 @@ import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
+import { Holidays } from '@/components/settings/holidays';
 import { isDay, periodAfter, periodContaining, todayIn } from '@/components/settings/periods';
 import { SwitchRow } from '@/components/settings/switch';
 import { type Settings, useSaveSettings } from '@/lib/queries';
@@ -31,6 +32,7 @@ function toDraft(s: Settings): Draft {
     cycleAnchor: s.cycleAnchor,
     weekStart: s.weekStart,
     submitTimesheets: s.submitTimesheets,
+    holidayPay: s.holidayPay,
     approveTimesheets: s.approveTimesheets,
     approveTimeOff: s.approveTimeOff,
     requireProject: s.requireProject,
@@ -68,6 +70,7 @@ export function PayrollSettings() {
     weekStart: draft.weekStart,
     overtimeWeeklyHours: overtime,
     submitTimesheets: draft.submitTimesheets,
+    holidayPay: draft.holidayPay,
     approveTimesheets: draft.approveTimesheets,
     approveTimeOff: draft.approveTimeOff,
     requireProject: draft.requireProject,
@@ -89,6 +92,7 @@ export function PayrollSettings() {
     next.weekStart !== settings.weekStart ||
     next.overtimeWeeklyHours !== settings.overtimeWeeklyHours ||
     next.submitTimesheets !== settings.submitTimesheets ||
+    next.holidayPay !== settings.holidayPay ||
     next.approveTimesheets !== settings.approveTimesheets ||
     next.approveTimeOff !== settings.approveTimeOff ||
     next.requireProject !== settings.requireProject ||
@@ -221,6 +225,15 @@ export function PayrollSettings() {
           </div>
         </Panel>
 
+        <Panel title={t('holidayPay.title')}>
+          <SwitchRow
+            label={t('holidayPay.label')}
+            hint={draft.holidayPay ? t('holidayPay.on') : t('holidayPay.off')}
+            value={draft.holidayPay}
+            onChange={(v) => set('holidayPay', v)}
+          />
+        </Panel>
+
         <Panel title={t('entries.title')}>
           <div className="space-y-4">
             <SwitchRow
@@ -286,6 +299,9 @@ export function PayrollSettings() {
           </span>
         </div>
       </form>
+      <div className="mt-4">
+        <Holidays />
+      </div>
       <ConfirmModal
         open={confirming}
         onClose={() => {
