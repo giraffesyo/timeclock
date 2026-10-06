@@ -67,3 +67,42 @@ func TestTogglWorkerOutlivesDefaultJobTimeout(t *testing.T) {
 	}
 	t.Fatal("sync was cancelled by the queue's default timeout before saving progress")
 }
+
+func TestTogglWorkerResumesTimedOutHistory(t *testing.T) {
+	f, bridge, fake := togglFixture(t)
+	setupToggl(t, f, bridge)
+	seedToggl(f, fake)
+	if _, err := f.pool.Exec(t.Context(), `UPDATE toggl_workspaces SET next_sync=$1 WHERE workspace_id=$W`, f.clock.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	originalClient := bridge.client
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(server.Close)
+	bridge.client = func(token string) *toggl.Client {
+		return &toggl.Client{Token: token, BaseURL: server.URL, HTTP: server.Client()}
+	}
+	bridge.workspaceTimeout = 50 * time.Millisecond
+	if err := bridge.run(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	status, err := bridge.Status(t.Context(), f.Service, f.admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !status.Connected || status.LastSync != nil || status.NextSync == nil || !status.NextSync.Equal(f.clock.Add(time.Minute)) || !strings.Contains(status.Error, "Saved progress will resume") {
+		t.Fatalf("timed-out history did not schedule a prompt, honest retry: %+v", status)
+	}
+	// The same connection must recover without reconnecting or manual retry.
+	f.clock = f.clock.Add(2 * time.Minute)
+	bridge.client = originalClient
+	bridge.workspaceTimeout = 5 * time.Minute
+	if err := bridge.run(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	status, err = bridge.Status(t.Context(), f.Service, f.admin)
+	if err != nil || status.LastSync == nil || status.Error != "" || len(togglEntries(t, f)) != 1 {
+		t.Fatalf("retry did not recover: %+v, %v", status, err)
+	}
+}

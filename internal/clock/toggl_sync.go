@@ -66,7 +66,7 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 			if c.token == nil || c.next.After(s.now()) {
 				return nil
 			}
-			jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+			jobCtx, cancel := context.WithTimeout(ctx, t.workspaceTimeout)
 			defer cancel()
 			plain, err := t.box.Open(nil, nil, c.token, []byte(s.ws.String()))
 			if err == nil {
@@ -79,8 +79,15 @@ func (t *Toggl) run(ctx context.Context, _ *hopper.Job[togglJob]) error {
 			if err != nil {
 				delay = time.Hour
 				message = togglMessage(err)
-				if e, ok := errors.AsType[*toggl.Error](err); ok && e.RetryAfter > delay {
-					delay = e.RetryAfter
+				if e, ok := errors.AsType[*toggl.Error](err); ok {
+					if e.RetryAfter > delay {
+						delay = e.RetryAfter
+					}
+				} else if !c.historyComplete && errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
+					// A large initial import can span several bounded attempts.
+					// Its durable progress must resume without an hourly backoff.
+					delay = time.Minute
+					message = "History import reached its time limit. Saved progress will resume in a minute."
 				}
 			}
 			// A cancelled job must not erase its durable attempt markers.
