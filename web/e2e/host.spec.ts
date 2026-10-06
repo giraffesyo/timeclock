@@ -62,6 +62,9 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   await expect(page).toHaveURL(/\/timeclock\/timesheet/);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Timesheet' })).toBeVisible();
+  // The clock bar stays on the Timer page, where the clock is still running.
+  await expect(page.getByRole('form', { name: 'Clock' })).toHaveCount(0);
+  await sections(page).getByRole('link', { name: 'Timer' }).click();
   await expect(page.getByRole('form', { name: 'Clock' }).getByRole('timer')).toBeVisible();
   await page.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();

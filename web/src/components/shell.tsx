@@ -1,7 +1,7 @@
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useErrorMessage } from '@parallelworks/problem/react';
 import { Avatar, TOOLTIP_ID } from '@parallelworks/ui';
-import { Link } from '@tanstack/react-router';
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import { type ReactNode, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -94,18 +94,6 @@ function UserMenu({ mobile = false }: { mobile?: boolean }) {
             >
               <Avatar src={avatarUrl || person.avatarUrl} name={person.name} size="sm" className="shrink-0" />
               <span className="min-w-0 flex-1 wrap-anywhere">{person.name}</span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                aria-hidden
-                className="shrink-0"
-              >
-                <path d="m5 6 3 3 3-3" />
-              </svg>
             </PopoverButton>
             <PopoverPanel
               anchor={mobile ? 'bottom end' : 'top start'}
@@ -161,6 +149,8 @@ export function Shell({ children }: { children: ReactNode }) {
   const t = useTranslations('shell');
   const me = useSession();
   const { info } = me;
+  // The clock bar belongs to the Timer page; elsewhere the page has the room.
+  const onTimer = !!useMatchRoute()({ to: '/' });
 
   const groups = [
     {
@@ -243,7 +233,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
 
       <div className="shell-sheet">
-        <ClockBar />
+        {onTimer && <ClockBar />}
         <div className="min-h-0 flex-1">{children}</div>
       </div>
     </div>

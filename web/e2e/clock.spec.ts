@@ -131,16 +131,18 @@ test('a note still unsaved when the clock stops is kept', async ({ me }) => {
   expect(entries[0].note).toBe('Wrapping up');
 });
 
-test('the clock is on every page, and keeps running from one to the next', async ({ me }) => {
+test('the clock bar is on the Timer page only, and the clock keeps running elsewhere', async ({ me }) => {
   const { page, api } = me;
   await api.clockInAgo('Acme / Platform', 12, 'Build');
   for (const path of ['/overview', '/timesheet', '/time-off', '/reports']) {
     await page.goto(path);
-    const bar = page.getByRole('form', { name: 'Clock' });
-    await expect(bar.getByRole('timer')).toHaveText(/^0:1\d:\d\d$/);
-    await expect(note(page)).toHaveValue('Build');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('form', { name: 'Clock' })).toHaveCount(0);
   }
-  // It stops from wherever you are.
+  await page.getByRole('link', { name: 'Timer', exact: true }).click();
+  const bar = page.getByRole('form', { name: 'Clock' });
+  await expect(bar.getByRole('timer')).toHaveText(/^0:1\d:\d\d$/);
+  await expect(note(page)).toHaveValue('Build');
   await page.getByRole('button', { name: 'Stop the clock' }).click();
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeVisible();
   expect((await api.get('/me')).running).toBeUndefined();
