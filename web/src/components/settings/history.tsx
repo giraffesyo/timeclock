@@ -27,6 +27,9 @@ const ACTIONS = {
   'customer.delete': 'customer_delete',
   'project.save': 'project_save',
   'project.delete': 'project_delete',
+  'holiday.create': 'holiday_create',
+  'holiday.update': 'holiday_update',
+  'holiday.delete': 'holiday_delete',
 } as const;
 
 const isAction = (action: string): action is keyof typeof ACTIONS => action in ACTIONS;
@@ -89,7 +92,7 @@ export function History() {
       const end = str(period['end']);
       return isDay(start) && isDay(end) ? periodLabel({ start, end }) : '';
     }
-    if (family === 'customer' || family === 'project') return str(s['name']);
+    if (family === 'customer' || family === 'project' || family === 'holiday') return str(s['name']);
     return '';
   };
 

@@ -37,6 +37,7 @@ export class Api {
   get = (path: string) => this.ok('get', path);
   post = (path: string, data: unknown = {}) => this.ok('post', path, data);
   put = (path: string, data: unknown) => this.ok('put', path, data);
+  delete = (path: string) => this.ok('delete', path);
   /** The response itself, for a request the test expects to be refused. */
   try = (method: 'post' | 'put', path: string, data: unknown = {}) => this.send(method, path, data);
   text = async (path: string) => (await this.request.get(`/api/v1${path}`)).text();

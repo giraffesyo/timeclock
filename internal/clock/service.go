@@ -74,13 +74,13 @@ func audit(ctx context.Context, q querier, actor Actor, action, personID string,
 // --- Settings ---
 
 const settingsColumns = `timezone, pay_cycle, cycle_anchor, week_start, overtime_weekly_hours::float8,
-	approve_timesheets, approve_time_off, require_project, require_description, long_entry_hours::float8, submit_timesheets`
+	approve_timesheets, approve_time_off, require_project, require_description, long_entry_hours::float8, submit_timesheets, holiday_pay`
 
 func scanSettings(row pgx.Row) (Settings, error) {
 	var s Settings
 	var anchor time.Time
 	err := row.Scan(&s.Timezone, &s.PayCycle, &anchor, &s.WeekStart, &s.OvertimeWeeklyHours,
-		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.RequireDescription, &s.LongEntryHours, &s.SubmitTimesheets)
+		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.RequireDescription, &s.LongEntryHours, &s.SubmitTimesheets, &s.HolidayPay)
 	s.CycleAnchor = DateFromTime(anchor)
 	return s, err
 }
@@ -114,9 +114,9 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 		}
 		if _, err := tx.Exec(ctx, `UPDATE settings SET timezone = $1, pay_cycle = $2, cycle_anchor = $3, week_start = $4,
 			overtime_weekly_hours = $5, approve_timesheets = $6, approve_time_off = $7, require_project = $8,
-			long_entry_hours = $9, require_description = $10, submit_timesheets = $12, updated_at = now(), updated_by = $11 WHERE workspace_id = $W`,
+			long_entry_hours = $9, require_description = $10, submit_timesheets = $12, holiday_pay = $13, updated_at = now(), updated_by = $11 WHERE workspace_id = $W`,
 			in.Timezone, in.PayCycle, in.CycleAnchor.Time(), in.WeekStart, in.OvertimeWeeklyHours,
-			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, in.RequireDescription, actor.ID, in.SubmitTimesheets); err != nil {
+			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, in.RequireDescription, actor.ID, in.SubmitTimesheets, in.HolidayPay); err != nil {
 			return fmt.Errorf("update settings: %w", err)
 		}
 		return audit(ctx, tx, actor, "settings.update", "", map[string]any{"before": before, "after": in})
@@ -132,12 +132,14 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 const personColumns = `id, name, email, timezone, CASE WHEN manager_id <> '' THEN manager_id ELSE host_manager_id END,
 	overtime_exempt, payroll_id, active, avatar_url, host_manager_id, manager_id, submits_timesheets,
 	coalesce(submits_timesheets, (SELECT submit_timesheets FROM settings WHERE settings.workspace_id = people.workspace_id)),
-	host_admin, host_admin OR admin`
+	host_admin, host_admin OR admin, holiday_pay,
+	coalesce(holiday_pay, (SELECT holiday_pay FROM settings WHERE settings.workspace_id = people.workspace_id))`
 
 func scanPerson(row pgx.Row) (Person, error) {
 	var p Person
 	err := row.Scan(&p.ID, &p.Name, &p.Email, &p.Timezone, &p.ManagerID, &p.OvertimeExempt, &p.PayrollID, &p.Active, &p.AvatarURL,
-		&p.DirectoryManagerID, &p.ManagerOverrideID, &p.SubmitsTimesheetsOverride, &p.SubmitsTimesheets, &p.HostAdmin, &p.Admin)
+		&p.DirectoryManagerID, &p.ManagerOverrideID, &p.SubmitsTimesheetsOverride, &p.SubmitsTimesheets, &p.HostAdmin, &p.Admin,
+		&p.HolidayPayOverride, &p.HolidayPay)
 	return p, err
 }
 
@@ -277,6 +279,8 @@ type PersonUpdate struct {
 	Active         bool   `json:"active" doc:"Inactive people are left out of payroll reports and exceptions."`
 	// SubmitsTimesheets is this person's own choice; absent or null follows the workspace.
 	SubmitsTimesheets *bool `json:"submitsTimesheets,omitempty" nullable:"true" doc:"Whether they submit timesheets and are in payroll. Absent or null follows the workspace's setting."`
+	// HolidayPay is this person's own choice; absent or null follows the workspace.
+	HolidayPay *bool `json:"holidayPay,omitempty" nullable:"true" doc:"Whether they are paid for company holidays. Absent or null follows the workspace's setting."`
 }
 
 // UpdatePerson sets a person's manager and payroll details.
@@ -299,8 +303,8 @@ func (s *Service) UpdatePerson(ctx context.Context, actor Actor, id string, in P
 			}
 		}
 		out, err = scanPerson(tx.QueryRow(ctx, `UPDATE people SET manager_id = $2, overtime_exempt = $3, payroll_id = $4,
-			active = $5, timezone = $6, submits_timesheets = $7, updated_at = now() WHERE id = $1 AND workspace_id = $W RETURNING `+personColumns,
-			id, in.ManagerID, in.OvertimeExempt, in.PayrollID, in.Active, in.Timezone, in.SubmitsTimesheets))
+			active = $5, timezone = $6, submits_timesheets = $7, holiday_pay = $8, updated_at = now() WHERE id = $1 AND workspace_id = $W RETURNING `+personColumns,
+			id, in.ManagerID, in.OvertimeExempt, in.PayrollID, in.Active, in.Timezone, in.SubmitsTimesheets, in.HolidayPay))
 		if err != nil {
 			return fmt.Errorf("update person: %w", err)
 		}

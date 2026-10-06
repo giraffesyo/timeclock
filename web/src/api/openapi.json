@@ -191,6 +191,15 @@
             "format": "date",
             "type": "string"
           },
+          "holiday": {
+            "description": "Paid company holiday hours: not time worked, so never overtime.",
+            "format": "double",
+            "type": "number"
+          },
+          "holidayName": {
+            "description": "The company holiday on this day.",
+            "type": "string"
+          },
           "overtime": {
             "format": "double",
             "type": "number"
@@ -213,7 +222,8 @@
           "regular",
           "overtime",
           "vacation",
-          "sick"
+          "sick",
+          "holiday"
         ],
         "type": "object"
       },
@@ -455,6 +465,116 @@
         ],
         "type": "object"
       },
+      "Holiday": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Holiday.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayDay"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "days"
+        ],
+        "type": "object"
+      },
+      "HolidayDay": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "hours": {
+            "description": "Paid hours on the day.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "day",
+          "hours"
+        ],
+        "type": "object"
+      },
+      "HolidayDayInput": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "hours": {
+            "description": "Paid hours on the day. Absent or 0 pays 8.",
+            "format": "double",
+            "maximum": 24,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "day"
+        ],
+        "type": "object"
+      },
+      "HolidayInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/HolidayInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "days": {
+            "description": "The observed days. A holiday can cover several days, not necessarily in a row.",
+            "items": {
+              "$ref": "#/components/schemas/HolidayDayInput"
+            },
+            "maxItems": 31,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "days"
+        ],
+        "type": "object"
+      },
       "Hours-by-dayResponse": {
         "additionalProperties": false,
         "properties": {
@@ -637,6 +757,33 @@
         ],
         "type": "object"
       },
+      "List-holidaysResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-holidaysResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "holidays": {
+            "items": {
+              "$ref": "#/components/schemas/Holiday"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "holidays"
+        ],
+        "type": "object"
+      },
       "List-projectsResponse": {
         "additionalProperties": false,
         "properties": {
@@ -770,6 +917,11 @@
               "null"
             ]
           },
+          "holiday": {
+            "description": "Paid company holiday hours.",
+            "format": "double",
+            "type": "number"
+          },
           "overtime": {
             "format": "double",
             "type": "number"
@@ -820,6 +972,7 @@
           "overtime",
           "vacation",
           "sick",
+          "holiday",
           "pendingTimeOff",
           "running"
         ],
@@ -891,6 +1044,11 @@
               "null"
             ]
           },
+          "holiday": {
+            "description": "Paid company holiday hours.",
+            "format": "double",
+            "type": "number"
+          },
           "overtime": {
             "format": "double",
             "type": "number"
@@ -936,6 +1094,7 @@
           "overtime",
           "vacation",
           "sick",
+          "holiday",
           "pendingTimeOff",
           "running"
         ],
@@ -969,6 +1128,17 @@
           },
           "email": {
             "type": "string"
+          },
+          "holidayPay": {
+            "description": "They are paid for company holidays.",
+            "type": "boolean"
+          },
+          "holidayPayOverride": {
+            "description": "Set for this person; null follows the workspace's holiday pay.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "hostAdmin": {
             "description": "The host application makes them an admin; only the host can take that away.",
@@ -1029,7 +1199,9 @@
           "submitsTimesheets",
           "admin",
           "hostAdmin",
-          "submitsTimesheetsOverride"
+          "submitsTimesheetsOverride",
+          "holidayPay",
+          "holidayPayOverride"
         ],
         "type": "object"
       },
@@ -1048,6 +1220,13 @@
           "active": {
             "description": "Inactive people are left out of payroll reports and exceptions.",
             "type": "boolean"
+          },
+          "holidayPay": {
+            "description": "Whether they are paid for company holidays. Absent or null follows the workspace's setting.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "managerId": {
             "description": "Who approves this person's time. Empty defers to the host's directory.",
@@ -1435,6 +1614,10 @@
             "format": "date",
             "type": "string"
           },
+          "holidayPay": {
+            "description": "People are paid for company holidays, unless set otherwise for them.",
+            "type": "boolean"
+          },
           "longEntryHours": {
             "description": "An entry or a running clock longer than this is an exception.",
             "exclusiveMinimum": 0,
@@ -1492,6 +1675,7 @@
           "weekStart",
           "overtimeWeeklyHours",
           "submitTimesheets",
+          "holidayPay",
           "approveTimesheets",
           "approveTimeOff",
           "requireDescription",
@@ -2756,6 +2940,159 @@
         "summary": "What payroll should look at in a pay period",
         "tags": [
           "Reports"
+        ]
+      }
+    },
+    "/api/v1/holidays": {
+      "get": {
+        "operationId": "list-holidays",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-holidaysResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The company's holidays, by their first day",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "post": {
+        "operationId": "create-holiday",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Holiday"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Add a company holiday",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/api/v1/holidays/{id}": {
+      "delete": {
+        "operationId": "delete-holiday",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remove a company holiday",
+        "tags": [
+          "Settings"
+        ]
+      },
+      "put": {
+        "operationId": "update-holiday",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Holiday"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rename a company holiday or change its days",
+        "tags": [
+          "Settings"
         ]
       }
     },

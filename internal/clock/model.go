@@ -14,6 +14,7 @@ type Settings struct {
 	WeekStart           int      `json:"weekStart" minimum:"0" maximum:"6" doc:"The day the workweek starts, for overtime: 0 is Sunday."`
 	OvertimeWeeklyHours float64  `json:"overtimeWeeklyHours" minimum:"0" maximum:"168" doc:"Hours in a workweek beyond which time is overtime. 0 turns overtime off."`
 	SubmitTimesheets    bool     `json:"submitTimesheets" doc:"People submit a timesheet each pay period, unless set otherwise for them. Someone who doesn't tracks time for reports only, and is left out of payroll."`
+	HolidayPay          bool     `json:"holidayPay" doc:"People are paid for company holidays, unless set otherwise for them."`
 	ApproveTimesheets   bool     `json:"approveTimesheets" doc:"A submitted timesheet waits for the person's manager or an admin."`
 	ApproveTimeOff      bool     `json:"approveTimeOff" doc:"Time off waits for the person's manager or an admin."`
 	RequireDescription  bool     `json:"requireDescription" doc:"Every time entry has a description."`
@@ -74,6 +75,10 @@ type Person struct {
 	HostAdmin bool `json:"hostAdmin" doc:"The host application makes them an admin; only the host can take that away."`
 	// SubmitsTimesheetsOverride is their own choice; nil follows the workspace.
 	SubmitsTimesheetsOverride *bool `json:"submitsTimesheetsOverride" nullable:"true" doc:"Set for this person; null follows the workspace's setting."`
+	// HolidayPay is what applies: their own choice, or else the workspace's.
+	HolidayPay bool `json:"holidayPay" doc:"They are paid for company holidays."`
+	// HolidayPayOverride is their own choice; nil follows the workspace.
+	HolidayPayOverride *bool `json:"holidayPayOverride" nullable:"true" doc:"Set for this person; null follows the workspace's holiday pay."`
 }
 
 // Actor is the person making a request.
@@ -146,6 +151,20 @@ type TimeOff struct {
 	Locked        bool       `json:"locked" doc:"Its day is in a submitted or approved timesheet, so it can't be removed."`
 }
 
+// Holiday is a company holiday: a name and the observed days it covers,
+// each with the hours it pays.
+type Holiday struct {
+	ID   uuid.UUID    `json:"id"`
+	Name string       `json:"name"`
+	Days []HolidayDay `json:"days"`
+}
+
+// HolidayDay is one observed day of a holiday.
+type HolidayDay struct {
+	Day   Date    `json:"day" format:"date"`
+	Hours float64 `json:"hours" doc:"Paid hours on the day."`
+}
+
 // Timesheet is a person's statement that a pay period's time is complete.
 type Timesheet struct {
 	ID            uuid.UUID  `json:"id"`
@@ -166,6 +185,9 @@ type DaySummary struct {
 	Overtime float64 `json:"overtime"`
 	Vacation float64 `json:"vacation"`
 	Sick     float64 `json:"sick"`
+	Holiday  float64 `json:"holiday" doc:"Paid company holiday hours: not time worked, so never overtime."`
+	// HolidayName names the company holiday on the day, paid or not.
+	HolidayName string `json:"holidayName,omitempty" doc:"The company holiday on this day."`
 }
 
 // PeriodSummary is a person's pay period: what payroll pays from.
@@ -177,6 +199,7 @@ type PeriodSummary struct {
 	Overtime float64      `json:"overtime"`
 	Vacation float64      `json:"vacation" doc:"Approved vacation hours."`
 	Sick     float64      `json:"sick" doc:"Approved sick hours."`
+	Holiday  float64      `json:"holiday" doc:"Paid company holiday hours."`
 	// PendingTimeOff is hours of time off still waiting for a decision,
 	// which are not in Vacation or Sick.
 	PendingTimeOff float64    `json:"pendingTimeOff"`

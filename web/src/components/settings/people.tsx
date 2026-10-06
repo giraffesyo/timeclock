@@ -55,6 +55,9 @@ type ActionKey =
   | 'reportsOnly'
   | 'submits'
   | 'timesheetsDefault'
+  | 'payHolidays'
+  | 'noHolidayPay'
+  | 'holidayPayDefault'
   | 'makeAdmin'
   | 'removeAdmin'
   | 'activate'
@@ -86,6 +89,7 @@ const current = (p: Person): PersonUpdate => ({
   payrollId: p.payrollId,
   active: p.active,
   submitsTimesheets: p.submitsTimesheetsOverride,
+  holidayPay: p.holidayPayOverride,
 });
 
 /** One person's settings, saved together. */
@@ -157,6 +161,19 @@ function PersonDialog({ person, people, onClose }: { person: Person; people: Per
             </option>
             <option value="true">{t('submits')}</option>
             <option value="false">{t('reportsOnly')}</option>
+          </select>
+        </Field>
+        <Field label={t('columns.holidayPay')}>
+          <select
+            className={controlClass}
+            value={draft.holidayPay == null ? '' : String(draft.holidayPay)}
+            onChange={(e) => set({ holidayPay: e.target.value === '' ? null : e.target.value === 'true' })}
+          >
+            <option value="">
+              {t('holidayPayDefault', { value: settings.holidayPay ? t('paid') : t('notPaid') })}
+            </option>
+            <option value="true">{t('paid')}</option>
+            <option value="false">{t('notPaid')}</option>
           </select>
         </Field>
         <Field label={t('columns.payrollId')} hint={t('payrollIdHint')}>
@@ -239,6 +256,12 @@ function PersonRow({
         {person.submitsTimesheetsOverride == null && <span className="text-muted-foreground"> · {t('byDefault')}</span>}
       </>
     ),
+    holidayPay: (
+      <>
+        {person.holidayPay ? t('paid') : t('notPaid')}
+        {person.holidayPayOverride == null && <span className="text-muted-foreground"> · {t('byDefault')}</span>}
+      </>
+    ),
     payrollId: person.payrollId || t('notSet'),
     active: person.active ? t('active') : t('inactive'),
   };
@@ -292,6 +315,8 @@ export function People() {
       { key: 'timezone', label: t('columns.timezone'), priority: 'medium' },
       { key: 'exempt', label: t('columns.exempt'), priority: 'low' },
       { key: 'timesheets', label: t('columns.timesheets'), priority: 'medium' },
+      // Off until shown from the Display menu, so the table fits without scrolling.
+      { key: 'holidayPay', label: t('columns.holidayPay'), priority: 'low', defaultHidden: true },
       { key: 'payrollId', label: t('columns.payrollId'), priority: 'low' },
       { key: 'active', label: t('columns.active'), priority: 'medium' },
     ],
@@ -357,6 +382,7 @@ export function People() {
         payrollId: p.payrollId,
         active: p.active,
         submitsTimesheets: p.submitsTimesheetsOverride,
+        holidayPay: p.holidayPayOverride,
         ...patch,
       })),
       {
@@ -418,6 +444,8 @@ export function People() {
     const exempt = group.filter((p) => p.overtimeExempt);
     const submitting = group.filter((p) => p.submitsTimesheets);
     const overridden = group.filter((p) => p.submitsTimesheetsOverride != null);
+    const paid = group.filter((p) => p.holidayPay);
+    const payOverridden = group.filter((p) => p.holidayPayOverride != null);
     const active = group.filter((p) => p.active);
     const admin = group.filter((p) => p.admin);
     // Only grants made here can be taken back here, and never your own.
@@ -468,6 +496,35 @@ export function People() {
                 { submitsTimesheets: null },
                 () => true,
                 (count) => t('bulk.followDefault', { count }),
+              ),
+            ),
+          ]
+        : []),
+      paid.length === group.length
+        ? confirmed('noHolidayPay', group, () =>
+            apply(
+              group,
+              { holidayPay: false },
+              () => true,
+              (count) => t('bulk.madeNoHolidayPay', { count }),
+            ),
+          )
+        : confirmed('payHolidays', others(paid), () =>
+            apply(
+              others(paid),
+              { holidayPay: true },
+              () => true,
+              (count) => t('bulk.madePayHolidays', { count }),
+            ),
+          ),
+      ...(payOverridden.length > 0
+        ? [
+            confirmed('holidayPayDefault', payOverridden, () =>
+              apply(
+                payOverridden,
+                { holidayPay: null },
+                () => true,
+                (count) => t('bulk.followHolidayDefault', { count }),
               ),
             ),
           ]
@@ -632,6 +689,7 @@ export function People() {
         <li>{t('notes.exempt')}</li>
         <li>{t('notes.payrollId')}</li>
         <li>{t('notes.timesheets')}</li>
+        <li>{t('notes.holidayPay')}</li>
         <li>{t('notes.active')}</li>
       </ul>
     </>

@@ -14,6 +14,7 @@
     "worked": "worked",
     "overtime": "overtime",
     "timeOff": "time off",
+    "holiday": "holiday",
     "open": "Open timesheet",
     "loadFailed": "Couldn’t load this pay period."
   }

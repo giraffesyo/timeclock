@@ -32,7 +32,13 @@ export function standing(summary: PeriodSummary, me: Me): Standing {
   };
 }
 
-/** Every hour the period pays: worked time and approved time off. */
-export function totalHours(h: { regular: number; overtime: number; vacation: number; sick: number }): number {
-  return h.regular + h.overtime + h.vacation + h.sick;
+/** Every hour the period pays: worked time, approved time off and company holidays. */
+export function totalHours(h: {
+  regular: number;
+  overtime: number;
+  vacation: number;
+  sick: number;
+  holiday: number;
+}): number {
+  return h.regular + h.overtime + h.vacation + h.sick + h.holiday;
 }

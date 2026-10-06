@@ -91,16 +91,30 @@ func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Pe
 		}
 	}
 
+	// Holidays are paid, not worked: they stay out of the overtime count
+	// above, and time worked on one is paid as work on top.
+	holidays, holidayNames, err := holidayDays(ctx, q, period.Start, period.End)
+	if err != nil {
+		return out, err
+	}
+	paid := p.Active && p.HolidayPay
+
 	var regular, overtime time.Duration
 	for _, d := range period.Days() {
 		h := byDay[d]
 		regular += h.Regular
 		overtime += h.Overtime
-		out.Days = append(out.Days, DaySummary{
+		day := DaySummary{
 			Day: d, Regular: Hours(h.Regular), Overtime: Hours(h.Overtime), Vacation: vacation[d], Sick: sick[d],
-		})
+			HolidayName: holidayNames[d],
+		}
+		if paid {
+			day.Holiday = holidays[d].Hours
+		}
+		out.Days = append(out.Days, day)
 		out.Vacation += vacation[d]
 		out.Sick += sick[d]
+		out.Holiday += day.Holiday
 	}
 	// Totals are rounded once, from the exact durations, so they don't drift
 	// from the sum of rounded days.

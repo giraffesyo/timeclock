@@ -24,6 +24,8 @@ export type PersonUpdate = Schemas['PersonUpdate'];
 export type AuditEntry = Schemas['AuditEntry'];
 export type Activity = Schemas['Activity'];
 export type DayProjectHours = Schemas['DayProjectHours'];
+export type Holiday = Schemas['Holiday'];
+export type HolidayInput = Schemas['HolidayInput'];
 
 // --- Reads ---
 
@@ -144,6 +146,14 @@ export function useActivity() {
     queryKey: ['clocked-in'],
     queryFn: async () => unwrap(await api.GET('/api/v1/clocked-in')).people ?? [],
     refetchInterval: 60_000,
+  });
+}
+
+/** The company's holidays, by their first day. */
+export function useHolidays() {
+  return useQuery({
+    queryKey: ['holidays'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/holidays')).holidays ?? [],
   });
 }
 
@@ -273,6 +283,21 @@ export function useSaveProject() {
     id
       ? unwrap(await api.PUT('/api/v1/projects/{id}', { params: { path: { id } }, body }))
       : unwrap(await api.POST('/api/v1/projects', { body })),
+  );
+}
+
+/** Adds a holiday, or with an id changes one. */
+export function useSaveHoliday() {
+  return useWrite(async ({ id, ...body }: HolidayInput & { id?: string }) =>
+    id
+      ? unwrap(await api.PUT('/api/v1/holidays/{id}', { params: { path: { id } }, body }))
+      : unwrap(await api.POST('/api/v1/holidays', { body })),
+  );
+}
+
+export function useDeleteHoliday() {
+  return useWrite(async (id: string) =>
+    unwrap(await api.DELETE('/api/v1/holidays/{id}', { params: { path: { id } } })),
   );
 }
 

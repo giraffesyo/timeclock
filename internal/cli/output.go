@@ -35,7 +35,7 @@ func render(w io.Writer, data []byte, asJSON bool, view string) error {
 			"people":     {"id", "name", "email"},
 			"clocked-in": {"person.name", "today", "week", "running.note"},
 			"entries":    {"id", "startedAt", "endedAt", "projectId", "note", "locked"},
-			"members":    {"person.name", "regular", "overtime", "vacation", "sick", "timesheet.status"},
+			"members":    {"person.name", "regular", "overtime", "vacation", "sick", "holiday", "timesheet.status"},
 			"exceptions": {"personName", "kind", "day", "hours"},
 		}
 		if view == "entry" {

@@ -96,6 +96,65 @@ func registerSettings(a huma.API, d Deps) {
 		})
 }
 
+// --- Holidays ---
+
+func registerHolidays(a huma.API, d Deps) {
+	huma.Register(a, op(http.MethodGet, "/holidays", "list-holidays", "The company's holidays, by their first day", "Settings"),
+		func(ctx context.Context, _ *struct{}) (*struct {
+			Body struct {
+				Holidays []clock.Holiday `json:"holidays"`
+			}
+		}, error) {
+			if _, err := d.actor(ctx); err != nil {
+				return nil, err
+			}
+			list, err := d.clock(ctx).Holidays(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out := &struct {
+				Body struct {
+					Holidays []clock.Holiday `json:"holidays"`
+				}
+			}{}
+			out.Body.Holidays = orEmpty(list)
+			return out, nil
+		})
+
+	saveHoliday := func(ctx context.Context, id uuid.UUID, in clock.HolidayInput) (*struct{ Body clock.Holiday }, error) {
+		actor, err := d.actor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := d.clock(ctx).SaveHoliday(ctx, actor, id, in)
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body clock.Holiday }{out}, nil
+	}
+	huma.Register(a, op(http.MethodPost, "/holidays", "create-holiday", "Add a company holiday", "Settings"),
+		func(ctx context.Context, in *struct{ Body clock.HolidayInput }) (*struct{ Body clock.Holiday }, error) {
+			return saveHoliday(ctx, uuid.Nil, in.Body)
+		})
+	huma.Register(a, op(http.MethodPut, "/holidays/{id}", "update-holiday", "Rename a company holiday or change its days", "Settings"),
+		func(ctx context.Context, in *struct {
+			ID   uuid.UUID `path:"id"`
+			Body clock.HolidayInput
+		}) (*struct{ Body clock.Holiday }, error) {
+			return saveHoliday(ctx, in.ID, in.Body)
+		})
+	huma.Register(a, op(http.MethodDelete, "/holidays/{id}", "delete-holiday", "Remove a company holiday", "Settings"),
+		func(ctx context.Context, in *struct {
+			ID uuid.UUID `path:"id"`
+		}) (*struct{}, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return nil, d.clock(ctx).DeleteHoliday(ctx, actor, in.ID)
+		})
+}
+
 // --- People ---
 
 type peopleBody struct {

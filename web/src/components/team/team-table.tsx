@@ -25,9 +25,9 @@ import { type PeriodSummary, useDecideTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { DecisionDialog } from './decision-dialog';
 
-/** Worked and approved time off hours: what the timesheet states. */
+/** Worked, approved time off and holiday hours: what the timesheet states. */
 export function totalHours(m: PeriodSummary): number {
-  return m.regular + m.overtime + m.vacation + m.sick;
+  return m.regular + m.overtime + m.vacation + m.sick + m.holiday;
 }
 
 /** Where a person's timesheet stands, as the status filter names it. */
@@ -54,6 +54,7 @@ export function useTeamView(): ListView<PeriodSummary> {
       { key: 'overtime', label: tc('overtime'), headerClassName: 'text-right', priority: 'medium' },
       { key: 'vacation', label: tc('vacation'), headerClassName: 'text-right', priority: 'low' },
       { key: 'sick', label: tc('sick'), headerClassName: 'text-right', priority: 'low' },
+      { key: 'holiday', label: tc('holiday'), headerClassName: 'text-right', priority: 'low' },
       { key: 'total', label: tc('total'), headerClassName: 'text-right' },
       { key: 'pendingTimeOff', label: t('pendingTimeOff'), headerClassName: 'text-right', priority: 'low' },
       { key: 'status', label: t('status') },
@@ -146,6 +147,7 @@ function TeamRow({
     overtime: <Hours value={m.overtime} />,
     vacation: <Hours value={m.vacation} />,
     sick: <Hours value={m.sick} />,
+    holiday: <Hours value={m.holiday} />,
     total: <Hours value={totalHours(m)} strong />,
     pendingTimeOff: <Hours value={m.pendingTimeOff} />,
     status: (
