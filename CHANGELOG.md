@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.10.0...timeclock-v0.11.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* stop listing overtime as an exception ([#49](https://github.com/giraffesyo/timeclock/issues/49))
+* GET /api/v1/activity is now GET /api/v1/clocked-in, and the CLI's activity command is clocked-in.
+
+### Features
+
+* change several people at once from a selection or right click ([#44](https://github.com/giraffesyo/timeclock/issues/44)) ([6a63eb7](https://github.com/giraffesyo/timeclock/commit/6a63eb74529bcc22937162771aba7eb327cb342a))
+* keep the clock bar on the Timer page, drop the user menu arrow ([#42](https://github.com/giraffesyo/timeclock/issues/42)) ([222e7e0](https://github.com/giraffesyo/timeclock/commit/222e7e0b7deb6bb83185de7a06450895e2f5ff00))
+* let hosts allow image origins for directory photos ([#47](https://github.com/giraffesyo/timeclock/issues/47)) ([d25c5f7](https://github.com/giraffesyo/timeclock/commit/d25c5f7cc7154c678e9e8fa28c077321a6ef31f9))
+* make admins in Timeclock, with a row menu, badges and confirmations ([#48](https://github.com/giraffesyo/timeclock/issues/48)) ([04f12c9](https://github.com/giraffesyo/timeclock/commit/04f12c98f79de950fffb78ae59ff3a683215c8a2))
+* per-person timesheet submission, with a workspace default ([#46](https://github.com/giraffesyo/timeclock/issues/46)) ([e8e8276](https://github.com/giraffesyo/timeclock/commit/e8e82764fa69f3239946e9821b24fa6a36e8d5a6))
+
+
+### Bug Fixes
+
+* serve who is on the clock at /clocked-in ([#45](https://github.com/giraffesyo/timeclock/issues/45)) ([2d68c2c](https://github.com/giraffesyo/timeclock/commit/2d68c2c6a0b7b40bb17b558bd7c760dfcd54f04c))
+* stop listing overtime as an exception ([#49](https://github.com/giraffesyo/timeclock/issues/49)) ([ef0c3cb](https://github.com/giraffesyo/timeclock/commit/ef0c3cbfde89258369abb793aa45434c5bde7521))
+
 ## [0.10.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.9.0...timeclock-v0.10.0) (2026-10-06)
 
 
