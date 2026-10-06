@@ -14,7 +14,14 @@ FROM golang:1.27-alpine AS server
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
+# Keep frontend sources and local build output out of the Go source layer.
+# Changes to the app enter only through its compiled assets below.
+COPY *.go ./
+COPY cmd/ ./cmd/
+COPY host/ ./host/
+COPY internal/ ./internal/
+COPY migrations/ ./migrations/
+COPY web/*.go ./web/
 COPY --from=web /app/web/dist ./web/dist
 RUN CGO_ENABLED=0 go build -o timeclock-server ./cmd/timeclock-server
 
