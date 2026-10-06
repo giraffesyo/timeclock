@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.6.0...timeclock-v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **cli:** take the server as an argument to auth login ([#27](https://github.com/giraffesyo/timeclock/issues/27)) ([fb7b788](https://github.com/giraffesyo/timeclock/commit/fb7b7882f4205490a56e3ddd6e93740230c59997))
+
+
+### Bug Fixes
+
+* let Toggl imports use the full workspace sync timeout ([#28](https://github.com/giraffesyo/timeclock/issues/28)) ([0e3fa37](https://github.com/giraffesyo/timeclock/commit/0e3fa371a36ea4bb11c96b56802e3315588c601c))
+
 ## [0.6.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.5.1...timeclock-v0.6.0) (2026-10-06)
 
 
