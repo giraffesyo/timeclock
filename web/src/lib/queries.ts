@@ -1,5 +1,5 @@
 import { clockFor } from '@giraffesyo/timeclock';
-import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type Schemas, unwrap } from '@/api/client';
 import { basePath } from '@/lib/base';
 import type { Day } from '@/lib/time';
@@ -40,7 +40,12 @@ export function useMe() {
 export function usePeople(enabled = true) {
   return useQuery({
     queryKey: ['people'],
-    queryFn: enabled ? async () => unwrap(await api.GET('/api/v1/people')).people ?? [] : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/people')).people ?? [],
+    // `enabled`, not skipToken, here and below: observers share a key, and a
+    // refetch (invalidateQueries after any write) runs the queryFn of
+    // whichever observer set it last, so a disabled one turned the query
+    // into an error.
+    enabled,
   });
 }
 
@@ -79,7 +84,8 @@ export function useTimeOff(from: Day, to: Day, person?: string) {
 export function usePendingTimeOff(enabled = true) {
   return useQuery({
     queryKey: ['time-off', 'pending'],
-    queryFn: enabled ? async () => unwrap(await api.GET('/api/v1/time-off/pending')).timeOff ?? [] : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/time-off/pending')).timeOff ?? [],
+    enabled,
   });
 }
 
@@ -94,25 +100,24 @@ export function useTimesheet(day?: Day, person?: string) {
 export function useTeam(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['team', day ?? ''],
-    queryFn: enabled ? async () => unwrap(await api.GET('/api/v1/team', { params: { query: { day } } })) : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/team', { params: { query: { day } } })),
+    enabled,
   });
 }
 
 export function useExceptions(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['exceptions', day ?? ''],
-    queryFn: enabled
-      ? async () => unwrap(await api.GET('/api/v1/exceptions', { params: { query: { day } } }))
-      : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/exceptions', { params: { query: { day } } })),
+    enabled,
   });
 }
 
 export function usePayroll(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['payroll', day ?? ''],
-    queryFn: enabled
-      ? async () => unwrap(await api.GET('/api/v1/reports/payroll', { params: { query: { day } } }))
-      : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/reports/payroll', { params: { query: { day } } })),
+    enabled,
   });
 }
 
@@ -145,9 +150,8 @@ export function useActivity() {
 export function useAudit(person?: string, enabled = true) {
   return useQuery({
     queryKey: ['audit', person ?? ''],
-    queryFn: enabled
-      ? async () => unwrap(await api.GET('/api/v1/audit', { params: { query: { person } } })).entries ?? []
-      : skipToken,
+    queryFn: async () => unwrap(await api.GET('/api/v1/audit', { params: { query: { person } } })).entries ?? [],
+    enabled,
   });
 }
 
