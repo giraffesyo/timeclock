@@ -174,9 +174,10 @@ Live integration tests are opt-in. Set `TIMECLOCK_TOGGL_TEST_TOKEN_FILE` to a lo
 
 ## Development
 
-Needs Go 1.27, Node 26 with pnpm 11, and Docker.
+Needs Go 1.27 and Node 26 with pnpm 11. Postgres 18 runs natively, without Docker, from Foundation's dev stack (`dev.json`); leave it running in a terminal of its own. Its data stays in `.devstack/` between runs.
 
 ```sh
+go -C tools tool dev stack   # Postgres on :54331; `dev reset` deletes its data
 make install
 make dev        # http://localhost:8090, signed in as DEV_USER (an admin)
 make test-db    # Go tests, with the database tests on
@@ -190,7 +191,7 @@ make cli-dist CLI_VERSION=dev # cross-compile and package all six CLI targets
 
 In development the Go server proxies the web app from Vite, so open the Go server's address. Vite's own address (`:5174`) passes the API on to the Go server and works too, but only the Go server applies the CSP.
 
-`make build` builds the production server, example host, and CLI. `make build-e2e` builds the same frontend and host with the test-tagged server directly; `make e2e` uses it. Both share one frontend build, including with parallel Make. CI overlaps that build with browser installation and runs every browser project. Go jobs use separate caches for cross-compilation, lint/race tests, API generation, and E2E builds; Docker uses a shared BuildKit layer cache. Cache hits never skip the database or browser tests.
+`make build` builds the production server, example host, and CLI. `make build-e2e` builds the same frontend and host with the test-tagged server directly; `make e2e` uses it. Both share one frontend build, including with parallel Make. CI overlaps that build with browser installation and runs every browser project. Go jobs use separate caches for cross-compilation, lint/race tests, API generation, and E2E builds; Docker uses a shared BuildKit layer cache. Cache hits never skip the database or browser tests. CI runs Postgres from the same dev stack, so it tests what development uses.
 
 | Where | What |
 | --- | --- |

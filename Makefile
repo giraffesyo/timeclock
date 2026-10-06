@@ -1,16 +1,16 @@
-.PHONY: dev server web install build build-web build-server build-host build-e2e cli cli-dist check lint lint-go vuln test db test-db e2e api release
+.PHONY: dev server web install build build-web build-server build-host build-e2e cli cli-dist check lint lint-go vuln test test-db e2e api release
 
 GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
-TEST_DB_PORT ?= 54331
-TEST_DB_URL := postgres://postgres:postgres@localhost:$(TEST_DB_PORT)/timeclock_test?sslmode=disable
+# The database dev.json describes: run `go -C tools tool dev stack` first.
+TEST_DB_URL := postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable
 
 # Run the standalone server and the Vite dev server together, signed in as
 # DEV_USER. Open http://localhost:8090: the Go server proxies the app from
 # Vite (hot reload included) until web/dist holds a build.
 DEV_USER ?= dev@example.com
-dev: db
+dev:
 	@echo "Starting Timeclock on http://localhost:8090 ..."
 	@$(MAKE) -j2 server web
 
@@ -66,20 +66,13 @@ vuln:
 test:
 	go test ./...
 
-# A throwaway postgres:18 for development and the database tests.
-db:
-	@docker start timeclock-test-db >/dev/null 2>&1 || \
-		docker run -d --name timeclock-test-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=timeclock_test \
-			-p $(TEST_DB_PORT):5432 postgres:18-alpine >/dev/null
-	@until docker exec timeclock-test-db pg_isready -U postgres -d timeclock_test >/dev/null 2>&1; do sleep 0.5; done
-
 # The Go tests with the database tests on: each makes and drops its own schema.
-test-db: db
+test-db:
 	TIMECLOCK_TEST_DATABASE_URL='$(TEST_DB_URL)' go test ./...
 
 # The end-to-end tests: the built server, with the app embedded, driven by
 # real browsers against the development database (a schema of its own per run).
-e2e: db build-e2e
+e2e: build-e2e
 	@cd web && pnpm exec playwright test $(ARGS)
 
 # Regenerate the web app's API types from the server's OpenAPI document.

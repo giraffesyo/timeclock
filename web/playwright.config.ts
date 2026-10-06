@@ -11,7 +11,7 @@ export const ZONE = 'America/Chicago';
 export const ADMIN = 'admin@e2e.test';
 
 const database =
-  process.env.E2E_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:54331/timeclock_test?sslmode=disable';
+  process.env.E2E_DATABASE_URL ?? 'postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable';
 
 // A second server with real sign-in: no development user, so its tests
 // invite people, set passwords and sign in. Tests reach its command line
