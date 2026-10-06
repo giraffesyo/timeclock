@@ -1055,6 +1055,10 @@ export interface components {
             overtimeExempt: boolean;
             /** @description The person's id in the payroll system, for the export. */
             payrollId: string;
+            /** @description They submit timesheets and are in payroll. Without, their time is for reports only. */
+            submitsTimesheets: boolean;
+            /** @description Set for this person; null follows the workspace's setting. */
+            submitsTimesheetsOverride: boolean | null;
             /**
              * @description The IANA time zone their days and workweeks are cut in; empty uses the organization's.
              * @example America/Los_Angeles
@@ -1074,6 +1078,8 @@ export interface components {
             managerId: string;
             overtimeExempt: boolean;
             payrollId: string;
+            /** @description Whether they submit timesheets and are in payroll. Absent or null follows the workspace's setting. */
+            submitsTimesheets?: boolean | null;
             /** @description The IANA time zone their days are cut in. Empty uses the organization's. */
             timezone: string;
         };
@@ -1237,6 +1243,8 @@ export interface components {
             requireDescription: boolean;
             /** @description Every time entry names a project. */
             requireProject: boolean;
+            /** @description People submit a timesheet each pay period, unless set otherwise for them. Someone who doesn't tracks time for reports only, and is left out of payroll. */
+            submitTimesheets: boolean;
             /**
              * @description IANA time zone that days and workweeks are cut in for everyone who hasn't set their own.
              * @example America/Chicago

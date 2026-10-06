@@ -11,7 +11,8 @@
     "open": "Not submitted",
     "submitted": "Waiting for approval",
     "approved": "Approved",
-    "rejected": "Sent back"
+    "rejected": "Sent back",
+    "reportsOnly": "Reports only"
   },
   "timeOffStatus": {
     "pending": "Pending",

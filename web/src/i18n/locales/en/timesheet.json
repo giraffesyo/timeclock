@@ -28,7 +28,9 @@
     "approvedOwnAdmin": "This timesheet is final and its time is locked. As an admin you can send it back to yourself to change it.",
     "approvedDecider": "This timesheet is final and its time is locked. Send it back if {name} needs to correct it.",
     "approvedViewer": "This timesheet is final and its time is locked. Their manager or an admin can send it back.",
-    "inactive": "{name} no longer tracks time, so only an admin can change this."
+    "inactive": "{name} no longer tracks time, so only an admin can change this.",
+    "reportsOnlyOwn": "Your time is for reports only: you don’t submit a timesheet, and it isn’t in payroll.",
+    "reportsOnlyOther": "{name}’s time is for reports only: no timesheet, and not in payroll."
   },
   "actions": {
     "submit": "Submit timesheet",

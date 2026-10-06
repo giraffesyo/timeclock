@@ -988,6 +988,17 @@
             "description": "The person's id in the payroll system, for the export.",
             "type": "string"
           },
+          "submitsTimesheets": {
+            "description": "They submit timesheets and are in payroll. Without, their time is for reports only.",
+            "type": "boolean"
+          },
+          "submitsTimesheetsOverride": {
+            "description": "Set for this person; null follows the workspace's setting.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "timezone": {
             "description": "The IANA time zone their days and workweeks are cut in; empty uses the organization's.",
             "examples": [
@@ -1007,7 +1018,9 @@
           "directoryManagerId",
           "overtimeExempt",
           "payrollId",
-          "active"
+          "active",
+          "submitsTimesheets",
+          "submitsTimesheetsOverride"
         ],
         "type": "object"
       },
@@ -1037,6 +1050,13 @@
           "payrollId": {
             "maxLength": 64,
             "type": "string"
+          },
+          "submitsTimesheets": {
+            "description": "Whether they submit timesheets and are in payroll. Absent or null follows the workspace's setting.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "timezone": {
             "description": "The IANA time zone their days are cut in. Empty uses the organization's.",
@@ -1415,6 +1435,10 @@
             "description": "Every time entry names a project.",
             "type": "boolean"
           },
+          "submitTimesheets": {
+            "description": "People submit a timesheet each pay period, unless set otherwise for them. Someone who doesn't tracks time for reports only, and is left out of payroll.",
+            "type": "boolean"
+          },
           "timezone": {
             "description": "IANA time zone that days and workweeks are cut in for everyone who hasn't set their own.",
             "examples": [
@@ -1436,6 +1460,7 @@
           "cycleAnchor",
           "weekStart",
           "overtimeWeeklyHours",
+          "submitTimesheets",
           "approveTimesheets",
           "approveTimeOff",
           "requireDescription",

@@ -40,6 +40,8 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 
 		ended := sum.Period.End.Before(s.TodayFor(cfg, p))
 		switch {
+		case !p.SubmitsTimesheets:
+			// Time for reports only: nothing to submit, approve or chase.
 		case sum.Timesheet == nil && ended && sum.Regular+sum.Overtime+sum.Vacation+sum.Sick+sum.PendingTimeOff == 0 && !sum.Running:
 			add(Exception{Kind: ExceptionNoTime})
 		case sum.Timesheet == nil && ended:
@@ -95,7 +97,18 @@ func (s *Service) Payroll(ctx context.Context, actor Actor, day Date) ([]PeriodS
 	if !actor.Admin {
 		return nil, forbidden("only an admin runs payroll reports")
 	}
-	return s.Team(ctx, actor, day)
+	team, err := s.Team(ctx, actor, day)
+	if err != nil {
+		return nil, err
+	}
+	// People who don't submit timesheets track time for reports only.
+	out := team[:0]
+	for _, sum := range team {
+		if sum.Person.SubmitsTimesheets {
+			out = append(out, sum)
+		}
+	}
+	return out, nil
 }
 
 // ProjectReport adds up finished time on the days from..to by project and

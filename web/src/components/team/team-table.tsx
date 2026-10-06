@@ -124,7 +124,7 @@ export function TeamTable({ members }: { members: PeriodSummary[] }) {
                     <Hours value={m.pendingTimeOff} />
                   </td>
                   <td className="px-3 py-2">
-                    <SheetStatus timesheet={m.timesheet} />
+                    <SheetStatus timesheet={m.timesheet} reportsOnly={!m.person.submitsTimesheets} />
                     {m.timesheet?.status === 'rejected' && m.timesheet.decisionNote && (
                       <div className="mt-1 max-w-56 truncate text-xs text-muted-foreground">
                         {t('sentBackNote', { note: m.timesheet.decisionNote })}

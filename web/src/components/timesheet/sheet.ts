@@ -14,6 +14,8 @@ export interface Standing {
   writer: boolean;
   /** The pay period hasn't begun, so it can't be submitted. */
   notStarted: boolean;
+  /** The person submits timesheets; without, their time is for reports only. */
+  submits: boolean;
 }
 
 export function standing(summary: PeriodSummary, me: Me): Standing {
@@ -26,6 +28,7 @@ export function standing(summary: PeriodSummary, me: Me): Standing {
     decider: me.admin || (!own && summary.person.managerId === me.person.id),
     writer: summary.person.active || me.admin,
     notStarted: summary.period.start > me.today,
+    submits: summary.person.submitsTimesheets,
   };
 }
 

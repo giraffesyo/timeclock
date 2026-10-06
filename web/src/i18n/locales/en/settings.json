@@ -51,6 +51,9 @@
     },
     "approvals": {
       "title": "Approvals",
+      "submit": "People submit timesheets",
+      "submitOn": "Each pay period, people submit their time for payroll. Set it per person in People.",
+      "submitOff": "Off: people track time for reports only, and aren’t in payroll, unless set otherwise for them in People.",
       "timesheets": "Timesheets need approval",
       "timesheetsOn": "A submitted timesheet waits for the person’s manager or an admin.",
       "timesheetsOff": "Off: a submitted timesheet is final at once, with no one reviewing it.",
@@ -148,7 +151,8 @@
       "payrollId": "Payroll ID",
       "active": "Active",
       "timezone": "Time zone",
-      "actions": "Actions"
+      "actions": "Actions",
+      "timesheets": "Timesheets"
     },
     "managerFor": "Manager of {name}",
     "exemptFor": "{name} is overtime exempt",
@@ -165,7 +169,8 @@
       "manager": "Manager: who approves the person’s timesheets and time off. Left to the directory, it follows the host’s directory; with none, an admin approves.",
       "exempt": "Overtime exempt: all of the person’s hours are regular, whatever the weekly threshold.",
       "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export. Saved when you leave the field or press Enter.",
-      "active": "Active: inactive people are left out of reports and exceptions."
+      "active": "Active: inactive people are left out of reports and exceptions.",
+      "timesheets": "Timesheets: people who submit are in payroll. “Reports only” tracks time for project reports and the overview, with no timesheet and no payroll."
     },
     "timezoneFor": "Time zone of {name}",
     "timezoneDefault": "The organization’s",
@@ -197,8 +202,19 @@
       "deactivated": "{count, plural, one {# person was} other {# people were}} deactivated.",
       "deactivateTitle": "Deactivate {count, plural, one {# person} other {# people}}?",
       "failed": "Couldn’t change {count} of {total, plural, one {# person} other {# people}}.",
-      "hint": "Select people, or right-click one, to change several at once."
-    }
+      "hint": "Select people, or right-click one, to change several at once.",
+      "submits": "Require timesheets",
+      "reportsOnly": "Reports only, not in payroll",
+      "timesheetsDefault": "Use the workspace default for timesheets",
+      "madeSubmit": "{count, plural, one {# person submits} other {# people submit}} timesheets now.",
+      "madeReportsOnly": "{count, plural, one {# person tracks} other {# people track}} time for reports only now.",
+      "followDefault": "{count, plural, one {# person follows} other {# people follow}} the workspace default for timesheets."
+    },
+    "timesheetsFor": "Whether {name} submits timesheets",
+    "timesheetsDefault": "Default: {value}",
+    "submits": "Submits",
+    "reportsOnly": "Reports only",
+    "byDefault": "default"
   },
   "history": {
     "title": "Changes to payroll data",

@@ -960,3 +960,79 @@ func TestRemindersGoOutOnce(t *testing.T) {
 		t.Errorf("second run = %+v, %v; want nothing", again, err)
 	}
 }
+
+func TestPeopleWhoDontSubmitTimesheets(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+	no, yes := false, true
+
+	// Last period (Sep 14–27): ada and bob worked, and neither submitted.
+	f.work(f.ada, "2026-09-21 09:00", "2026-09-21 17:00")
+	f.work(f.bob, "2026-09-21 09:00", "2026-09-21 17:00")
+	bob, err := f.UpdatePerson(ctx, f.admin, "bob", PersonUpdate{Active: true, SubmitsTimesheets: &no})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bob.SubmitsTimesheets || bob.SubmitsTimesheetsOverride == nil || *bob.SubmitsTimesheetsOverride {
+		t.Fatalf("bob = %+v, want his own choice not to submit", bob)
+	}
+
+	// Bob can't submit, isn't chased, and isn't in payroll; ada is all three.
+	_, err = f.Submit(ctx, f.bob, "", day(t, "2026-09-21"))
+	wantProblem(t, err, ErrDoesNotSubmit.Code)
+	exceptions, err := f.Exceptions(ctx, f.admin, day(t, "2026-09-21"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]bool{}
+	for _, e := range exceptions {
+		kinds[e.PersonID+"/"+e.Kind] = true
+	}
+	if !kinds["ada/not_submitted"] || kinds["bob/not_submitted"] || kinds["bob/no_time"] {
+		t.Errorf("exceptions = %v; want ada's not_submitted and nothing about bob's timesheet", kinds)
+	}
+	f.at("2026-10-02 17:00")
+	due, err := f.DueReminders(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(due) != 1 || due[0].PersonID != "ada" || due[0].Kind != ReminderTimesheetDue {
+		t.Errorf("due = %+v, want ada's timesheet only", due)
+	}
+	inPayroll := func() map[string]bool {
+		t.Helper()
+		rows, err := f.Payroll(ctx, f.admin, day(t, "2026-09-21"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]bool{}
+		for _, r := range rows {
+			out[r.Person.ID] = true
+		}
+		return out
+	}
+	if got := inPayroll(); !got["ada"] || got["bob"] {
+		t.Errorf("payroll = %v; want ada and not bob", got)
+	}
+
+	// The workspace default turns everyone else off; ada's own choice keeps her on.
+	if _, err := f.UpdatePerson(ctx, f.admin, "ada", PersonUpdate{Active: true, SubmitsTimesheets: &yes}); err != nil {
+		t.Fatal(err)
+	}
+	f.settings(func(s *Settings) { s.SubmitTimesheets = false })
+	if got := inPayroll(); !got["ada"] || got["bob"] || got["boss"] {
+		t.Errorf("payroll with the default off = %v; want only ada", got)
+	}
+	// Clearing bob's choice follows the workspace, which is now off too.
+	bob, err = f.UpdatePerson(ctx, f.admin, "bob", PersonUpdate{Active: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bob.SubmitsTimesheets || bob.SubmitsTimesheetsOverride != nil {
+		t.Errorf("bob following the workspace = %+v", bob)
+	}
+	if _, err := f.Submit(ctx, f.ada, "", day(t, "2026-09-21")); err != nil {
+		t.Errorf("ada submits by her own choice: %v", err)
+	}
+}

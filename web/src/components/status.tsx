@@ -19,9 +19,13 @@ export function Chip({ tone, children, className }: { tone: Tone; children: Reac
   return <span className={cn(chip, tones[tone], className)}>{children}</span>;
 }
 
-/** Where a pay period's timesheet stands. No timesheet means not submitted. */
-export function SheetStatus({ timesheet }: { timesheet?: Timesheet | null }) {
+/**
+ * Where a pay period's timesheet stands. No timesheet means not submitted,
+ * or, for someone who doesn't submit timesheets, time for reports only.
+ */
+export function SheetStatus({ timesheet, reportsOnly }: { timesheet?: Timesheet | null; reportsOnly?: boolean }) {
   const t = useTranslations('common.sheet');
+  if (!timesheet && reportsOnly) return <Chip tone="neutral">{t('reportsOnly')}</Chip>;
   const status = timesheet?.status ?? 'open';
   const tone: Tone =
     status === 'approved' ? 'success' : status === 'submitted' ? 'info' : status === 'rejected' ? 'danger' : 'neutral';

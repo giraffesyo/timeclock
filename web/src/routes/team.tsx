@@ -77,7 +77,7 @@ function Approvals() {
   const waitingIn = (list: PeriodSummary[]) =>
     list.filter((m) => m.timesheet?.status === 'submitted' && mine(m)).length;
   const missingIn = (list: PeriodSummary[]) =>
-    list.filter((m) => !m.timesheet || m.timesheet.status === 'rejected').length;
+    list.filter((m) => m.person.submitsTimesheets && (!m.timesheet || m.timesheet.status === 'rejected')).length;
 
   const runs = pendingRuns(pending.data ?? []);
   const names = new Map<string, string>();

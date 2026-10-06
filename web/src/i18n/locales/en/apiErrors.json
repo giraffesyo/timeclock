@@ -8,6 +8,7 @@
   "project_archived": "That project is archived. Choose another.",
   "in_the_future": "Worked time can’t be in the future.",
   "clock_still_running": "Clock out before submitting this timesheet.",
+  "does_not_submit_timesheets": "This person’s time is for reports only, so there’s no timesheet to submit. An admin can change that in Settings → People.",
   "already_submitted": "This timesheet was already submitted.",
   "not_awaiting_decision": "It’s no longer waiting for a decision. Refresh to see where it stands.",
   "own_approval": "You can’t approve your own time. Your manager or an admin does.",

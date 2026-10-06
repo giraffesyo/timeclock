@@ -68,6 +68,7 @@ function useHint(summary: PeriodSummary, s: Standing): string {
       if (s.notStarted) return t('notStarted');
       return s.own ? t('rejectedOwn') : t('rejectedOther', { name });
     default:
+      if (!s.submits) return s.own ? t('reportsOnlyOwn') : t('reportsOnlyOther', { name });
       if (s.notStarted) return t('notStarted');
       return s.own ? t('openOwn') : t('openOther', { name });
   }
@@ -94,7 +95,7 @@ export function SheetPanel({ summary, standing: s }: { summary: PeriodSummary; s
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1 basis-72 space-y-1.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <SheetStatus timesheet={ts} />
+            <SheetStatus timesheet={ts} reportsOnly={!s.submits} />
             {history && <span className="text-sm text-muted-foreground">{history}</span>}
           </div>
           {ts?.decisionNote && (sentBack || s.status === 'approved') && (
@@ -109,7 +110,7 @@ export function SheetPanel({ summary, standing: s }: { summary: PeriodSummary; s
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {unsubmitted && s.writer && (
+          {unsubmitted && s.writer && s.submits && (
             <Button
               variant={s.own ? 'primary' : 'outline'}
               icon={<SendIcon aria-hidden />}
