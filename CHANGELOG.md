@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.12.0...timeclock-v0.13.0) (2026-10-06)
+
+
+### Features
+
+* edit a person from the row menu, in a dialog ([#54](https://github.com/giraffesyo/timeclock/issues/54)) ([56a92df](https://github.com/giraffesyo/timeclock/commit/56a92df67130f9578d4bd30c290afc4e6aa4f576))
+
 ## [0.12.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.11.0...timeclock-v0.12.0) (2026-10-06)
 
 
