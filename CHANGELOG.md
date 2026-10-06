@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.5.1...timeclock-v0.6.0) (2026-10-06)
+
+
+### Features
+
+* add Go CLI with OAuth login and release binaries ([#24](https://github.com/giraffesyo/timeclock/issues/24)) ([ef87776](https://github.com/giraffesyo/timeclock/commit/ef87776dab11f1456526d349a1ac0d0496626037))
+* organize settings and show host avatars ([#21](https://github.com/giraffesyo/timeclock/issues/21)) ([1e8bbaa](https://github.com/giraffesyo/timeclock/commit/1e8bbaa68cd8798c61fafa9e954f581e2326d2bd))
+
 ## [0.5.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.5.0...timeclock-v0.5.1) (2026-10-06)
 
 
