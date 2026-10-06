@@ -830,7 +830,7 @@ export interface components {
              */
             hours?: number;
             /** @enum {string} */
-            kind: "clock_running" | "long_entry" | "not_submitted" | "awaiting_approval" | "rejected" | "time_off_pending" | "overtime" | "no_time";
+            kind: "clock_running" | "long_entry" | "not_submitted" | "awaiting_approval" | "rejected" | "time_off_pending" | "no_time";
             personId: string;
             personName: string;
         };

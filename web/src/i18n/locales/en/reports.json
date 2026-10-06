@@ -56,13 +56,11 @@
       "awaiting_approval": "Awaiting approval",
       "rejected": "Sent back",
       "time_off_pending": "Time off pending",
-      "overtime": "Overtime",
       "no_time": "No time"
     },
     "severity": {
       "blocking": "Settle before payroll",
-      "check": "Check",
-      "info": "For information"
+      "check": "Check"
     },
     "sentence": {
       "clock_running": "A clock has been running for {hours} h, since {day}.",
@@ -71,7 +69,6 @@
       "awaiting_approval": "The timesheet is submitted and waiting for approval.",
       "rejected": "The timesheet was sent back and hasn't been resubmitted.",
       "time_off_pending": "{hours} h of time off is waiting for a decision.",
-      "overtime": "{hours} h of overtime in this period.",
       "no_time": "Nothing was recorded in this period."
     },
     "action": {
@@ -81,7 +78,6 @@
       "awaiting_approval": "Approve it or send it back.",
       "rejected": "Ask them to fix it and submit again.",
       "time_off_pending": "Approve or reject the request.",
-      "overtime": "Nothing to do unless it's unexpected.",
       "no_time": "Confirm they had no hours, or ask them to record their time."
     }
   },

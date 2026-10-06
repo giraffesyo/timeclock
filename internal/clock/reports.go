@@ -54,9 +54,6 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 		if sum.PendingTimeOff > 0 {
 			add(Exception{Kind: ExceptionTimeOffPending, Hours: sum.PendingTimeOff})
 		}
-		if sum.Overtime > 0 {
-			add(Exception{Kind: ExceptionOvertime, Hours: sum.Overtime})
-		}
 	}
 	return out, nil
 }

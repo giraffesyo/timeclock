@@ -360,7 +360,6 @@
               "awaiting_approval",
               "rejected",
               "time_off_pending",
-              "overtime",
               "no_time"
             ],
             "type": "string"

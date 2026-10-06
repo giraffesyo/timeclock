@@ -1084,5 +1084,28 @@ func TestAdminsGrantedInTimeclock(t *testing.T) {
 	}
 	if !pat.Admin || !pat.HostAdmin {
 		t.Errorf("host admin without a grant = %+v", pat)
+func TestOvertimeIsNotAnException(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+	// 50 hours in the week of Sep 21, in five 10-hour days, submitted.
+	for _, d := range []string{"21", "22", "23", "24", "25"} {
+		f.work(f.ada, "2026-09-"+d+" 08:00", "2026-09-"+d+" 18:00")
+	}
+	sum, err := f.Submit(ctx, f.ada, "", day(t, "2026-09-21"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.Overtime != 10 {
+		t.Fatalf("overtime = %v, want 10", sum.Overtime)
+	}
+	got, err := f.Exceptions(ctx, f.admin, day(t, "2026-09-21"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range got {
+		if e.PersonID == "ada" && e.Kind != ExceptionAwaitingApproval {
+			t.Errorf("ada has exception %s; overtime alone is pay, not a problem", e.Kind)
+		}
 	}
 }
