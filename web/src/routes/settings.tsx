@@ -1,33 +1,37 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { Page } from '@/components/page';
 import { Appearance } from '@/components/settings/appearance';
-import { Catalog } from '@/components/settings/catalog';
-import { History } from '@/components/settings/history';
-import { Integrations } from '@/components/settings/integrations';
 import { PayrollSettings } from '@/components/settings/payroll';
-import { People } from '@/components/settings/people';
 import { SignIn } from '@/components/settings/sso';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 
-const TABS = ['payroll', 'projects', 'people', 'integrations', 'appearance', 'signin', 'history'] as const;
+const TABS = ['payroll', 'signin', 'appearance'] as const;
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
 
+/** Tabs that became pages of their own: old links still land on them. */
+const MOVED = { people: '/people', projects: '/projects', integrations: '/integrations', history: '/history' } as const;
+type Moved = keyof typeof MOVED;
+const isMoved = (value: unknown): value is Moved => typeof value === 'string' && Object.hasOwn(MOVED, value);
+
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
   // Payroll is the default, so it stays out of the URL.
-  validateSearch: (search: Record<string, unknown>): { tab?: Tab } =>
-    isTab(search['tab']) && search['tab'] !== 'payroll' ? { tab: search['tab'] } : {},
+  validateSearch: (search: Record<string, unknown>): { tab?: Tab | Moved } =>
+    (isTab(search['tab']) && search['tab'] !== 'payroll') || isMoved(search['tab']) ? { tab: search['tab'] } : {},
+  beforeLoad: ({ search }) => {
+    if (isMoved(search.tab)) throw redirect({ to: MOVED[search.tab], replace: true });
+  },
 });
 
 function SettingsPage() {
   const t = useTranslations('settings');
   const { admin } = useSession();
   const { tab: requestedTab } = Route.useSearch();
-  const tab = requestedTab ?? (admin ? 'payroll' : 'appearance');
+  const tab = (isTab(requestedTab) ? requestedTab : undefined) ?? (admin ? 'payroll' : 'appearance');
 
   if (!admin && tab !== 'appearance') {
     return (
@@ -38,7 +42,7 @@ function SettingsPage() {
   }
 
   return (
-    <Page title={t('title')} description={t('description')} wide={tab === 'people' || tab === 'history'}>
+    <Page title={t('title')} description={t('description')}>
       <nav aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
         {TABS.filter((name) => admin || name === 'appearance').map((name) => (
           <Link
@@ -58,12 +62,8 @@ function SettingsPage() {
         ))}
       </nav>
       {tab === 'payroll' && <PayrollSettings />}
-      {tab === 'projects' && <Catalog />}
-      {tab === 'people' && <People />}
-      {tab === 'integrations' && <Integrations />}
       {tab === 'appearance' && <Appearance />}
       {tab === 'signin' && <SignIn />}
-      {tab === 'history' && <History />}
     </Page>
   );
 }

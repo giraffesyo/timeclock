@@ -120,9 +120,9 @@ test('everyone gets personal Settings, and only approvers get Team', async ({ me
   await admin.page.goto('/');
   const adminNav = admin.page.getByRole('navigation', { name: 'Sections' });
   await admin.page.getByRole('button', { name: /: user menu$/ }).click();
-  await expect(admin.page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(admin.page.locator('.popover').getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
   await expect(adminNav.getByRole('link', { name: 'Team' })).toBeVisible();
-  await admin.page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await admin.page.locator('.popover').getByRole('link', { name: 'Settings', exact: true }).click();
   await expect(
     admin.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
   ).toBeVisible();

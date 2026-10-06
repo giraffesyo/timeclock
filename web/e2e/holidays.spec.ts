@@ -93,7 +93,7 @@ for (const mobile of [false, true]) {
     });
 
     // Holiday pay is set per person in People: not paid, the day is still named.
-    await page.goto('/settings?tab=people');
+    await page.goto('/people');
     const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${me.name}` }) });
     await choose(page, row, 'Edit…');
     const edit = page.getByRole('dialog', { name: `Edit ${me.name}` });

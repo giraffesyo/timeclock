@@ -1,15 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { AdminPage } from '@/components/admin-page';
-import { Integrations } from '@/components/settings/integrations';
+import { Catalog } from '@/components/settings/catalog';
 
-export const Route = createFileRoute('/integrations')({ component: IntegrationsPage });
+export const Route = createFileRoute('/projects')({ component: ProjectsPage });
 
-function IntegrationsPage() {
-  const t = useTranslations('integrations');
+function ProjectsPage() {
+  const t = useTranslations('manage.projects');
   return (
     <AdminPage title={t('title')} description={t('description')}>
-      <Integrations />
+      <Catalog />
     </AdminPage>
   );
 }

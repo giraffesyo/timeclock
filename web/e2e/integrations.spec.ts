@@ -45,14 +45,13 @@ for (const mobile of [false, true]) {
       });
     });
     await page.goto('/settings');
+    // An admin reaches it from the sidebar's Manage group, not from Settings.
     await expect(
-      page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Integrations' }),
+      page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Integrations' }),
     ).toHaveCount(0);
-    const integrations = page
-      .getByRole('navigation', { name: 'Settings', exact: true })
-      .getByRole('link', { name: 'Integrations' });
+    const integrations = page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Integrations' });
     await integrations.click();
-    await expect(page).toHaveURL(/\/settings\?tab=integrations$/);
+    await expect(page).toHaveURL(/\/integrations$/);
     await expect(integrations).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'Integrations', exact: true })).toBeVisible();
     await page.getByLabel('Toggl API token').fill('mock-token');
@@ -75,7 +74,9 @@ for (const mobile of [false, true]) {
 
 test('a non-admin cannot manage integrations', async ({ me }) => {
   await me.page.goto('/integrations');
-  await expect(me.page).toHaveURL(/\/settings\?tab=integrations$/);
+  await expect(
+    me.page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Integrations' }),
+  ).toHaveCount(0);
   await expect(me.page.getByText('An admin manages payroll settings, projects and people.')).toBeVisible();
   await expect(me.page.getByLabel('Toggl API token')).toHaveCount(0);
   const response = await me.api.try('post', '/integrations/toggl/preview', { token: 'secret', workspaceId: 0 });
@@ -127,7 +128,6 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
   };
 
   await page.goto('/integrations');
-  await expect(page).toHaveURL(/\/settings\?tab=integrations$/);
   await connect();
   await sweep();
   const imported = await historical();
@@ -242,7 +242,7 @@ for (const mobile of [false, true]) {
         },
       }),
     );
-    await page.goto('/settings?tab=integrations');
+    await page.goto('/integrations');
     await expect(page.getByText('Toggl project was deleted or isn’t visible to the connected account')).toBeVisible();
     await expect(page.getByText('Historical scan complete', { exact: false })).toBeVisible();
     const device = mobile ? 'mobile' : 'desktop';
@@ -324,7 +324,7 @@ for (const mobile of [false, true]) {
         },
       });
     });
-    await page.goto('/settings?tab=integrations');
+    await page.goto('/integrations');
     await page.getByRole('button', { name: 'Manage connection' }).click();
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
     const holiday = page.getByRole('combobox', { name: 'Holiday project' });

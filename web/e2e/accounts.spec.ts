@@ -24,7 +24,7 @@ test('an invited admin sets a password, signs out, and signs back in', async ({ 
 
   // They run payroll here, so they have Settings.
   await page.getByRole('button', { name: /: user menu$/ }).click();
-  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(page.locator('.popover').getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('complementary').getByText('Pat Admin')).toBeVisible();
 
@@ -58,7 +58,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
   const admin = await join(browser, manage('invite', 'default', address('boss'), '--admin'), 'Bo Boss');
   const email = address('ada');
 
-  await admin.goto('/settings?tab=people');
+  await admin.goto('/people');
   await admin.getByRole('textbox', { name: 'Email address to invite' }).fill(email);
   await admin.getByRole('button', { name: 'Invite', exact: true }).click();
   await expect(admin.getByRole('status')).toContainText(`${email} is invited.`);
@@ -80,7 +80,7 @@ test('an admin invites someone from Settings, and they join as a member', async 
   await expect(again.getByRole('heading', { name: 'This invitation can’t be used' })).toBeVisible();
 
   // Ada is now one of the workspace's people.
-  await admin.goto('/settings?tab=people');
+  await admin.goto('/people');
   await expect(admin.getByRole('checkbox', { name: 'Select Ada Lovelace', exact: true })).toBeVisible();
 });
 
@@ -91,7 +91,7 @@ test('someone in two workspaces switches between them, and each has its own time
   const invite = manage('workspace', key, 'North Office', '--admin', email);
 
   // A project in the first workspace.
-  await page.goto('/settings?tab=projects');
+  await page.goto('/projects');
   const catalog = page.getByRole('table');
   await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   await page.getByRole('dialog', { name: 'Add project' }).getByLabel('Name').fill(`Only here ${key}`);
@@ -107,13 +107,13 @@ test('someone in two workspaces switches between them, and each has its own time
   const switcher = page.getByRole('button', { name: /switch workspace$/ });
   await expect(switcher).toContainText('North Office');
   // The new workspace has none of the first one's projects.
-  await page.goto('/settings?tab=projects');
+  await page.goto('/projects');
   await expect(page.getByText(`Only here ${key}`)).toHaveCount(0);
 
   await switcher.click();
   await page.getByRole('menuitemradio').filter({ hasNotText: 'North Office' }).click();
   await expect(page.getByRole('button', { name: /switch workspace$/ })).not.toContainText('North Office');
-  await page.goto('/settings?tab=projects');
+  await page.goto('/projects');
   await expect(page.getByText(`Only here ${key}`)).toBeVisible();
 });
 
@@ -286,7 +286,7 @@ test('workspace project and description requirements control clocks and manual e
   const request = page.request;
   const settings = async () => (await (await request.get('/api/v1/me')).json()).settings;
   expect(await settings()).toMatchObject({ requireProject: true, requireDescription: false });
-  await page.goto('/settings?tab=projects');
+  await page.goto('/projects');
   const catalog = page.getByRole('table');
   await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   const project = page.getByRole('dialog', { name: 'Add project' });

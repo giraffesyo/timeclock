@@ -1,0 +1,14 @@
+{
+  "people": {
+    "title": "People",
+    "description": "Who tracks time here, who approves it, and how their hours reach payroll."
+  },
+  "projects": {
+    "title": "Projects",
+    "description": "Customers and the projects time is recorded against."
+  },
+  "history": {
+    "title": "History",
+    "description": "Every change to payroll data, and who made it."
+  }
+}

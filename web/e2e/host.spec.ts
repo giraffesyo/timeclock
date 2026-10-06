@@ -79,9 +79,9 @@ test('each of the host’s organizations is a workspace of its own', async ({ br
   const south = await as(browser, 'admin@host.test', workspaceKey('south'));
   await api(north, 'post', '/projects', { name: 'Northern only', billable: false });
 
-  await north.goto('/timeclock/settings?tab=projects');
+  await north.goto('/timeclock/projects');
   await expect(north.getByText('Northern only')).toBeVisible();
-  await south.goto('/timeclock/settings?tab=projects');
+  await south.goto('/timeclock/projects');
   await expect(south.getByRole('cell', { name: 'Internal', exact: true })).toBeVisible();
   await expect(south.getByText('Northern only')).toHaveCount(0);
   expect((await api(south, 'get', '/projects')).projects).toEqual([]);

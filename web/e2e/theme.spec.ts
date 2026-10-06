@@ -50,7 +50,7 @@ for (const mobile of [false, true]) {
     await expect(html).not.toHaveClass(/dark/);
 
     // Personal preferences do not grant access to workspace administration.
-    await page.goto('/settings?tab=people');
+    await page.goto('/people');
     await expect(page.getByText('An admin manages payroll settings, projects and people.')).toBeVisible();
   });
 }
