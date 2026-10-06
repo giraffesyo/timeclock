@@ -61,7 +61,7 @@ test('PKCE login, CLI clock and reports, refresh rotation, and logout work end t
     expect(cli.run(['timesheet', 'show', '--day', '2026-09-14'])).toContain('submitted');
     expect(cli.run(['team', '--day', '2026-09-14'])).toContain('CLI User');
     expect(cli.run(['people'])).toContain(email);
-    expect(cli.run(['activity'])).toContain('CLI User');
+    expect(cli.run(['clocked-in'])).toContain('CLI User');
     expect(JSON.parse(cli.run(['timesheet', 'approve', sheet.timesheet.id, '--json'])).status).toBe('approved');
     cli.run(['timesheet', 'reopen', sheet.timesheet.id, '--note', 'Correct my time']);
     cli.run(['timesheet', 'submit', '--day', '2026-09-14']);

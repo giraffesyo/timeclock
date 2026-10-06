@@ -221,7 +221,8 @@ func registerReports(a huma.API, d Deps) {
 			return out, nil
 		})
 
-	huma.Register(a, op(http.MethodGet, "/activity", "list-activity", "What people are on now, and their hours today and this week", "Reports"),
+	// Not /activity: browser privacy filters block that path.
+	huma.Register(a, op(http.MethodGet, "/clocked-in", "list-clocked-in", "What people are on now, and their hours today and this week", "Reports"),
 		func(ctx context.Context, _ *struct{}) (*struct {
 			Body struct {
 				People []clock.Activity `json:"people"`

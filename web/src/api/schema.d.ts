@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** What people are on now, and their hours today and this week */
-        get: operations["list-activity"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/audit": {
         parameters: {
             query?: never;
@@ -83,6 +66,23 @@ export interface paths {
         put?: never;
         /** Move the caller's running clock to other work */
         post: operations["clock-switch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clocked-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What people are on now, and their hours today and this week */
+        get: operations["list-clocked-in"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -878,15 +878,6 @@ export interface components {
             themeStorageKey?: string;
             workspaceTheme: components["schemas"]["Theme"];
         };
-        "List-activityResponse": {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/List-activityResponse.json
-             */
-            readonly $schema?: string;
-            people: components["schemas"]["Activity"][] | null;
-        };
         "List-auditResponse": {
             /**
              * Format: uri
@@ -895,6 +886,15 @@ export interface components {
              */
             readonly $schema?: string;
             entries: components["schemas"]["AuditEntry"][] | null;
+        };
+        "List-clocked-inResponse": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/List-clocked-inResponse.json
+             */
+            readonly $schema?: string;
+            people: components["schemas"]["Activity"][] | null;
         };
         "List-customersResponse": {
             /**
@@ -1483,35 +1483,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    "list-activity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["List-activityResponse"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     "list-audit": {
         parameters: {
             query?: {
@@ -1627,6 +1598,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Entry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-clocked-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["List-clocked-inResponse"];
                 };
             };
             /** @description Error */

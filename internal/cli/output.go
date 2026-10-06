@@ -33,7 +33,7 @@ func render(w io.Writer, data []byte, asJSON bool, view string) error {
 			"projects":   {"id", "name", "customerName", "code", "archived"},
 			"customers":  {"id", "name", "archived"},
 			"people":     {"id", "name", "email"},
-			"activity":   {"person.name", "today", "week", "running.note"},
+			"clocked-in": {"person.name", "today", "week", "running.note"},
 			"entries":    {"id", "startedAt", "endedAt", "projectId", "note", "locked"},
 			"members":    {"person.name", "regular", "overtime", "vacation", "sick", "timesheet.status"},
 			"exceptions": {"personName", "kind", "day", "hours"},
@@ -45,7 +45,7 @@ func render(w io.Writer, data []byte, asJSON bool, view string) error {
 			return table(w, []any{value}, columns["members"])
 		}
 		key := view
-		if key == "activity" {
+		if key == "clocked-in" {
 			key = "people"
 		}
 		if _, ok := value["exceptions"]; ok {

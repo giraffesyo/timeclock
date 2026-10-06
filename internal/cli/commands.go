@@ -40,8 +40,12 @@ func New(version string) *cobra.Command {
 		clock.AddCommand(cmd)
 	}
 	root.AddCommand(clock)
-	for _, resource := range []string{"projects", "customers", "people", "activity"} {
-		cmd := o.endpoint(version, resource, "List "+resource, "GET", "/"+resource, resource)
+	for _, resource := range []string{"projects", "customers", "people", "clocked-in"} {
+		short := "List " + resource
+		if resource == "clocked-in" {
+			short = "Show who is on the clock, and their hours today and this week"
+		}
+		cmd := o.endpoint(version, resource, short, "GET", "/"+resource, resource)
 		if resource == "projects" || resource == "customers" {
 			cmd.Flags().Bool("archived", false, "Include archived records")
 		}
