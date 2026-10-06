@@ -4,16 +4,14 @@ test('an admin adds an internal project, and people record time on it', async ({
   const admin = await adminPerson();
   const name = `Holiday ${Date.now().toString(36)}`;
   await admin.page.goto('/settings?tab=projects');
-  const internal = admin.page
-    .getByRole('listitem')
-    .filter({ has: admin.page.getByRole('heading', { name: 'Internal' }) });
-  await internal.getByRole('button', { name: 'Add project' }).click();
+  const catalog = admin.page.getByRole('table');
+  await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   const dialog = admin.page.getByRole('dialog', { name: 'Add project' });
   await dialog.getByLabel('Name').fill(name);
   await expect(dialog.getByLabel('Customer')).toHaveValue('');
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toBeHidden();
-  await expect(internal).toContainText(name);
+  await expect(catalog).toContainText(name);
 
   const { page, api } = me;
   await page.goto('/');
