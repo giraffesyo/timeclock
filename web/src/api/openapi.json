@@ -498,6 +498,10 @@
           "accountsUrl": {
             "type": "string"
           },
+          "apiKeysUrl": {
+            "format": "uri",
+            "type": "string"
+          },
           "homeLabel": {
             "type": "string"
           },

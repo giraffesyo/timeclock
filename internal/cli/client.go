@@ -144,7 +144,7 @@ func (o *options) client(ctx context.Context, version string, credentials bool) 
 				if err != nil {
 					return err
 				}
-				if time.Until(t.ExpiresAt) < 30*time.Second {
+				if t.RefreshToken != "" && time.Until(t.ExpiresAt) < 30*time.Second {
 					t, err = c.exchange(ctx, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {t.RefreshToken}})
 					if err != nil {
 						return fmt.Errorf("refresh credentials: %w", err)

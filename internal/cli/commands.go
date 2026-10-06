@@ -25,7 +25,7 @@ func New(version string) *cobra.Command {
 	f := root.PersistentFlags()
 	f.StringVar(&o.configPath, "config", os.Getenv("TIMECLOCK_CONFIG"), "Config file (TIMECLOCK_CONFIG; default: user config directory/timeclock/config.json)")
 	f.BoolVar(&o.json, "json", false, "Print the full JSON response")
-	f.StringVar(&o.credentialStore, "credential-store", os.Getenv("TIMECLOCK_CREDENTIAL_STORE"), "OAuth credential storage: keyring (default) or file (explicit headless fallback)")
+	f.StringVar(&o.credentialStore, "credential-store", os.Getenv("TIMECLOCK_CREDENTIAL_STORE"), "Credential storage: keyring (default) or file (explicit headless fallback)")
 	f.BoolVar(&o.allowHTTP, "allow-http", false, "Allow unencrypted HTTP to a remote server")
 	f.DurationVar(&o.timeout, "timeout", 30*time.Second, "HTTP request timeout")
 	root.AddCommand(o.authCommand(version))
