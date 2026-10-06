@@ -530,33 +530,6 @@
         ],
         "type": "object"
       },
-      "List-activityResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/List-activityResponse.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "people": {
-            "items": {
-              "$ref": "#/components/schemas/Activity"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "people"
-        ],
-        "type": "object"
-      },
       "List-auditResponse": {
         "additionalProperties": false,
         "properties": {
@@ -581,6 +554,33 @@
         },
         "required": [
           "entries"
+        ],
+        "type": "object"
+      },
+      "List-clocked-inResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/List-clocked-inResponse.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "people"
         ],
         "type": "object"
       },
@@ -2110,37 +2110,6 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/api/v1/activity": {
-      "get": {
-        "operationId": "list-activity",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/List-activityResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "summary": "What people are on now, and their hours today and this week",
-        "tags": [
-          "Reports"
-        ]
-      }
-    },
     "/api/v1/audit": {
       "get": {
         "operationId": "list-audit",
@@ -2306,6 +2275,37 @@
         "summary": "Move the caller's running clock to other work",
         "tags": [
           "Clock"
+        ]
+      }
+    },
+    "/api/v1/clocked-in": {
+      "get": {
+        "operationId": "list-clocked-in",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List-clocked-inResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What people are on now, and their hours today and this week",
+        "tags": [
+          "Reports"
         ]
       }
     },

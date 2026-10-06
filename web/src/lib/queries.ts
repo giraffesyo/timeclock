@@ -141,8 +141,8 @@ export function useHoursByDay(from: Day, to: Day, mine: boolean) {
 /** What people are on now, and their hours today and this week. */
 export function useActivity() {
   return useQuery({
-    queryKey: ['activity'],
-    queryFn: async () => unwrap(await api.GET('/api/v1/activity')).people ?? [],
+    queryKey: ['clocked-in'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/clocked-in')).people ?? [],
     refetchInterval: 60_000,
   });
 }
