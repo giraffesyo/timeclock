@@ -174,7 +174,7 @@ Live integration tests are opt-in. Set `TIMECLOCK_TOGGL_TEST_TOKEN_FILE` to a lo
 
 ## Development
 
-Needs Go 1.27 and Node 26 with pnpm 11. Foundation's `dev` tool (`dev.json`) runs everything in one terminal, without Docker: Postgres 18 on :54331, the server on http://localhost:8090 (rebuilt and restarted when Go or SQL changes), and Vite. Its data stays in `.devstack/` between runs. `dev.env` holds the server's development settings, signed in as `dev@example.com`, an admin; the real environment wins, so `TIMECLOCK_DEV_USER=you@example.com go -C tools tool dev` signs in as someone else.
+Needs Go 1.27 and Node 26 with pnpm 11. Foundation's `dev` tool (`dev.json`) runs everything in one terminal, without Docker: Postgres 18 on :54331, the server on http://localhost:8090 (rebuilt and restarted when Go or SQL changes), and Vite. Its data stays in `.devstack/` between runs. `dev.json` gives the server its development settings: the `timeclock` database, signed in as `dev@example.com`, an admin. A `.env` beside it (for personal settings) and the real environment override them, so `TIMECLOCK_DEV_USER=you@example.com go -C tools tool dev` signs in as someone else. `dev logs server` prints the server's latest output.
 
 ```sh
 make install
