@@ -154,25 +154,15 @@
       "actions": "Actions",
       "timesheets": "Timesheets"
     },
-    "managerFor": "Manager of {name}",
-    "exemptFor": "{name} is overtime exempt",
-    "payrollIdFor": "Payroll ID of {name}",
-    "activeFor": "{name} is active",
     "saving": "Saving",
     "saveFailed": "Couldn’t save {name}.",
-    "deactivate": {
-      "title": "Deactivate {name}?",
-      "description": "They are left out of payroll reports, the Gusto export and exceptions from now on. Their recorded time is kept, and you can make them active again.",
-      "action": "Deactivate"
-    },
     "notes": {
       "manager": "Manager: who approves the person’s timesheets and time off. Left to the directory, it follows the host’s directory; with none, an admin approves.",
       "exempt": "Overtime exempt: all of the person’s hours are regular, whatever the weekly threshold.",
-      "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export. Saved when you leave the field or press Enter.",
+      "payrollId": "Payroll ID: the person’s id in Gusto, written to the payroll export.",
       "active": "Active: inactive people are left out of reports and exceptions.",
       "timesheets": "Timesheets: people who submit are in payroll. “Reports only” tracks time for project reports and the overview, with no timesheet and no payroll."
     },
-    "timezoneFor": "Time zone of {name}",
     "timezoneDefault": "The organization’s",
     "managerDirectory": "From directory: {name}",
     "adminApproves": "Admin approves",
@@ -181,10 +171,7 @@
     "yes": "Yes",
     "no": "No",
     "notSet": "Not set",
-    "edit": "Edit",
-    "done": "Done",
-    "editFor": "Edit {name}",
-    "doneFor": "Done editing {name}",
+    "edit": "Edit…",
     "profileManager": "Manager: {name}",
     "bulk": {
       "select": "Select {name}",
@@ -215,7 +202,6 @@
       "removedAdmin": "{count, plural, one {# person is} other {# people are}} no longer an admin.",
       "people": "{count, plural, one {# person} other {# people}}"
     },
-    "timesheetsFor": "Whether {name} submits timesheets",
     "timesheetsDefault": "Default: {value}",
     "submits": "Submits",
     "reportsOnly": "Reports only",
@@ -261,7 +247,12 @@
         "title": "Deactivate {who}?",
         "description": "They are left out of payroll reports, the Gusto export and exceptions from now on. Their recorded time is kept, and you can make them active again."
       }
-    }
+    },
+    "editTitle": "Edit {name}",
+    "managerHint": "Who approves their timesheets and time off. Left to the directory, it follows the host’s directory; with none, an admin approves.",
+    "payrollIdHint": "Their id in Gusto, written to the payroll export.",
+    "exemptOn": "All of their hours are regular.",
+    "exemptOff": "Hours over the weekly threshold are overtime."
   },
   "history": {
     "title": "Changes to payroll data",
