@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.21.0...timeclock-v0.21.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* let the sidebar's accent mark the current section, and the menu's light or dark end a preview ([#104](https://github.com/giraffesyo/timeclock/issues/104)) ([5389406](https://github.com/giraffesyo/timeclock/commit/5389406454b89c5e8fcfda81f3a367bbbdd4d140))
+
 ## [0.21.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.20.1...timeclock-v0.21.0) (2026-10-07)
 
 
