@@ -312,7 +312,8 @@
     "holidayPayDefault": "Default: {value}",
     "paid": "Paid",
     "notPaid": "Not paid",
-    "adminHint": "Runs payroll: settings, people, projects and everyone’s time."
+    "adminHint": "Runs payroll: settings, people, projects and everyone’s time.",
+    "adminFromServer": "An admin from their invitation or the server’s settings: it can’t be changed in People."
   },
   "history": {
     "title": "Changes to payroll data",

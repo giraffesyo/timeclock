@@ -239,7 +239,13 @@ function PersonRow({
             className="!px-1.5 !py-0 text-[11px]"
             hint={
               person.hostAdmin
-                ? `${t('adminHint')} ${t('adminFromHost', { host: info.homeLabel || t('theHost') })}`
+                ? `${t('adminHint')} ${
+                    // On its own, Timeclock has account pages and no host: the grant came from an
+                    // invitation or the server's settings. Embedded, the host decides.
+                    info.accountsUrl
+                      ? t('adminFromServer')
+                      : t('adminFromHost', { host: info.homeLabel || t('theHost') })
+                  }`
                 : t('adminHint')
             }
           >

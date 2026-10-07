@@ -72,6 +72,13 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   // The host's admin runs payroll here; sign-in settings point back at the host.
   await admin.goto('/timeclock/settings?tab=signin');
   await expect(admin.getByText('Sign-in is handled by the application Timeclock runs in.')).toBeVisible();
+
+  // Embedded, an admin is the host's to grant, and the badge names it.
+  await admin.goto('/timeclock/people');
+  await admin.getByRole('button', { name: 'Admin', exact: true }).first().hover();
+  await expect(admin.locator('#global-tooltip')).toContainText(
+    'An admin in Example Portal: only Example Portal can change that.',
+  );
 });
 
 test('each of the host’s organizations is a workspace of its own', async ({ browser }) => {
