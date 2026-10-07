@@ -95,7 +95,11 @@ export function Invites() {
           {waiting.data?.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
               <span className="min-w-0 flex-1 truncate">{i.email}</span>
-              {i.admin && <Chip tone="info">{t('admin')}</Chip>}
+              {i.admin && (
+                <Chip tone="info" hint={t('adminHint')}>
+                  {t('admin')}
+                </Chip>
+              )}
               <span className="text-xs text-muted-foreground">
                 {t('expires', { date: format.dateTime(new Date(i.expiresAt), { month: 'short', day: 'numeric' }) })}
               </span>

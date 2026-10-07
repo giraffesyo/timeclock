@@ -84,6 +84,7 @@
     "loadFailed": "Couldn’t load this period’s time.",
     "empty": "Nothing recorded. Add time if this was a working day.",
     "emptyReadOnly": "No time recorded.",
-    "emptyFuture": "This day hasn’t come yet."
+    "emptyFuture": "This day hasn’t come yet.",
+    "holidayHint": "A company holiday: people with holiday pay are paid its hours without recording time."
   }
 }

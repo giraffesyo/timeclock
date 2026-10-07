@@ -336,7 +336,11 @@ export function Catalog() {
     ];
   };
 
-  const archivedChip = <Chip tone="neutral">{t('archived')}</Chip>;
+  const archivedChip = (
+    <Chip tone="neutral" hint={t('archivedHint')}>
+      {t('archived')}
+    </Chip>
+  );
   const customerCells = (c: Customer): Record<string, ReactNode> => ({
     name: <span className={cn('font-semibold', c.archived && 'text-muted-foreground')}>{c.name}</span>,
     status: c.archived && archivedChip,
@@ -345,7 +349,10 @@ export function Catalog() {
     name: <span className={cn('block pl-4', p.archived ? 'text-muted-foreground' : 'font-medium')}>{p.name}</span>,
     code: p.code && <span className="font-mono text-xs text-muted-foreground">{p.code}</span>,
     billable: (
-      <Chip tone={p.billable ? 'info' : 'neutral'}>
+      <Chip
+        tone={p.billable ? 'info' : 'neutral'}
+        hint={p.billable ? t('project.billableHint') : t('project.notBillableHint')}
+      >
         {p.billable ? t('project.billable') : t('project.notBillable')}
       </Chip>
     ),

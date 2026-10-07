@@ -111,7 +111,9 @@ test('the chart fills its panel, and long project lists fold', async ({ me, some
   await manages(me, ada);
   const week = lastWeek();
   // Ten projects of ada's own, an hour each.
-  const customer = await admin.post('/customers', { name: `Fold ${Date.now().toString(36)}` });
+  const customer = await admin.post('/customers', {
+    name: `Fold ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+  });
   for (let i = 0; i < 10; i++) {
     const project = await admin.post('/projects', { name: `Part ${i}`, customerId: customer.id, billable: false });
     await ada.api.post('/entries', {

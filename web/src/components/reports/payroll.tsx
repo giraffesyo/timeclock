@@ -214,17 +214,22 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                         label={tr('openTimesheetFor', { name: r.person.name })}
                         className="inline-flex rounded-full outline-offset-2 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-primary"
                       >
-                        <SheetStatus timesheet={r.timesheet} reportsOnly={!r.person.submitsTimesheets} />
+                        <SheetStatus timesheet={r.timesheet} reportsOnly={!r.person.submitsTimesheets} inLink />
                       </TimesheetLink>
                     </td>
                     <td className={td}>
                       {r.ready ? (
-                        <Chip tone="success">
+                        <Chip tone="success" hint={t('readyHint')}>
                           <CheckIcon className="size-3" aria-hidden />
                           {t('isReady')}
                         </Chip>
                       ) : (
-                        <Chip tone="warning">{t('notReady')}</Chip>
+                        <Chip
+                          tone="warning"
+                          hint={settings.approveTimesheets ? t('notReadyHintApproval') : t('notReadyHintSubmit')}
+                        >
+                          {t('notReady')}
+                        </Chip>
                       )}
                     </td>
                   </tr>

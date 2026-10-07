@@ -124,7 +124,7 @@ export function DayTable({
                         </span>
                         {d.day === today && <Chip tone="info">{t('today')}</Chip>}
                         {d.holidayName && (
-                          <Chip tone="neutral" className="max-w-40 truncate">
+                          <Chip tone="neutral" className="max-w-40 truncate" hint={t('holidayHint')}>
                             {d.holidayName}
                           </Chip>
                         )}

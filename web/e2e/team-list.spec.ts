@@ -114,7 +114,7 @@ for (const mobile of [false, true]) {
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.getByRole('button', { name: 'Filter' }).click();
     await page.getByRole('menu').getByRole('button', { name: 'Timesheet' }).click();
-    await page.getByRole('button', { name: 'Not submitted', exact: true }).click();
+    await page.getByRole('menu').getByRole('button', { name: 'Not submitted', exact: true }).click();
     await page.keyboard.press('Escape');
     await expect(row(other)).toBeVisible();
     await expect(row(me)).toHaveCount(0);
@@ -124,8 +124,13 @@ for (const mobile of [false, true]) {
       contentType: 'image/png',
     });
 
-    // A click on the row opens the person's timesheet.
-    await row(other).getByText('Not submitted').click();
+    // A click on the row opens the person's timesheet: anywhere but its controls, like the status badge.
+    await row(other)
+      .getByRole('cell')
+      .filter({ hasNot: page.getByRole('button') })
+      .filter({ visible: true })
+      .first()
+      .click();
     await expect(page).toHaveURL(new RegExp(`/timesheet\\?.*person=${other.id}`));
   });
 }

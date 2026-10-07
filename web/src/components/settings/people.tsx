@@ -234,10 +234,22 @@ function PersonRow({
       <span className="flex items-center gap-2">
         <PersonIdentity person={person} people={people} />
         {person.admin && (
-          <Chip tone="info" className="!px-1.5 !py-0 text-[11px]">
-            <span title={person.hostAdmin ? t('adminFromHost', { host: info.homeLabel || t('theHost') }) : undefined}>
-              {t('admin')}
-            </span>
+          <Chip
+            tone="info"
+            className="!px-1.5 !py-0 text-[11px]"
+            hint={
+              person.hostAdmin
+                ? `${t('adminHint')} ${
+                    // On its own, Timeclock has account pages and no host: the grant came from an
+                    // invitation or the server's settings. Embedded, the host decides.
+                    info.accountsUrl
+                      ? t('adminFromServer')
+                      : t('adminFromHost', { host: info.homeLabel || t('theHost') })
+                  }`
+                : t('adminHint')
+            }
+          >
+            {t('admin')}
           </Chip>
         )}
       </span>
