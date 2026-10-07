@@ -37,6 +37,18 @@ for (const mobile of [false, true]) {
     const away = (p: { name: string }) => row(p).getByRole('cell').filter({ hasNotText: p.name }).first();
     await expect(row(me)).toContainText('Waiting for approval');
     await expect(row(other)).toContainText('Not submitted');
+    if (mobile) {
+      // On a phone the status sits under the name, and nothing runs off the side.
+      const table = page.getByRole('table');
+      expect(
+        await table.evaluate((t) => (t.parentElement?.scrollWidth ?? 0) - (t.parentElement?.clientWidth ?? 0)),
+      ).toBe(0);
+      const chip = row(me).getByText('Waiting for approval', { exact: true }).filter({ visible: true });
+      await expect(chip).toBeInViewport({ ratio: 1 });
+      const nameBox = await row(me).getByRole('button', { name: me.name, exact: true }).boundingBox();
+      const chipBox = await chip.boundingBox();
+      expect((chipBox?.y ?? 0) > (nameBox?.y ?? 0)).toBe(true);
+    }
 
     // Names are the same profiles as on People: a card with the email on hover.
     const name = row(other).getByRole('button', { name: other.name, exact: true });

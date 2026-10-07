@@ -58,7 +58,8 @@ export function useTeamView(): ListView<PeriodSummary> {
       { key: 'holiday', label: tc('holiday'), headerClassName: 'text-right', priority: 'low' },
       { key: 'total', label: tc('total'), headerClassName: 'text-right' },
       { key: 'pendingTimeOff', label: t('pendingTimeOff'), headerClassName: 'text-right', priority: 'low' },
-      { key: 'status', label: t('status') },
+      // On a phone its column gives way, and the status sits under the name instead.
+      { key: 'status', label: t('status'), priority: 'medium' },
     ],
     orderBys: [
       { value: 'name', label: t('person'), compare: (a, b) => a.person.name.localeCompare(b.person.name) },
@@ -125,6 +126,18 @@ function TeamRow({
     ...decisions.map((d): RowMenuItem => ({ kind: 'action', label: d.label, icon: d.icon, onSelect: d.onSelect })),
   ];
 
+  const status = (
+    <>
+      <SheetStatus timesheet={m.timesheet} reportsOnly={!m.person.submitsTimesheets} />
+      {m.timesheet?.status === 'rejected' && m.timesheet.decisionNote && (
+        <div className="mt-1 max-w-56 truncate text-xs text-muted-foreground">
+          {t('sentBackNote', { note: m.timesheet.decisionNote })}
+        </div>
+      )}
+      {waiting && !decidable && <div className="mt-1 text-xs text-muted-foreground">{t('own')}</div>}
+    </>
+  );
+
   const cells: Record<string, ReactNode> = {
     person: (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -140,6 +153,8 @@ function TeamRow({
             {t('running')}
           </span>
         )}
+        {/* Narrower than the status column needs: stacked under the name. */}
+        <div className="basis-full @[36rem]:hidden">{status}</div>
       </div>
     ),
     regular: <Hours value={m.regular} />,
@@ -149,17 +164,7 @@ function TeamRow({
     holiday: <Hours value={m.holiday} />,
     total: <Hours value={totalHours(m)} strong />,
     pendingTimeOff: <Hours value={m.pendingTimeOff} />,
-    status: (
-      <>
-        <SheetStatus timesheet={m.timesheet} reportsOnly={!m.person.submitsTimesheets} />
-        {m.timesheet?.status === 'rejected' && m.timesheet.decisionNote && (
-          <div className="mt-1 max-w-56 truncate text-xs text-muted-foreground">
-            {t('sentBackNote', { note: m.timesheet.decisionNote })}
-          </div>
-        )}
-        {waiting && !decidable && <div className="mt-1 text-xs text-muted-foreground">{t('own')}</div>}
-      </>
-    ),
+    status,
   };
 
   return (
