@@ -806,6 +806,13 @@
     border-color: var(--color-ring);
     box-shadow: 0 0 0 1px var(--color-ring);
   }
+  /* On a phone the times give up some room, so the length and Save share their row. */
+  @media (max-width: 30rem) {
+    .entry-time {
+      width: 6.25rem;
+      padding: 0 0.5rem;
+    }
+  }
 }
 
 @keyframes tl-pulse {
