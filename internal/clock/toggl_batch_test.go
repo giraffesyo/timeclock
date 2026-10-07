@@ -44,7 +44,7 @@ func TestTogglSettledEntriesNeedNoIndividualReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := bridge.syncWindow(t.Context(), f.Service, c, bridge.client("token"), f.time("2026-11-01 00:00"), f.time("2026-11-02 00:00")); err != nil {
+	if _, err := bridge.syncWindow(t.Context(), f.Service, c, bridge.client("token"), f.time("2026-11-01 00:00"), f.time("2026-11-02 00:00")); err != nil {
 		t.Fatal(err)
 	}
 	if fake.entries[101].Description != "Older local edit" || fake.puts != 1 {

@@ -420,6 +420,12 @@ func TestTogglHistoryNarrowsWindowsThatTimeOut(t *testing.T) {
 	if err := b.Configure(t.Context(), f.Service, f.admin, TogglSetup{Token: "fake", WorkspaceID: 42, From: "2024-10-01", People: []TogglMapping{{PersonID: f.ada.ID, UserID: 1}}}); err != nil {
 		t.Fatal(err)
 	}
+	requireSync(t, f, b)
+	// The size that answered is kept, so the next run doesn't time out first.
+	var days int
+	if err := f.pool.QueryRow(t.Context(), `SELECT history_days FROM toggl_workspaces WHERE workspace_id=$W`).Scan(&days); err != nil || days >= 360 {
+		t.Fatalf("the narrowed window must be kept: %d %v", days, err)
+	}
 	for range 8 {
 		requireSync(t, f, b)
 	}
