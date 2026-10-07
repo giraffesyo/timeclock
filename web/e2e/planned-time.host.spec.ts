@@ -74,6 +74,10 @@ test('planned time is closed until an admin allows it, then shows as planned and
   // The list says so, and why.
   await ada.getByRole('button', { name: 'List' }).click();
   const badge = ada.getByRole('button', { name: 'Planned', exact: true });
+  await expect(badge).toHaveAccessibleDescription(/^Hasn’t happened yet/);
+  // One tooltip serves the page: let any other close before hovering the badge.
+  await ada.mouse.move(0, 0);
+  await expect(ada.locator('#global-tooltip')).toBeHidden();
   await badge.hover();
   await expect(ada.locator('#global-tooltip')).toContainText('Hasn’t happened yet');
 
