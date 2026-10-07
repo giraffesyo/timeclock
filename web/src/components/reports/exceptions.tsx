@@ -167,7 +167,7 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
                           <p>{sentence(e)}</p>
                           <p className="text-muted-foreground">{t(`action.${e.kind}`)}</p>
                         </div>
-                        <Chip tone={tones[level]}>
+                        <Chip tone={tones[level]} hint={t(`severityHint.${level}`)}>
                           <Icon className="size-3" aria-hidden />
                           {t(`severity.${level}`)}
                         </Chip>

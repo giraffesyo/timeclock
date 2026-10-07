@@ -47,5 +47,17 @@
     "next": "Next week",
     "this": "This week",
     "range": "{start} – {end}"
+  },
+  "sheetHint": {
+    "open": "Not submitted yet for this pay period. Its time can still change.",
+    "submitted": "Submitted and locked. A manager or an admin approves it or sends it back.",
+    "approved": "Approved and locked. It goes into the payroll export.",
+    "rejected": "Sent back to be fixed. It’s open to changes until it’s submitted again.",
+    "reportsOnly": "Doesn’t submit timesheets: their time counts in project reports and the overview, not in payroll."
+  },
+  "timeOffStatusHint": {
+    "pending": "Waiting for a manager or an admin to approve it. Not paid until then.",
+    "approved": "Approved: it’s paid with the pay period it falls in.",
+    "rejected": "Rejected: it isn’t paid."
   }
 }

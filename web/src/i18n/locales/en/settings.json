@@ -154,7 +154,9 @@
       "deleteDescription": "A project can be deleted only when no time was ever recorded on it. This can’t be undone.",
       "inUse": "This project has time recorded on it, so it can’t be deleted. Archive it to stop new time instead.",
       "noCustomer": "No customer (internal work)",
-      "addTo": "Add a project to {name}"
+      "addTo": "Add a project to {name}",
+      "billableHint": "Time on it can be billed to the customer. Reports show it as billable.",
+      "notBillableHint": "Time on it isn’t billed to the customer, like internal work."
     },
     "internal": "Internal",
     "columns": {
@@ -169,7 +171,8 @@
       "rename": "Rename…",
       "archive": "Archive…",
       "delete": "Delete…"
-    }
+    },
+    "archivedHint": "No new time can be recorded on it. Time already recorded stays in reports."
   },
   "people": {
     "title": "Everyone",
@@ -308,7 +311,8 @@
     "exemptOff": "Hours over the weekly threshold are overtime.",
     "holidayPayDefault": "Default: {value}",
     "paid": "Paid",
-    "notPaid": "Not paid"
+    "notPaid": "Not paid",
+    "adminHint": "Runs payroll: settings, people, projects and everyone’s time."
   },
   "history": {
     "title": "Changes to payroll data",
@@ -411,7 +415,8 @@
     "admin": "Admin",
     "expires": "until {date}",
     "withdraw": "Withdraw",
-    "withdrawFor": "Withdraw the invitation to {email}"
+    "withdrawFor": "Withdraw the invitation to {email}",
+    "adminHint": "Will run payroll: settings, people, projects and everyone’s time."
   },
   "sso": {
     "hosted": "Sign-in is handled by the application Timeclock runs in.",

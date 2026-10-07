@@ -37,7 +37,10 @@
       "confirmTitle": "Export time that isn't approved?",
       "confirmDescription": "{count, plural, one {# person isn't} other {# people aren't}} ready: {names}. Including them puts time no one has approved in the file, and Gusto would pay it.",
       "confirm": "Export everyone"
-    }
+    },
+    "readyHint": "Their timesheet is approved, so their hours go into the export.",
+    "notReadyHintApproval": "Left out of the export until their timesheet is approved, unless you include everyone.",
+    "notReadyHintSubmit": "Left out of the export until they submit their timesheet, unless you include everyone."
   },
   "exceptions": {
     "loadFailed": "Couldn't load exceptions.",
@@ -79,6 +82,10 @@
       "rejected": "Ask them to fix it and submit again.",
       "time_off_pending": "Approve or reject the request.",
       "no_time": "Confirm they had no hours, or ask them to record their time."
+    },
+    "severityHint": {
+      "blocking": "Payroll would be wrong or incomplete until this is settled.",
+      "check": "Probably fine, but worth a look before paying."
     }
   },
   "projects": {
