@@ -84,11 +84,21 @@ func (s *Service) writable(ctx context.Context, q querier, actor Actor, personID
 	return p, nil
 }
 
+// plannedHorizon is how far ahead planned time may be recorded: enough to
+// plan, not so much that a mistyped year goes unnoticed.
+const plannedHorizon = 366 * 24 * time.Hour
+
 // checkSpan refuses time that is locked or lies in the future. end is nil
 // for a running clock. Time may overlap other time: hours count it once.
+// Where the organization allows planned time, finished entries may lie
+// ahead; they count only as they pass.
 func (s *Service) checkSpan(ctx context.Context, q querier, cfg Settings, personID string, start time.Time, end *time.Time) error {
 	now := s.now()
-	if start.After(now.Add(time.Minute)) || (end != nil && end.After(now.Add(time.Minute))) {
+	ahead := now.Add(time.Minute)
+	if end != nil && cfg.AllowPlannedTime {
+		ahead = now.Add(plannedHorizon)
+	}
+	if start.After(ahead) || (end != nil && end.After(ahead)) {
 		return ErrFuture.New("")
 	}
 	if end != nil && !end.After(start) {

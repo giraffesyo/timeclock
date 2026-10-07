@@ -16,8 +16,11 @@ export function useWeek(day?: Day): Day[] {
 export function WeekNav({
   week,
   onChange,
+  ahead,
 }: {
   week: Day[];
+  /** Weeks ahead can be shown, up to a year out: where planned time is allowed. */
+  ahead?: boolean;
   /** Called with a day in the week to show, or undefined for this week. */
   onChange: (day: Day | undefined) => void;
 }) {
@@ -44,7 +47,7 @@ export function WeekNav({
         variant="ghost"
         size="sm"
         aria-label={t('next')}
-        disabled={last >= today}
+        disabled={ahead ? addDays(first, 7) > addDays(today, 366) : last >= today}
         onClick={() => onChange(addDays(first, 7))}
       >
         <ChevronRightIcon aria-hidden />

@@ -25,9 +25,12 @@ export function PeriodNav({
   period,
   today,
   onChange,
+  ahead,
 }: {
   period: Period;
   today: Day;
+  /** Periods ahead can be shown, up to a year out: where planned time is allowed. */
+  ahead?: boolean;
   /** Called with a day in the period to show, or undefined for the current one. */
   onChange: (day: Day | undefined) => void;
 }) {
@@ -44,7 +47,7 @@ export function PeriodNav({
         variant="ghost"
         size="sm"
         aria-label={t('next')}
-        disabled={period.end >= today}
+        disabled={ahead ? period.end >= addDays(today, 366) : period.end >= today}
         onClick={() => onChange(addDays(period.end, 1))}
       >
         <ChevronRightIcon aria-hidden />

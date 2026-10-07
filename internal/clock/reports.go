@@ -61,9 +61,10 @@ func (s *Service) Exceptions(ctx context.Context, actor Actor, day Date) ([]Exce
 // longEntries finds a person's entries in a period that ran past the limit:
 // finished ones, and a clock still running.
 func (s *Service) longEntries(ctx context.Context, personID string, period Period, loc *time.Location, limit time.Duration) ([]Exception, error) {
+	// Planned time counts only as it passes, so an entry is long once its past part is.
 	rows, err := s.pool.Query(ctx, `SELECT id, started_at, ended_at FROM time_entries
 		WHERE workspace_id = $W AND person_id = $1 AND started_at >= $2 AND started_at < $3
-		AND coalesce(ended_at, $4) - started_at > $5 ORDER BY started_at`,
+		AND least(coalesce(ended_at, $4), $4) - started_at > $5 ORDER BY started_at`,
 		personID, period.Start.In(loc), period.End.AddDays(1).In(loc), s.now(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("find long entries: %w", err)
@@ -79,7 +80,7 @@ func (s *Service) longEntries(ctx context.Context, personID string, period Perio
 			e.Kind = ExceptionClockRunning
 			e.Hours = Hours(s.now().Sub(start))
 		} else {
-			e.Hours = Hours(end.Sub(start))
+			e.Hours = Hours(minTime(*end, s.now()).Sub(start))
 		}
 		out = append(out, e)
 		return nil
@@ -131,14 +132,15 @@ func (s *Service) ProjectReport(ctx context.Context, actor Actor, from, to Date)
 		)
 		SELECT coalesce(c.name, ''), coalesce(p.id::text, ''), coalesce(p.name, ''), coalesce(p.code, ''), coalesce(p.billable, false),
 			e.person_id, e.person_name,
-			extract(epoch FROM sum(least(e.ended_at, e.hi) - greatest(e.started_at, e.lo)))::float8
+			extract(epoch FROM sum(least(e.ended_at, e.hi, $6) - greatest(e.started_at, e.lo)))::float8
 		FROM e
 		LEFT JOIN projects p ON p.id = e.project_id
 		LEFT JOIN customers c ON c.id = p.customer_id
-		WHERE e.started_at < e.hi AND e.ended_at > e.lo
+		-- Planned time counts only as it passes.
+		WHERE e.started_at < least(e.hi, $6) AND e.ended_at > e.lo
 		GROUP BY c.name, p.id, p.name, p.code, p.billable, e.person_id, e.person_name
 		ORDER BY lower(coalesce(c.name, '')), lower(coalesce(p.name, '')), lower(e.person_name)`,
-		from.Time(), to.AddDays(1).Time(), actor.Admin, actor.ID, cfg.Timezone)
+		from.Time(), to.AddDays(1).Time(), actor.Admin, actor.ID, cfg.Timezone, s.now())
 	if err != nil {
 		return nil, fmt.Errorf("project report: %w", err)
 	}

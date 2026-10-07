@@ -29,7 +29,8 @@ export function WeekCalendar({
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today } = useSession();
+  const { today, settings } = useSession();
+  const planning = settings.allowPlannedTime;
   const zone = useZone();
   const wide = useMedia('(min-width: 48rem)');
   const [picked, setPicked] = useState<Day | null>(null);
@@ -50,7 +51,10 @@ export function WeekCalendar({
       start: Math.max(Date.parse(e.startedAt), bounds.start),
       end: Math.min(e.endedAt ? Date.parse(e.endedAt) : now, bounds.end),
     }));
-    return { day, bounds, entries: own, spans, worked: covered(spans) };
+    // Worked time stops at now; what lies ahead is planned, and counts once it passes.
+    const past = spans.filter((s) => s.start < now).map((s) => ({ start: s.start, end: Math.min(s.end, now) }));
+    const ahead = spans.filter((s) => s.end > now).map((s) => ({ start: Math.max(s.start, now), end: s.end }));
+    return { day, bounds, entries: own, spans, worked: covered(past), planned: covered(ahead) };
   });
 
   // Render the whole day at a constant scale. Start at the working day, or
@@ -108,12 +112,18 @@ export function WeekCalendar({
                 <span className={cn('tabular text-xs', d.worked === 0 ? 'text-muted-foreground/60' : 'font-medium')}>
                   {total(d.worked)}
                 </span>
+                {d.planned > 0 && wide && (
+                  <span className="tabular text-[11px] text-muted-foreground">
+                    {t('planned', { length: total(d.planned) })}
+                  </span>
+                )}
               </span>
             </>
           );
-          const label = t('dayTotal', {
+          const label = t(d.planned > 0 ? 'dayTotalPlanned' : 'dayTotal', {
             date: format.dateTime(date, { weekday: 'long', month: 'long', day: 'numeric' }),
             length: total(d.worked),
+            planned: total(d.planned),
           });
           return wide ? (
             // biome-ignore lint/a11y/useSemanticElements: the head of a column of the calendar, not a table's
@@ -159,7 +169,7 @@ export function WeekCalendar({
               className={cn(
                 'min-w-0 border-l border-border',
                 d.day === today && 'bg-primary/[0.035]',
-                d.day > today && 'wk-future',
+                d.day > today && !planning && 'wk-future',
               )}
             >
               <DayTimeline
