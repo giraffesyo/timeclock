@@ -75,6 +75,8 @@ The option returns credentials for a person, allowed `timeclock.GoogleCalendarSc
 
 It is called whenever a week is read, so reuse token sources rather than minting a token per call.
 
+Where the host has no credentials for someone, they can connect their own calendar: set `Options.GoogleOAuth` to a Google Cloud OAuth client (a web application) and `Options.IntegrationSecretKey`. Each person then has Settings → Calendar, and their week offers to connect until they do or dismiss it. Connecting sends them to Google's consent screen (offline access, PKCE, the person's email as the login hint) and back to where they started. Timeclock keeps the refresh token sealed with the integration key, bound to the workspace and person, and never returns it. **Disconnect** deletes it and revokes it at Google; one revoked at Google is forgotten on the next read, and the week offers to connect again. Register `<origin><base path>/api/v1/calendar/google/callback` as the client's authorized redirect URI and pass it as `RedirectURL`. An app used only inside its own Google Workspace needs no Google review; one open to other accounts needs Google's verification for the calendar scope. The standalone server reads `TIMECLOCK_GOOGLE_CLIENT_ID` and `TIMECLOCK_GOOGLE_CLIENT_SECRET`, with the redirect URI `<public URL>/api/v1/calendar/google/callback`.
+
 ### The clock in the host's own pages
 
 [`@giraffesyo/timeclock`](web/packages/timeclock) is the clock bar as an npm package, for the host's own header: a ready-made `ClockBar`, a headless `useClock()` hook, and a store with no React. Timeclock's own bar is that package.

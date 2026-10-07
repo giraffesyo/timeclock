@@ -5,8 +5,9 @@ import { useSession } from '@/lib/session';
 export function Integrations() {
   const t = useTranslations('integrations');
   const { info } = useSession();
-  // The host reads people's calendars; there is nothing here to connect.
-  const status = { googleCalendar: info.calendar ? t('calendarOn') : t('calendarOff'), gusto: t('notAvailable') };
+  // The host reads people's calendars, or each person connects their own: nothing for an admin to connect.
+  const calendar = info.calendarConnect ? t('calendarConnect') : info.calendar ? t('calendarOn') : t('calendarOff');
+  const status = { googleCalendar: calendar, gusto: t('notAvailable') };
   return (
     <div className="space-y-6">
       <TogglIntegration />

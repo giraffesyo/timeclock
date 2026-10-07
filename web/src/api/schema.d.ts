@@ -38,6 +38,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the caller's Google Calendar is connected */
+        get: operations["get-google-calendar"];
+        put?: never;
+        post?: never;
+        /** Disconnect the caller's own Google Calendar, and revoke Timeclock's access */
+        delete: operations["disconnect-google-calendar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where Google returns the caller after they connect their calendar */
+        get: operations["google-calendar-callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/google/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Go to Google to connect the caller's calendar */
+        get: operations["connect-google-calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clock/in": {
         parameters: {
             query?: never;
@@ -768,6 +820,8 @@ export interface components {
             readonly $schema?: string;
             /** @description The calendar's name, normally its owner's email address. */
             calendar?: string;
+            /** @description Whether the caller can connect their own calendar: the host doesn't read it for them, and Timeclock has a Google client. */
+            connectable: boolean;
             /** @description Whether the caller has a calendar to read; false lists no events. */
             connected: boolean;
             events: components["schemas"]["CalendarEvent"][] | null;
@@ -955,6 +1009,23 @@ export interface components {
              */
             type: string;
         };
+        GoogleStatusBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/GoogleStatusBody.json
+             */
+            readonly $schema?: string;
+            /** @description The Google account it reads, normally an email address. */
+            account?: string;
+            /** @description Whether the caller can connect, or disconnect, their own calendar. */
+            connectable: boolean;
+            connected: boolean;
+            /** Format: date-time */
+            connectedAt?: string;
+            /** @description The host application reads the caller's calendar for them, so there is nothing to connect. */
+            managed: boolean;
+        };
         Holiday: {
             /**
              * Format: uri
@@ -1015,6 +1086,7 @@ export interface components {
             /** Format: uri */
             apiKeysUrl?: string;
             calendar?: boolean;
+            calendarConnect?: boolean;
             homeLabel?: string;
             homeUrl?: string;
             signInUrl?: string;
@@ -1790,6 +1862,126 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CalendarBody"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-google-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleStatusBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "disconnect-google-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "google-calendar-callback": {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                /** @description Set by Google when the caller didn't allow access. */
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Found */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "connect-google-calendar": {
+        parameters: {
+            query?: {
+                /** @description The path in the web app to come back to, such as /settings?tab=calendar. */
+                return?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Found */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

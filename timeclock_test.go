@@ -2,6 +2,8 @@ package timeclock_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -430,4 +432,151 @@ func withContext(h http.Handler, key, value any) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), key, value)))
 	})
+}
+
+// fakeGoogle is Google's OAuth and Calendar endpoints for one consent: it
+// takes the code "good" with the verifier for challenge, and serves events
+// to the token it gave until that is revoked.
+type fakeGoogle struct {
+	t         *testing.T
+	challenge string
+	revoked   bool
+	exchanges int
+}
+
+func (g *fakeGoogle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	switch r.URL.Path {
+	case "/token":
+		_ = r.ParseForm()
+		switch r.Form.Get("grant_type") {
+		case "authorization_code":
+			sum := sha256.Sum256([]byte(r.Form.Get("code_verifier")))
+			if r.Form.Get("code") != "good" || base64.RawURLEncoding.EncodeToString(sum[:]) != g.challenge || r.Form.Get("client_secret") != "shh" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = io.WriteString(w, `{"error":"invalid_grant"}`)
+				return
+			}
+			g.exchanges++
+			g.revoked = false
+			claims := base64.RawURLEncoding.EncodeToString([]byte(`{"email":"ada.personal@example.org"}`))
+			_, _ = io.WriteString(w, `{"access_token":"ada-access","refresh_token":"ada-refresh","expires_in":3600,"token_type":"Bearer","id_token":"e30.`+claims+`.sig"}`)
+		case "refresh_token":
+			if g.revoked || r.Form.Get("refresh_token") != "ada-refresh" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = io.WriteString(w, `{"error":"invalid_grant"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"access_token":"ada-access","expires_in":3600,"token_type":"Bearer"}`)
+		}
+	case "/revoke":
+		_ = r.ParseForm()
+		g.revoked = g.revoked || r.Form.Get("token") == "ada-refresh"
+	case "/calendar/v3/calendars/primary/events":
+		if g.revoked || r.Header.Get("Authorization") != "Bearer ada-access" {
+			http.Error(w, `{}`, http.StatusUnauthorized)
+			return
+		}
+		_, _ = io.WriteString(w, `{"summary":"ada.personal@example.org","items":[{"id":"review","status":"confirmed","summary":"Review",
+			"start":{"dateTime":"2026-10-06T10:00:00-05:00"},"end":{"dateTime":"2026-10-06T11:00:00-05:00"}}]}`)
+	default:
+		g.t.Errorf("unexpected request to Google: %s", r.URL)
+	}
+}
+
+func TestPeopleConnectTheirOwnGoogleCalendar(t *testing.T) {
+	if os.Getenv("TIMECLOCK_TEST_DATABASE_URL") == "" {
+		t.Skip("TIMECLOCK_TEST_DATABASE_URL not set")
+	}
+	google := &fakeGoogle{t: t}
+	server := httptest.NewServer(google)
+	defer server.Close()
+	target, _ := url.Parse(server.URL)
+	h := mountedWith(t, func(o *timeclock.Options) {
+		o.IntegrationSecretKey = "a key only this test uses, long enough"
+		o.GoogleOAuth = &timeclock.GoogleOAuth{
+			ClientID: "client", ClientSecret: "shh",
+			RedirectURL: "https://portal.example.com/timeclock/api/v1/calendar/google/callback",
+			Endpoint:    oauth2.Endpoint{AuthURL: "https://accounts.example/auth", TokenURL: server.URL + "/token", AuthStyle: oauth2.AuthStyleInParams},
+			RevokeURL:   server.URL + "/revoke",
+		}
+	})
+	h = withContext(h, oauth2.HTTPClient, &http.Client{Transport: toServer{target}})
+	const api = "/timeclock/api/v1"
+	week := api + "/calendar/events?from=2026-10-05&to=2026-10-11"
+
+	if _, info := call(t, h, "", http.MethodGet, api+"/info", ""); info["calendar"] != true || info["calendarConnect"] != true {
+		t.Fatalf("/info: %v", info)
+	}
+	if rec, body := call(t, h, "ada", http.MethodGet, week, ""); rec.Code != http.StatusOK || body["connected"] != false || body["connectable"] != true {
+		t.Fatalf("before connecting: %d %s", rec.Code, rec.Body)
+	}
+
+	// Connecting goes to Google, asking for lasting, read-only access for Ada.
+	connect := func(ret string) url.Values {
+		t.Helper()
+		rec, _ := call(t, h, "ada", http.MethodGet, api+"/calendar/google/connect?return="+url.QueryEscape(ret), "")
+		to, err := url.Parse(rec.Header().Get("Location"))
+		if rec.Code != http.StatusFound || err != nil || to.Host != "accounts.example" {
+			t.Fatalf("connect: %d %q", rec.Code, rec.Header().Get("Location"))
+		}
+		return to.Query()
+	}
+	q := connect("/?day=2026-10-05")
+	if q.Get("access_type") != "offline" || q.Get("login_hint") != "ada@example.com" || q.Get("code_challenge_method") != "S256" ||
+		!strings.Contains(q.Get("scope"), timeclock.GoogleCalendarScope) || q.Get("redirect_uri") != "https://portal.example.com/timeclock/api/v1/calendar/google/callback" {
+		t.Fatalf("consent: %v", q)
+	}
+	google.challenge = q.Get("code_challenge")
+	callback := api + "/calendar/google/callback?code=good&state=" + url.QueryEscape(q.Get("state"))
+
+	// Only Ada can finish what Ada started.
+	if rec, _ := call(t, h, "pat", http.MethodGet, callback, ""); rec.Code != http.StatusBadRequest || google.exchanges != 0 {
+		t.Fatalf("pat finishing ada's: %d", rec.Code)
+	}
+	rec, _ := call(t, h, "ada", http.MethodGet, callback, "")
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/timeclock/?day=2026-10-05" {
+		t.Fatalf("callback: %d %q %s", rec.Code, rec.Header().Get("Location"), rec.Body)
+	}
+	if _, status := call(t, h, "ada", http.MethodGet, api+"/calendar/google", ""); status["connected"] != true || status["account"] != "ada.personal@example.org" || status["managed"] != false {
+		t.Fatalf("status: %v", status)
+	}
+	rec, body := call(t, h, "ada", http.MethodGet, week, "")
+	if events, _ := body["events"].([]any); rec.Code != http.StatusOK || body["connected"] != true || len(events) != 1 {
+		t.Fatalf("connected: %d %s", rec.Code, rec.Body)
+	}
+	// Pat has connected nothing.
+	if _, body := call(t, h, "pat", http.MethodGet, week, ""); body["connected"] != false {
+		t.Fatalf("pat: %v", body)
+	}
+
+	// Revoked at Google, the connection is forgotten, and can be made again.
+	google.revoked = true
+	if rec, body := call(t, h, "ada", http.MethodGet, week, ""); rec.Code != http.StatusOK || body["connected"] != false || body["connectable"] != true {
+		t.Fatalf("after revoking at Google: %d %s", rec.Code, rec.Body)
+	}
+	if _, status := call(t, h, "ada", http.MethodGet, api+"/calendar/google", ""); status["connected"] != false {
+		t.Fatalf("status after revoking: %v", status)
+	}
+
+	// Disconnecting revokes Timeclock's access at Google too.
+	q = connect("https://elsewhere.example/")
+	google.challenge = q.Get("code_challenge")
+	rec, _ = call(t, h, "ada", http.MethodGet, api+"/calendar/google/callback?code=good&state="+url.QueryEscape(q.Get("state")), "")
+	if rec.Header().Get("Location") != "/timeclock/" {
+		t.Fatalf("another site to return to: %q", rec.Header().Get("Location"))
+	}
+	if rec, _ := call(t, h, "ada", http.MethodDelete, api+"/calendar/google", ""); rec.Code != http.StatusNoContent || !google.revoked {
+		t.Fatalf("disconnect: %d revoked=%v", rec.Code, google.revoked)
+	}
+	if _, body := call(t, h, "ada", http.MethodGet, week, ""); body["connected"] != false {
+		t.Fatalf("after disconnecting: %v", body)
+	}
+
+	// Refusing at Google comes back to the calendar settings, to say so.
+	q = connect("/")
+	rec, _ = call(t, h, "ada", http.MethodGet, api+"/calendar/google/callback?error=access_denied&state="+url.QueryEscape(q.Get("state")), "")
+	if rec.Header().Get("Location") != "/timeclock/settings?tab=calendar&calendar=denied" {
+		t.Fatalf("denied: %q", rec.Header().Get("Location"))
+	}
 }

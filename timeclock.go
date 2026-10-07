@@ -131,8 +131,28 @@ type Options struct {
 	// person granted when they signed in covers them. It is called on every
 	// read of a week, so it should reuse tokens. Nil shows no calendar.
 	GoogleCalendar func(ctx context.Context, p host.Person) (ts oauth2.TokenSource, ok bool, err error)
+	// GoogleOAuth lets each person connect their own Google Calendar, where
+	// GoogleCalendar has no credentials for them: Timeclock sends them to
+	// Google to allow it, and keeps the refresh token, sealed with
+	// IntegrationSecretKey, until they disconnect. Nil offers no connecting.
+	GoogleOAuth *GoogleOAuth
 	// Logger defaults to slog.Default().
 	Logger *slog.Logger
+}
+
+// GoogleOAuth is a Google Cloud OAuth client (a web application) that people
+// connect their calendars through.
+type GoogleOAuth struct {
+	ClientID     string
+	ClientSecret string
+	// RedirectURL is where Google sends people back, registered as an
+	// authorized redirect URI of the client: this Timeclock's origin and
+	// base path, then /api/v1/calendar/google/callback.
+	RedirectURL string
+	// Endpoint and RevokeURL are Google's when empty. Tests point them at a
+	// fake.
+	Endpoint  oauth2.Endpoint
+	RevokeURL string
 }
 
 // Timeclock is an http.Handler for everything under its base path, and
@@ -187,6 +207,18 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		pool.Close()
 		return nil, err
 	}
+	var googleClient *clock.GoogleClient
+	if g := opts.GoogleOAuth; g != nil {
+		googleClient = &clock.GoogleClient{
+			ClientID: g.ClientID, ClientSecret: g.ClientSecret, RedirectURL: g.RedirectURL,
+			Endpoint: g.Endpoint, RevokeURL: g.RevokeURL,
+		}
+	}
+	google, err := clock.NewGoogleCalendars(opts.IntegrationSecretKey, googleClient, logger)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
 	var jobs *hopper.Client[pgx.Tx]
 	if opts.Notifier != nil || opts.IntegrationSecretKey != "" {
 		workers := hopper.NewWorkers()
@@ -209,10 +241,10 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		}
 	}
 
-	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Calendar: opts.GoogleCalendar, Info: api.Info{
+	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Calendar: opts.GoogleCalendar, Google: google, BasePath: base, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
 		ThemeStorageKey: opts.ThemeStorageKey, AccountsURL: opts.AccountsURL,
-		APIKeysURL: opts.APIKeysURL, Calendar: opts.GoogleCalendar != nil,
+		APIKeysURL: opts.APIKeysURL, Calendar: opts.GoogleCalendar != nil || google != nil, CalendarConnect: google != nil,
 	}, HostTheme: opts.Theme}
 	h := server.New(server.Options{
 		Logger: logger,

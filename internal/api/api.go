@@ -42,6 +42,9 @@ type Info struct {
 	// Calendar is whether the week can show the caller's Google Calendar
 	// events beside their time.
 	Calendar bool `json:"calendar,omitempty"`
+	// CalendarConnect is whether people can connect their own Google
+	// Calendar, where the host doesn't read it for them.
+	CalendarConnect bool `json:"calendarConnect,omitempty"`
 	// ThemeStorageKey is the localStorage key holding the host's light,
 	// dark or system choice, so Timeclock matches it.
 	ThemeStorageKey string `json:"themeStorageKey,omitempty"`
@@ -57,8 +60,12 @@ type Deps struct {
 	Toggl     *clock.Toggl
 	Clock     *clock.Service
 	Directory host.Directory
-	// Calendar reads a person's Google Calendar; nil reads none.
+	// Calendar reads a person's Google Calendar for them; nil reads none.
 	Calendar GoogleCalendar
+	// Google is the calendars people connect themselves; nil when they can't.
+	Google *clock.GoogleCalendars
+	// BasePath is where the web app is, for the browser to come back to.
+	BasePath string
 	Info     Info
 	// HostTheme is the host application's look, which a workspace's own overrides.
 	HostTheme host.Theme

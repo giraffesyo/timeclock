@@ -13,8 +13,30 @@ import (
 	"github.com/giraffesyo/timeclock/host"
 )
 
-// e2eCalendar is the browser tests' calendar; production builds have none.
-var e2eCalendar func(context.Context, host.Person) (oauth2.TokenSource, bool, error)
+// e2eCalendar and e2eOAuth are the browser tests'; production builds have neither.
+var (
+	e2eCalendar func(context.Context, host.Person) (oauth2.TokenSource, bool, error)
+	e2eOAuth    func(publicURL string) *timeclock.GoogleOAuth
+)
+
+// googleOAuth lets each person connect their own calendar, where
+// googleCalendar has none for them, through the Google OAuth client in
+// EXAMPLE_GOOGLE_CLIENT_ID and EXAMPLE_GOOGLE_CLIENT_SECRET. Its authorized
+// redirect URI is the portal's address, then
+// /timeclock/api/v1/calendar/google/callback.
+func googleOAuth(publicURL string) *timeclock.GoogleOAuth {
+	if e2eOAuth != nil {
+		return e2eOAuth(publicURL)
+	}
+	id := os.Getenv("EXAMPLE_GOOGLE_CLIENT_ID")
+	if id == "" {
+		return nil
+	}
+	return &timeclock.GoogleOAuth{
+		ClientID: id, ClientSecret: os.Getenv("EXAMPLE_GOOGLE_CLIENT_SECRET"),
+		RedirectURL: publicURL + "/timeclock/api/v1/calendar/google/callback",
+	}
+}
 
 // googleCalendar reads everyone's Google Calendar as a Google Workspace
 // service account with domain-wide delegation: a Workspace admin allows the

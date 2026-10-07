@@ -1,0 +1,18 @@
+{
+  "title": "Google Calendar",
+  "banner": "See your meetings beside your time, and add them in a click.",
+  "connect": "Connect Google Calendar",
+  "notNow": "Not now",
+  "intro": "Connect your Google Calendar and your week shows your meetings beside your time, to add as time or start the clock on.",
+  "what": "Timeclock only reads when your events are and what they’re called, to show them on your week. It never changes your calendar, and keeps none of it.",
+  "connected": "Connected to <strong>{account}</strong>.",
+  "yourAccount": "your Google account",
+  "since": "Since {date}.",
+  "disconnect": "Disconnect",
+  "disconnectFailed": "Couldn’t disconnect your calendar.",
+  "managed": "Your organization connects your Google Calendar for you, so your week already shows your meetings.",
+  "unavailable": "Your server administrator hasn’t set up connecting Google Calendars.",
+  "loadFailed": "Couldn’t load your calendar.",
+  "denied": "Your calendar wasn’t connected: Google wasn’t given access.",
+  "failed": "Your calendar couldn’t be connected. Try again."
+}
