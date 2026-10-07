@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/parallelworks/hopper"
 
 	"github.com/giraffesyo/timeclock/host"
+	"github.com/giraffesyo/timeclock/internal/messages"
 )
 
 // The kinds of reminder.
@@ -141,11 +143,11 @@ func (r *Reminders) run(ctx context.Context, _ *hopper.Job[remindJob]) error {
 		n := host.Notification{Kind: d.Kind, Path: "/"}
 		switch d.Kind {
 		case ReminderClockRunning:
-			n.Title = "Your clock is still running"
-			n.Body = fmt.Sprintf("It has run for %.1f hours. Clock out, or fix the entry if you forgot.", d.Hours)
+			n.Title = messages.T("reminder.clockRunning.title", nil)
+			n.Body = messages.T("reminder.clockRunning.body", messages.Args{"hours": strconv.FormatFloat(d.Hours, 'f', 1, 64)})
 		default:
-			n.Title = "Your timesheet is due"
-			n.Body = fmt.Sprintf("Submit your time for %s to %s.", d.Period.Start, d.Period.End)
+			n.Title = messages.T("reminder.timesheetDue.title", nil)
+			n.Body = messages.T("reminder.timesheetDue.body", messages.Args{"start": d.Period.Start.String(), "end": d.Period.End.String()})
 			n.Path = "/timesheet?day=" + d.Period.Start.String()
 		}
 		// Already recorded as sent: a failed delivery is logged, not retried

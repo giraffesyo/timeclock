@@ -26,6 +26,7 @@ import (
 
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/clock"
+	"github.com/giraffesyo/timeclock/internal/messages"
 )
 
 // Config configures Auth.
@@ -503,14 +504,12 @@ func (a *Auth) Invite(ctx context.Context, workspaceKey, email string, admin boo
 		return Invited{}, fmt.Errorf("invite %s: %w", email, err)
 	}
 	if name == "" {
-		name = "Timeclock"
+		name = messages.T("invite.defaultWorkspace", nil)
 	}
 	err = a.mailer.Send(ctx, host.Message{
 		To:      email,
-		Subject: "You're invited to " + name,
-		Text: "You've been invited to track time in " + name + ".\n\n" +
-			"Set up your account here:\n" + out.Link + "\n\n" +
-			"The link works for 7 days. If you weren't expecting this, you can ignore it.\n",
+		Subject: messages.T("invite.subject", messages.Args{"workspace": name}),
+		Text:    messages.T("invite.body", messages.Args{"workspace": name, "link": out.Link}),
 	})
 	if err != nil {
 		// The invitation stands: an admin can copy its link, or send it again.

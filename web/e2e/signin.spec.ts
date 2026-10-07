@@ -102,8 +102,10 @@ test.describe('email', () => {
 
     const link = await mailedLink(email);
     const [message] = await mailTo(email);
-    expect(message?.subject).toContain('Timeclock');
-    expect(message?.text).toContain('The link works for 7 days.');
+    // The words come from the server's catalog, and the subject survives its encoding.
+    expect(message?.subject).toMatch(/^You’re invited to \S/);
+    expect(message?.text).toContain('You’ve been invited to track time in ');
+    expect(message?.text).toContain('The link works for 7 days. If you weren’t expecting this, you can ignore it.');
     const ada = await join(browser, link, 'Ada Lovelace', from());
     await expect(sections(ada).getByRole('link', { name: 'Timer' })).toBeVisible();
     await expect(sections(ada).getByRole('link', { name: 'Team' })).toHaveCount(0);
@@ -125,6 +127,11 @@ test.describe('email', () => {
     await forgot(page, email);
     const link = await mailedLink(email, 2);
     expect(link).toContain('/reset?token=');
+    // The words come from the server's catalog.
+    const reset = (await mailTo(email)).at(-1);
+    expect(reset?.subject).toBe('Reset your Timeclock password');
+    expect(reset?.text).toContain('Someone asked to reset the password for this address.');
+    expect(reset?.text).toContain('If it wasn’t you, ignore this: your password hasn’t changed.');
     expect(await mailTo(nobody)).toHaveLength(0);
 
     await page.goto(link);
