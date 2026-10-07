@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/parallelworks/foundation/problem"
 	"golang.org/x/oauth2"
 
@@ -30,6 +31,24 @@ type CalendarEvent struct {
 	Link      string    `json:"link,omitempty" format:"uri" doc:"Opens the event in Google Calendar."`
 	StartedAt time.Time `json:"startedAt"`
 	EndedAt   time.Time `json:"endedAt"`
+	// Meeting names the event wherever it comes round: its series, or a
+	// one-off's title. Empty for an untitled one-off, which isn't remembered.
+	Meeting string `json:"meeting,omitempty" doc:"Names the event wherever it comes round, for remembering its project."`
+	// Remembered is a meeting the caller has copied before: copies go to
+	// ProjectID at once.
+	Remembered bool       `json:"remembered" doc:"The caller chose a project for this meeting before: copies go straight to it."`
+	ProjectID  *uuid.UUID `json:"projectId,omitempty" doc:"The remembered project; absent with remembered is no project."`
+}
+
+// meetingOf names an event wherever it comes round.
+func meetingOf(e gcal.Event) string {
+	if e.SeriesID != "" {
+		return "series:" + e.SeriesID
+	}
+	if title := strings.ToLower(strings.Join(strings.Fields(e.Title), " ")); title != "" {
+		return "title:" + title
+	}
+	return ""
 }
 
 type calendarBody struct {
@@ -137,12 +156,39 @@ func registerCalendar(a huma.API, d Deps) {
 			}
 			out.Body.Connected = true
 			out.Body.Calendar = cal.Name
+			var meetings []string
 			for _, e := range cal.Events {
+				if m := meetingOf(e); m != "" {
+					meetings = append(meetings, m)
+				}
+			}
+			chosen, err := d.clock(ctx).Meetings(ctx, actor, meetings)
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range cal.Events {
+				m := meetingOf(e)
+				c, remembered := chosen[m]
 				out.Body.Events = append(out.Body.Events, CalendarEvent{
 					ID: e.ID, Title: e.Title, Link: e.Link, StartedAt: e.Start.UTC(), EndedAt: e.End.UTC(),
+					Meeting: m, Remembered: remembered, ProjectID: c.ProjectID,
 				})
 			}
 			return out, nil
+		})
+
+	huma.Register(a, op(http.MethodPut, "/calendar/meetings", "remember-calendar-meeting", "Remember the project the caller copies a calendar meeting to", "Calendar"),
+		func(ctx context.Context, in *struct {
+			Body struct {
+				Meeting   string     `json:"meeting" minLength:"1" maxLength:"1024" doc:"The event's meeting, as listed."`
+				ProjectID *uuid.UUID `json:"projectId,omitempty" doc:"Absent is no project."`
+			}
+		}) (*struct{}, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return nil, d.clock(ctx).RememberMeeting(ctx, actor, in.Body.Meeting, in.Body.ProjectID)
 		})
 
 	huma.Register(a, op(http.MethodGet, "/calendar/google", "get-google-calendar", "Whether the caller's Google Calendar is connected", "Calendar"),

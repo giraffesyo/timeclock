@@ -412,15 +412,40 @@ func TestGoogleCalendarEvents(t *testing.T) {
 	if rec.Code != http.StatusOK || body["connected"] != true || body["calendar"] != "pat@example.com" || len(events) != 1 {
 		t.Fatalf("pat: %d %s", rec.Code, rec.Body)
 	}
-	if e := events[0].(map[string]any); e["title"] != "Standup" || e["startedAt"] != "2026-10-05T14:00:00Z" || e["endedAt"] != "2026-10-05T14:15:00Z" {
+	if e := events[0].(map[string]any); e["title"] != "Standup" || e["startedAt"] != "2026-10-05T14:00:00Z" || e["endedAt"] != "2026-10-05T14:15:00Z" ||
+		e["meeting"] != "title:standup" || e["remembered"] != false {
 		t.Fatalf("standup: %v", e)
+	}
+
+	// The project a meeting is copied to is remembered, while it is in use.
+	_, project := call(t, h, "pat", http.MethodPost, api+"/projects", `{"name":"Rituals","billable":false}`)
+	id, _ := project["id"].(string)
+	if rec, _ := call(t, h, "pat", http.MethodPut, api+"/calendar/meetings", `{"meeting":"title:standup"}`); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("no project where one is required: %d %s", rec.Code, rec.Body)
+	}
+	if rec, _ := call(t, h, "pat", http.MethodPut, api+"/calendar/meetings", `{"meeting":"title:standup","projectId":"`+id+`"}`); rec.Code != http.StatusNoContent {
+		t.Fatalf("remember: %d %s", rec.Code, rec.Body)
+	}
+	remembered := func() map[string]any {
+		t.Helper()
+		_, body := call(t, h, "pat", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-10-11", "")
+		return body["events"].([]any)[0].(map[string]any)
+	}
+	if e := remembered(); e["remembered"] != true || e["projectId"] != id {
+		t.Fatalf("remembered: %v", e)
+	}
+	if rec, _ := call(t, h, "pat", http.MethodPut, api+"/projects/"+id, `{"name":"Rituals","billable":false,"archived":true}`); rec.Code != http.StatusOK {
+		t.Fatalf("archive: %d %s", rec.Code, rec.Body)
+	}
+	if e := remembered(); e["remembered"] != false {
+		t.Fatalf("an archived project is no choice: %v", e)
 	}
 	// Someone the host has no credentials for has no calendar, which is no error.
 	rec, body = call(t, h, "ada", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-10-11", "")
 	if rec.Code != http.StatusOK || body["connected"] != false || len(body["events"].([]any)) != 0 {
 		t.Fatalf("ada: %d %s", rec.Code, rec.Body)
 	}
-	if strings.Join(asked, ",") != "pat@example.com,ada@example.com" {
+	if strings.Join(asked, ",") != "pat@example.com,pat@example.com,pat@example.com,ada@example.com" {
 		t.Fatalf("asked for %v", asked)
 	}
 	if rec, _ := call(t, h, "pat", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-12-31", ""); rec.Code != http.StatusUnprocessableEntity {

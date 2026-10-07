@@ -118,6 +118,18 @@
             "format": "uri",
             "type": "string"
           },
+          "meeting": {
+            "description": "Names the event wherever it comes round, for remembering its project.",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "The remembered project; absent with remembered is no project.",
+            "type": "string"
+          },
+          "remembered": {
+            "description": "The caller chose a project for this meeting before: copies go straight to it.",
+            "type": "boolean"
+          },
           "startedAt": {
             "format": "date-time",
             "type": "string"
@@ -131,7 +143,8 @@
           "id",
           "title",
           "startedAt",
-          "endedAt"
+          "endedAt",
+          "remembered"
         ],
         "type": "object"
       },
@@ -1626,6 +1639,34 @@
         ],
         "type": "object"
       },
+      "Remember-calendar-meetingRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/Remember-calendar-meetingRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "meeting": {
+            "description": "The event's meeting, as listed.",
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "Absent is no project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meeting"
+        ],
+        "type": "object"
+      },
       "Reopen-timesheetRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2851,6 +2892,40 @@
           }
         },
         "summary": "Go to Google to connect the caller's calendar",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/meetings": {
+      "put": {
+        "operationId": "remember-calendar-meeting",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Remember-calendar-meetingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Remember the project the caller copies a calendar meeting to",
         "tags": [
           "Calendar"
         ]

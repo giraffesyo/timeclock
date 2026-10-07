@@ -19,7 +19,7 @@ import { EntryDialog } from '@/components/entry-dialog';
 import { useProjectName } from '@/components/project-select';
 import { cn } from '@/lib/cn';
 import { morph } from '@/lib/morph';
-import { type CalendarEvent, type Entry, useAdjustEntry } from '@/lib/queries';
+import { type CalendarEvent, type Entry, useAdjustEntry, useRememberMeeting, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
 import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
@@ -135,7 +135,10 @@ export function DayTimeline({
   const [adding, setAdding] = useState<Span | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addNote, setAddNote] = useState('');
-  const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
+  // The calendar meeting a new stretch was copied from, to remember its project.
+  const [addMeeting, setAddMeeting] = useState('');
+  // The open event by id: its details stay current as the calendar reads again.
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
 
   const isToday = day === today;
   const now = useNow(15_000, isToday);
@@ -172,6 +175,7 @@ export function DayTimeline({
     .filter((s) => s.end > s.start)
     .sort((a, b) => a.start - b.start);
   const eventSide = lanes(suggestions);
+  const openEvent = (openEventId && events?.find((e) => e.id === openEventId)) || null;
 
   const win = shared
     ? { start: bounds.start + shared.from * HOUR, end: Math.min(bounds.end, bounds.start + shared.to * HOUR) }
@@ -239,13 +243,14 @@ export function DayTimeline({
     if (e.detail > 0 && suppressClick.current) return;
     openEntry(entry);
   };
-  const openNew = (s: Span, note = '') => {
+  const openNew = (s: Span, note = '', meeting = '') => {
     // The stretch is drawn first, so the editor can open beside it on the
     // calendar, or the dialog out of it on a narrow day.
     flushSync(() => {
       setDrag(null);
       setAdding(s);
       setAddNote(note);
+      setAddMeeting(meeting);
     });
     if (column) setAddOpen(true);
     else morph(() => setAddOpen(true), draftEl);
@@ -259,6 +264,26 @@ export function DayTimeline({
     start: Math.max(Date.parse(event.startedAt), bounds.start),
     end: Math.min(Date.parse(event.endedAt), bounds.end, cap),
   });
+  const saveEntry = useSaveEntry();
+  const remember = useRememberMeeting();
+  // A meeting copied before goes straight onto the week, to the project it
+  // went to then. The first time, the form asks which, and remembers it.
+  const copyEvent = (event: CalendarEvent, ask: boolean) => {
+    const s = eventSpan(event);
+    setOpenEventId(null);
+    if (ask || !event.remembered) {
+      openNew(s, event.title, event.meeting ?? '');
+      return;
+    }
+    saveEntry.mutate(
+      { projectId: event.projectId, startedAt: iso(s.start), endedAt: iso(s.end), note: event.title },
+      {
+        onSuccess: () => toast.success(t('eventCopied', { project: projectName(event.projectId) })),
+        // Refused (a day since locked, say): the form shows why, to fix it there.
+        onError: () => openNew(s, event.title, event.meeting ?? ''),
+      },
+    );
+  };
 
   // --- Pointer ---
 
@@ -647,7 +672,7 @@ export function DayTimeline({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setOpenEvent(s.event);
+                  setOpenEventId(s.event.id);
                 }}
               >
                 <span className="tl-event-title">{title}</span>
@@ -723,6 +748,9 @@ export function DayTimeline({
         end={adding ? timeInput(iso(adding.end), zone) : undefined}
         note={addNote}
         anchor={column && addOpen ? draftEl() : undefined}
+        onSaved={(saved) => {
+          if (addMeeting) remember.mutate({ meeting: addMeeting, projectId: saved.projectId ?? undefined });
+        }}
       />
       {openEvent && eventEl(openEvent.id) && (
         <CalendarEventPopover
@@ -730,14 +758,11 @@ export function DayTimeline({
           calendar={calendar}
           zone={zone}
           anchor={eventEl(openEvent.id) as HTMLElement}
-          onClose={() => setOpenEvent(null)}
-          onAdd={
+          onClose={() => setOpenEventId(null)}
+          projectName={openEvent.remembered ? projectName(openEvent.projectId) : undefined}
+          onCopy={
             editable && !adding && eventSpan(openEvent).end - eventSpan(openEvent).start >= MINUTE
-              ? () => {
-                  const s = eventSpan(openEvent);
-                  setOpenEvent(null);
-                  openNew(s, openEvent.title);
-                }
+              ? (ask) => copyEvent(openEvent, ask)
               : undefined
           }
         />
