@@ -85,6 +85,10 @@ test('time off is requested, approved, and counted on the timesheet', async ({ m
   const week = lastWeek();
 
   await me.page.goto('/time-off');
+  // Vacation or sick: both in view, vacation first.
+  const kind = me.page.getByRole('group', { name: 'Kind' });
+  await expect(kind.getByRole('button', { name: 'Vacation' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(kind.getByRole('button', { name: 'Sick' })).toHaveAttribute('aria-pressed', 'false');
   await me.page.getByLabel('First day').fill(week.day(3));
   await me.page.getByLabel('Last day').fill(week.day(4));
   await me.page.getByRole('button', { name: 'Request time off' }).click();
@@ -126,4 +130,18 @@ test('everyone gets personal Settings, and only approvers get Team', async ({ me
   await expect(
     admin.page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link', { name: 'Payroll' }),
   ).toBeVisible();
+});
+
+test('sick time is requested by choosing Sick', async ({ me }) => {
+  const week = lastWeek();
+  await me.page.goto('/time-off');
+  const kind = me.page.getByRole('group', { name: 'Kind' });
+  await kind.getByRole('button', { name: 'Sick' }).click();
+  await expect(kind.getByRole('button', { name: 'Sick' })).toHaveAttribute('aria-pressed', 'true');
+  await me.page.getByLabel('First day').fill(week.day(2));
+  await me.page.getByLabel('Last day').fill(week.day(2));
+  await me.page.getByRole('button', { name: 'Request time off' }).click();
+  await expect(me.page.getByRole('main')).toContainText('requested');
+  const { timeOff } = await me.api.get(`/time-off?from=${week.day(2)}&to=${week.day(2)}`);
+  expect(timeOff.map((t: { kind: string }) => t.kind)).toEqual(['sick']);
 });

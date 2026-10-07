@@ -8,7 +8,7 @@ test('an admin adds an internal project, and people record time on it', async ({
   await catalog.getByRole('button', { name: 'Add a project to Internal' }).click();
   const dialog = admin.page.getByRole('dialog', { name: 'Add project' });
   await dialog.getByLabel('Name').fill(name);
-  await expect(dialog.getByLabel('Customer')).toHaveValue('');
+  await expect(dialog.getByRole('combobox', { name: 'Customer' })).toHaveValue('No customer (internal work)');
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toBeHidden();
   await expect(catalog).toContainText(name);
@@ -49,4 +49,30 @@ test('the project picker works from the keyboard', async ({ me }) => {
   await page.keyboard.press('Escape');
   await expect(page.getByRole('listbox')).toHaveCount(0);
   await expect(trigger).toHaveAccessibleName('Project: Acme / Support');
+});
+
+test('a project’s customer is found by typing part of its name', async ({ adminPerson, admin }) => {
+  const { page } = await adminPerson();
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const customer = await admin.post('/customers', { name: `Northwind Traders ${suffix}` });
+  const name = `Search pick ${suffix}`;
+  await page.goto('/projects');
+  // From Internal, so no customer is chosen yet.
+  await page.getByRole('table').getByRole('button', { name: 'Add a project to Internal' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add project' });
+  await dialog.getByLabel('Name').fill(name);
+  const pick = dialog.getByRole('combobox', { name: 'Customer' });
+  await pick.fill(`traders ${suffix}`);
+  await expect(page.getByRole('option')).toHaveCount(1);
+  await page.getByRole('option', { name: `Northwind Traders ${suffix}` }).click();
+  await expect(pick).toHaveValue(`Northwind Traders ${suffix}`);
+  await pick.fill('no such customer');
+  await expect(page.getByText('Nothing matches “no such customer”.')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await expect(pick).toHaveValue(`Northwind Traders ${suffix}`);
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toBeHidden();
+  const { projects } = await admin.get('/projects');
+  expect(projects.find((p: { name: string }) => p.name === name)?.customerId).toBe(customer.id);
 });
