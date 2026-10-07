@@ -66,5 +66,11 @@ test('Projects on a phone marks an archived project under its name', async ({ ad
   const chipBox = await chip.boundingBox();
   expect((chipBox?.y ?? 0) > name.y).toBe(true);
   expect(Math.abs((chipBox?.x ?? 0) - name.x)).toBeLessThan(2);
+  // A project with nothing to mark adds nothing under its name.
+  const plain = `New site ${suffix}`;
+  await admin.post('/projects', { name: plain, customerId: customer.id, billable: true });
+  await page.reload();
+  await expect(page.getByRole('row').filter({ hasText: plain })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: plain }).locator('[data-stacked]')).toHaveCount(0);
   expect(await overflow(page)).toBe(0);
 });
