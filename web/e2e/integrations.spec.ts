@@ -54,6 +54,7 @@ for (const mobile of [false, true]) {
     await expect(page).toHaveURL(/\/integrations$/);
     await expect(integrations).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'Integrations', exact: true })).toBeVisible();
+    await expect(page.getByText(/^Use Timeclock alongside Toggl\./)).toBeVisible();
     await page.getByLabel('Toggl API token').fill('mock-token');
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
     await page.getByRole('combobox', { name: 'Toggl workspace' }).selectOption('42');

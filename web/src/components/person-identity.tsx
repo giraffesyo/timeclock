@@ -22,7 +22,7 @@ export function PersonIdentity({
   const manager = people.find((p) => p.id === person.managerId);
   return (
     <HoverCardTrigger
-      className="inline-flex"
+      className="flex w-fit max-w-full"
       card={(placement) => (
         <UserHoverCard
           {...placement}
@@ -61,7 +61,8 @@ export function PersonIdentity({
         className="flex min-h-9 items-center gap-2 rounded-md text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <Avatar src={person.avatarUrl} name={name} size="sm" status={status} className="shrink-0" />
-        <span>{name}</span>
+        {/* An email standing in for a name has no spaces; let it break rather than widen a table. */}
+        <span className="wrap-anywhere">{name}</span>
       </button>
     </HoverCardTrigger>
   );
