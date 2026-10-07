@@ -140,16 +140,7 @@ func (r *Reminders) run(ctx context.Context, _ *hopper.Job[remindJob]) error {
 		due = append(due, list...)
 	}
 	for _, d := range due {
-		n := host.Notification{Kind: d.Kind, Path: "/"}
-		switch d.Kind {
-		case ReminderClockRunning:
-			n.Title = messages.T("reminder.clockRunning.title", nil)
-			n.Body = messages.T("reminder.clockRunning.body", messages.Args{"hours": strconv.FormatFloat(d.Hours, 'f', 1, 64)})
-		default:
-			n.Title = messages.T("reminder.timesheetDue.title", nil)
-			n.Body = messages.T("reminder.timesheetDue.body", messages.Args{"start": d.Period.Start.String(), "end": d.Period.End.String()})
-			n.Path = "/timesheet?day=" + d.Period.Start.String()
-		}
+		n := d.notification()
 		// Already recorded as sent: a failed delivery is logged, not retried
 		// into a second notification.
 		if err := r.notifier.Notify(ctx, d.PersonID, n); err != nil {
@@ -157,4 +148,28 @@ func (r *Reminders) run(ctx context.Context, _ *hopper.Job[remindJob]) error {
 		}
 	}
 	return nil
+}
+
+// notification is what a reminder tells the person, in the server's catalog.
+func (d Reminder) notification() host.Notification {
+	n := host.Notification{Kind: d.Kind, Path: "/"}
+	switch d.Kind {
+	case ReminderClockRunning:
+		n.Title = messages.T("reminder.clockRunning.title", nil)
+		n.Body = messages.T("reminder.clockRunning.body", messages.Args{"hours": strconv.FormatFloat(d.Hours, 'f', 1, 64)})
+	default:
+		n.Title = messages.T("reminder.timesheetDue.title", nil)
+		n.Body = messages.T("reminder.timesheetDue.body", messages.Args{"period": periodLabel(d.Period)})
+		n.Path = "/timesheet?day=" + d.Period.Start.String()
+	}
+	return n
+}
+
+// periodLabel names a pay period as the web app does: "Sep 28 – Oct 11, 2026",
+// the year once, at the end.
+func periodLabel(p Period) string {
+	return messages.T("period.range", messages.Args{
+		"start": p.Start.Time().Format("Jan 2"),
+		"end":   p.End.Time().Format("Jan 2, 2006"),
+	})
 }
