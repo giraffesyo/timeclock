@@ -17,5 +17,8 @@
     "holiday": "holiday",
     "open": "Open timesheet",
     "loadFailed": "Couldn’t load this pay period."
-  }
+  },
+  "titleFor": "Timer · {name}",
+  "othersTime": "{name}’s week. Time you add here is theirs; the clock above is yours.",
+  "backToOwn": "Back to your week"
 }

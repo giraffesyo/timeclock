@@ -10,6 +10,7 @@ import { Empty, ErrorNote, Loading } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { Segmented } from '@/components/segmented';
 import { SheetStatus } from '@/components/status';
+import { standing } from '@/components/timesheet/sheet';
 import { WeekCalendar } from '@/components/week-calendar';
 import { useWeek, WeekNav } from '@/components/week-nav';
 import { ZoneBanner } from '@/components/zone';
@@ -26,6 +27,8 @@ interface Search {
   /** Any day in the week to show; absent is this week. */
   day?: string;
   view?: View;
+  /** Whose time; absent is the caller's. */
+  person?: string;
 }
 
 const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -35,15 +38,27 @@ export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>): Search => ({
     day: isDay(search.day) ? search.day : undefined,
     view: search.view === 'list' ? 'list' : undefined,
+    person: typeof search.person === 'string' && search.person !== '' ? search.person : undefined,
   }),
 });
 
 /** The week's entries a day at a time, newest day first. */
-function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; locked: boolean }) {
+function WeekList({
+  week,
+  entries,
+  locked,
+  personId,
+}: {
+  week: Day[];
+  entries: Entry[];
+  locked: boolean;
+  /** Whose week; absent is the caller's. */
+  personId?: string;
+}) {
   const t = useTranslations('timer');
   const format = useFormatter();
   const { today } = useSession();
-  const zone = useZone();
+  const zone = useZone(personId);
   const days = [...week]
     .reverse()
     .map((day) => ({ day, entries: entries.filter((e) => dayOf(e.startedAt, zone) === day) }))
@@ -94,28 +109,51 @@ function TimerPage() {
   const te = useTranslations('entry');
   const tc = useTranslations('common');
   const periodLabel = usePeriodLabel();
-  const { today, running, settings } = useSession();
+  const me = useSession();
+  const { today, running, settings } = me;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const week = useWeek(search.day);
   const first = week[0] ?? today;
   const last = week[6] ?? today;
   const view: View = search.view ?? 'calendar';
-  const entries = useEntries(first, last);
-  const sheet = useTimesheet();
+  // Someone else's week, for their manager or an admin; the server decides who may see it.
+  const personId = search.person && search.person !== me.person.id ? search.person : undefined;
+  const entries = useEntries(first, last, personId);
+  const sheet = useTimesheet(undefined, personId);
   const [adding, setAdding] = useState(false);
-  const now = useNow(30_000, !!running); // keeps the week's total current while the clock runs
+  const now = useNow(30_000, !!running || (entries.data ?? []).some((e) => !e.endedAt)); // keeps the week's total current
 
   // The clock, and this period's days, are off while its timesheet is in.
   const period = sheet.data?.period;
+  const s = sheet.data ? standing(sheet.data, me) : null;
   const submitted = sheet.data?.timesheet?.status === 'submitted' || sheet.data?.timesheet?.status === 'approved';
-  const lockedDay = (day: Day) => submitted && !!period && day >= period.start && day <= period.end;
+  // Someone else's time changes as their timesheet allows: not at all unless the caller may write it.
+  const writable = !personId || !!s?.writer;
+  const lockedDay = (day: Day) => !writable || (submitted && !!period && day >= period.start && day <= period.end);
   const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now), now);
+  const name = personId ? sheet.data?.person.name : undefined;
 
   return (
     <main className="flex min-h-full flex-col md:h-full md:min-h-0">
-      <h1 className="sr-only">{t('title')}</h1>
-      <ZoneBanner />
+      <h1 className={personId ? 'px-4 pt-3 text-lg font-semibold' : 'sr-only'}>
+        {name ? t('titleFor', { name }) : t('title')}
+      </h1>
+      {personId ? (
+        <p className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 text-sm text-muted-foreground">
+          {/* The clock in the header stays the caller's; only the time below is theirs. */}
+          {name && <span>{t('othersTime', { name })}</span>}
+          <Link
+            to="/"
+            search={{ day: search.day, view: search.view }}
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {t('backToOwn')}
+          </Link>
+        </p>
+      ) : (
+        <ZoneBanner />
+      )}
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
         <WeekNav
           week={week}
@@ -140,7 +178,7 @@ function TimerPage() {
             size="sm"
             className="h-8"
             icon={<AddIcon aria-hidden />}
-            disabled={lockedDay(today)}
+            disabled={lockedDay(today) || (!!personId && !s)}
             onClick={() => setAdding(true)}
           >
             {te('add')}
@@ -154,9 +192,14 @@ function TimerPage() {
         ) : entries.isPending ? (
           <Loading />
         ) : view === 'calendar' ? (
-          <WeekCalendar week={week} entries={entries.data} readOnly={lockedDay} />
+          <WeekCalendar week={week} entries={entries.data} readOnly={lockedDay} personId={personId} />
         ) : (
-          <WeekList week={week} entries={entries.data} locked={lockedDay(first) && lockedDay(last)} />
+          <WeekList
+            week={week}
+            entries={entries.data}
+            locked={lockedDay(first) && lockedDay(last)}
+            personId={personId}
+          />
         )}
       </div>
 
@@ -192,14 +235,18 @@ function TimerPage() {
             )}
             <span className="ml-auto flex items-center gap-3">
               <SheetStatus timesheet={sheet.data.timesheet} reportsOnly={!sheet.data.person.submitsTimesheets} />
-              <Link to="/timesheet" className={buttonClass('outline', 'sm')}>
+              <Link
+                to="/timesheet"
+                search={{ person: personId, day: search.day }}
+                className={buttonClass('outline', 'sm')}
+              >
                 {t('period.open')}
               </Link>
             </span>
           </div>
         )
       )}
-      <EntryDialog open={adding} onClose={() => setAdding(false)} day={today} />
+      <EntryDialog open={adding} onClose={() => setAdding(false)} day={today} personId={personId} />
     </main>
   );
 }

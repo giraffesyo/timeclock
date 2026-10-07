@@ -15,6 +15,7 @@ import {
   useListView,
   useRowMenu,
 } from '@parallelworks/ui/list';
+import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -311,6 +312,7 @@ function PersonRow({
 /** Everyone who tracks time: who approves it, and how payroll treats them. */
 export function People() {
   const t = useTranslations('settings.people');
+  const navigate = useNavigate();
   const errorMessage = useErrorMessage();
   const people = usePeople();
   const sync = useSyncPeople();
@@ -466,7 +468,16 @@ export function People() {
     const others = (part: Person[]) => group.filter((p) => !part.includes(p));
     const [only] = group;
     return [
-      ...(only && group.length === 1 ? [{ label: t('edit'), onSelect: () => setEditing(only) }] : []),
+      ...(only && group.length === 1
+        ? [
+            { label: t('edit'), onSelect: () => setEditing(only) },
+            {
+              label: t('openSheet'),
+              onSelect: () => void navigate({ to: '/timesheet', search: { person: only.id } }),
+            },
+            { label: t('openTimer'), onSelect: () => void navigate({ to: '/', search: { person: only.id } }) },
+          ]
+        : []),
       exempt.length === group.length
         ? confirmed('notExempt', group, () =>
             apply(

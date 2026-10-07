@@ -19,19 +19,22 @@ export function WeekCalendar({
   week,
   entries,
   readOnly,
+  personId,
 }: {
   week: Day[];
   /** Every entry that touches the week. */
   entries: Entry[];
   /** Whether a day's time can't be changed here. */
   readOnly: (day: Day) => boolean;
+  /** Whose week, in their time zone; absent is the caller's. */
+  personId?: string;
 }) {
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
   const format = useFormatter();
   const { today, settings } = useSession();
   const planning = settings.allowPlannedTime;
-  const zone = useZone();
+  const zone = useZone(personId);
   const wide = useMedia('(min-width: 48rem)');
   const [picked, setPicked] = useState<Day | null>(null);
   const [movePreview, setMovePreview] = useState<MovePreview | null>(null);
@@ -179,6 +182,7 @@ export function WeekCalendar({
                 hours={hours}
                 movePreview={movePreview?.day === d.day ? movePreview : null}
                 onMovePreview={setMovePreview}
+                personId={personId}
               />
             </div>
           ))}
