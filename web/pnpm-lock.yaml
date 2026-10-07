@@ -21,8 +21,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.0(react@19.3.0)(use-intl@4.14.9(@types/react@19.3.0)(react@19.3.0))
       '@parallelworks/ui':
-        specifier: ^0.23.0
-        version: 0.23.0(@popperjs/core@2.11.8)(formik@2.4.9(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
+        specifier: ^0.24.0
+        version: 0.24.0(@popperjs/core@2.11.8)(formik@2.4.9(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       '@tanstack/react-query':
         specifier: ^5.104.1
         version: 5.104.1(react@19.3.0)
@@ -367,8 +367,8 @@ packages:
       use-intl:
         optional: true
 
-  '@parallelworks/ui@0.23.0':
-    resolution: {integrity: sha512-ZDSPnv+51+IhtHn1PjLbFcjCW4DPRWykf8Gw7MyirV8kIjfBz/gXW6QZLY8yQusPBnvqXq8mwU1eUbU5TvSWRQ==}
+  '@parallelworks/ui@0.24.0':
+    resolution: {integrity: sha512-h5BhKfdMakamd+wnnXZ18o+sP7qfxqE8+cyUUQu1fT9g8dyrGGOJaGjek3vUb4vsOe167sOBiQe7FQXAEIXgsw==}
     peerDependencies:
       formik: ^2.4.9
       monaco-editor: ^0.57.0
@@ -2563,7 +2563,7 @@ snapshots:
       react: 19.3.0
       use-intl: 4.14.9(@types/react@19.3.0)(react@19.3.0)
 
-  '@parallelworks/ui@0.23.0(@popperjs/core@2.11.8)(formik@2.4.9(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)':
+  '@parallelworks/ui@0.24.0(@popperjs/core@2.11.8)(formik@2.4.9(@types/react@19.3.0)(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)':
     dependencies:
       '@headlessui/react': 2.2.10(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@streamdown/code': 2.0.0(react@19.3.0)

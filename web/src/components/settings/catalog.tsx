@@ -215,7 +215,8 @@ export function Catalog() {
       { key: 'name', label: t('columns.name'), alwaysVisible: true },
       { key: 'code', label: t('columns.code'), priority: 'low' },
       { key: 'billable', label: t('columns.billable'), priority: 'medium' },
-      { key: 'status', label: t('columns.status'), priority: 'medium' },
+      // No priority: on a phone "Archived" stacks under the name rather than vanishing.
+      { key: 'status', label: t('columns.status') },
     ],
     // Archived things are hidden until the filter asks for them, as the old toggle did.
     facets: [
@@ -356,7 +357,8 @@ export function Catalog() {
       </Chip>
     ),
     // Under an archived customer every project reads as archived; the customer's chip says so.
-    status: p.archived && !underArchived && archivedChip,
+    // Where it stacks under the project's name (on a phone), indented as the name is.
+    status: p.archived && !underArchived && <span className="block pl-4 @[36rem]:pl-0">{archivedChip}</span>,
   });
   const cellsOf = (cells: Record<string, ReactNode>) =>
     view.visibleColumns.map((col) => (

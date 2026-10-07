@@ -256,10 +256,17 @@ function PersonRow({
       </span>
     ),
     email: <span className="text-muted-foreground">{person.email}</span>,
-    manager: manager ? (
-      <PersonIdentity person={manager} people={people} />
-    ) : (
-      <span>{effectiveManagerId || t('adminApproves')}</span>
+    manager: (
+      <span className="flex flex-wrap items-center gap-x-1.5">
+        {/* Only where it stacks under the person's name (the column itself shows only when wide):
+            there, a bare manager's name would read as theirs. */}
+        <span className="text-xs text-muted-foreground @[36rem]:hidden">{t('columns.manager')}</span>
+        {manager ? (
+          <PersonIdentity person={manager} people={people} />
+        ) : (
+          <span>{effectiveManagerId || t('adminApproves')}</span>
+        )}
+      </span>
     ),
     timezone: person.timezone || settings.timezone,
     exempt: person.overtimeExempt ? t('yes') : t('no'),
@@ -326,6 +333,7 @@ export function People() {
       { key: 'name', label: t('columns.name'), alwaysVisible: true },
       // The profile card shows the email; the column is there to turn on.
       { key: 'email', label: t('columns.email'), priority: 'low', defaultHidden: true },
+      // No priority: on a phone it stacks under the name, labelled there (see the cell).
       { key: 'manager', label: t('columns.manager') },
       { key: 'timezone', label: t('columns.timezone'), priority: 'medium' },
       { key: 'exempt', label: t('columns.exempt'), priority: 'low' },
