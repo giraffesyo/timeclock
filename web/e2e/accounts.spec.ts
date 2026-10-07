@@ -60,7 +60,12 @@ test('an admin invites someone from Settings, and they join as a member', async 
 
   await admin.goto('/people');
   // On its own there is no host application: the badge says where the grant came from.
-  await admin.getByRole('button', { name: 'Admin', exact: true }).first().hover();
+  // Bo's own: other tests make admins in People too, and those say so differently.
+  await admin
+    .getByRole('row')
+    .filter({ hasText: 'Bo Boss' })
+    .getByRole('button', { name: 'Admin', exact: true })
+    .hover();
   await expect(admin.locator('#global-tooltip')).toContainText('from their invitation or the server’s settings');
   await expect(admin.locator('#global-tooltip')).not.toContainText('host application');
   await admin.getByRole('textbox', { name: 'Email address to invite' }).fill(email);
