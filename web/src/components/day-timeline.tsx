@@ -22,12 +22,12 @@ import { type Entry, useAdjustEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
 import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
-
-/** What a click or tap on empty time offers. */
-const CLICKED = 15 * MINUTE;
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
+
+/** What a click or tap on empty time offers. */
+const CLICKED = 15 * MINUTE;
 
 /** A stretch being dragged: a new one, or an entry's start, end or whole. */
 type Drag = Span & {
