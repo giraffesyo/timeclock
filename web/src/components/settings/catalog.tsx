@@ -19,6 +19,7 @@ import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Loading, Panel } from '@/components/page';
+import { SearchSelect } from '@/components/search-select';
 import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
 import { cn } from '@/lib/cn';
@@ -136,16 +137,14 @@ function ProjectDialog({
           <input className={controlClass} value={code} maxLength={64} onChange={(e) => setCode(e.target.value)} />
         </Field>
         <Field label={t('project.customer')}>
-          <select className={controlClass} value={customer} onChange={(e) => setCustomer(e.target.value)}>
-            <option value="">{t('project.noCustomer')}</option>
-            {customers
-              .filter((c) => !c.archived || c.id === customer)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
+          <SearchSelect
+            value={customer}
+            onChange={setCustomer}
+            choices={[
+              { value: '', label: t('project.noCustomer') },
+              ...customers.filter((c) => !c.archived || c.id === customer).map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </Field>
         <SwitchRow
           label={t('project.billable')}

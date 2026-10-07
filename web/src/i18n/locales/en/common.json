@@ -59,5 +59,9 @@
     "pending": "Waiting for a manager or an admin to approve it. Not paid until then.",
     "approved": "Approved: it’s paid with the pay period it falls in.",
     "rejected": "Rejected: it isn’t paid."
+  },
+  "search": {
+    "placeholder": "Search",
+    "empty": "Nothing matches “{query}”."
   }
 }

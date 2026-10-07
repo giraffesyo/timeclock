@@ -4,6 +4,7 @@ import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Panel } from '@/components/page';
+import { Segmented } from '@/components/segmented';
 import { type TimeOff, useRequestTimeOff } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, daysBetween } from '@/lib/time';
@@ -73,12 +74,19 @@ export function RequestForm() {
         }}
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label={t('kind')}>
-            <select className={`${controlClass} w-full`} value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-              <option value="vacation">{tc('kind.vacation')}</option>
-              <option value="sick">{tc('kind.sick')}</option>
-            </select>
-          </Field>
+          {/* Two choices: both in view. Not a Field: its label would forward a click to the first. */}
+          <div className="text-sm">
+            <span className="mb-1 block font-medium">{t('kind')}</span>
+            <Segmented<Kind>
+              label={t('kind')}
+              value={kind}
+              onChange={setKind}
+              options={[
+                { value: 'vacation', label: tc('kind.vacation') },
+                { value: 'sick', label: tc('kind.sick') },
+              ]}
+            />
+          </div>
           <Field label={t('from')}>
             <input
               type="date"

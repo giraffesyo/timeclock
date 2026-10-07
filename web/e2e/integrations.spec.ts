@@ -331,11 +331,19 @@ for (const mobile of [false, true]) {
     const holiday = page.getByRole('combobox', { name: 'Holiday project' });
     const vacation = page.getByRole('combobox', { name: 'Vacation project' });
     const sick = page.getByRole('combobox', { name: 'Sick project' });
-    await holiday.selectOption({ label: 'Company holiday' });
-    await vacation.selectOption({ label: 'Vacation' });
+    // Found by typing, as a workspace can have many projects.
+    const choose = async (box: typeof holiday, typed: string, name: string) => {
+      await box.fill(typed);
+      await page.getByRole('option', { name, exact: true }).click();
+      await expect(box).toHaveValue(name);
+    };
+    await choose(holiday, 'holiday', 'Company holiday');
+    await choose(vacation, 'vac', 'Vacation');
     // A project fills one role at a time.
-    await expect(sick.locator('option', { hasText: 'Vacation' })).toHaveAttribute('disabled', '');
-    await sick.selectOption({ label: 'Sick' });
+    await sick.click();
+    await expect(page.getByRole('option', { name: 'Vacation', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await page.keyboard.press('Escape');
+    await choose(sick, 'sick', 'Sick');
     const device = mobile ? 'mobile' : 'desktop';
     await sick.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `/tmp/timeclock-toggl-roles-form-${device}.png` });

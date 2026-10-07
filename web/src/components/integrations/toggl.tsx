@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Loading, Panel } from '@/components/page';
 import { PersonSelect, personChoices } from '@/components/person-select';
+import { SearchSelect } from '@/components/search-select';
 import { usePeople, useProjects } from '@/lib/queries';
 import { dayToDate } from '@/lib/time';
 
@@ -361,22 +362,19 @@ function Setup({ saved, onSaved }: { saved: Status; onSaved: () => void }) {
                 <div className="grid gap-3 sm:grid-cols-3">
                   {roleKeys.map((role) => (
                     <Field key={role} label={t(role)}>
-                      <select
-                        className={controlClass}
-                        value={roles[role] || ''}
-                        onChange={(e) => setRoles({ ...roles, [role]: Number(e.target.value) || 0 })}
-                      >
-                        <option value="">{t('noRole')}</option>
-                        {(preview.projects ?? []).map((p) => (
-                          <option
-                            key={p.id}
-                            value={p.id}
-                            disabled={roleKeys.some((other) => other !== role && roles[other] === p.id)}
-                          >
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchSelect
+                        value={roles[role] ? String(roles[role]) : ''}
+                        onChange={(id) => setRoles({ ...roles, [role]: Number(id) || 0 })}
+                        choices={[
+                          { value: '', label: t('noRole') },
+                          ...(preview.projects ?? []).map((p) => ({
+                            value: String(p.id),
+                            label: p.name,
+                            // A project fills one role at a time.
+                            disabled: roleKeys.some((other) => other !== role && roles[other] === p.id),
+                          })),
+                        ]}
+                      />
                     </Field>
                   ))}
                 </div>
