@@ -131,9 +131,12 @@ export async function google(req, res, url) {
     for (const [start, end, summary, declined] of WEEK[day.weekday] ?? []) {
       const at = (hm) => DateTime.fromISO(`${date}T${hm}`, { zone: ZONE });
       if (at(end) <= from || at(start) >= to) continue;
-      const id = `${date}-${summary.toLowerCase().replaceAll(/\W+/g, '-')}`;
+      const series = summary.toLowerCase().replaceAll(/\W+/g, '-');
+      const id = `${date}-${series}`;
       items.push({
         id,
+        // The standup recurs; the rest are one-offs that share a title.
+        ...(summary === 'Daily standup' ? { recurringEventId: series } : {}),
         status: 'confirmed',
         summary,
         htmlLink: `https://calendar.google.com/calendar/event?eid=${id}`,

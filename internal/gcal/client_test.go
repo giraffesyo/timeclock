@@ -22,7 +22,7 @@ func TestEventsKeepsTimedEventsAcrossPages(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		if q.Get("pageToken") == "" {
 			_, _ = w.Write([]byte(`{"summary":"pat@example.com","nextPageToken":"two","items":[
-				{"id":"a","status":"confirmed","summary":"Standup","htmlLink":"https://calendar.example/a",
+				{"id":"a_20261005","recurringEventId":"a","status":"confirmed","summary":"Standup","htmlLink":"https://calendar.example/a",
 				 "start":{"dateTime":"2026-10-05T09:00:00-05:00"},"end":{"dateTime":"2026-10-05T09:15:00-05:00"}},
 				{"id":"b","status":"confirmed","summary":"Holiday","start":{"date":"2026-10-06"},"end":{"date":"2026-10-07"}},
 				{"id":"c","status":"cancelled","summary":"Gone","start":{"dateTime":"2026-10-06T10:00:00Z"},"end":{"dateTime":"2026-10-06T11:00:00Z"}}
@@ -45,7 +45,7 @@ func TestEventsKeepsTimedEventsAcrossPages(t *testing.T) {
 	if cal.Name != "pat@example.com" {
 		t.Errorf("name: %q", cal.Name)
 	}
-	if len(cal.Events) != 2 || cal.Events[0].ID != "a" || cal.Events[1].ID != "e" {
+	if len(cal.Events) != 2 || cal.Events[0].ID != "a_20261005" || cal.Events[0].SeriesID != "a" || cal.Events[1].ID != "e" || cal.Events[1].SeriesID != "" {
 		t.Fatalf("events: %+v", cal.Events)
 	}
 	if got := cal.Events[0]; got.Title != "Standup" || got.Link != "https://calendar.example/a" ||
@@ -56,14 +56,18 @@ func TestEventsKeepsTimedEventsAcrossPages(t *testing.T) {
 
 func TestEventsReportsDenial(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, `{"error":{"message":"secret detail"}}`, http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":{"code":403,"message":"secret detail about project 1234","status":"PERMISSION_DENIED",
+			"errors":[{"message":"secret","domain":"usageLimits","reason":"accessNotConfigured"}],
+			"details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_DISABLED"},{"reason":"no spaces allowed"}]}}`))
 	}))
 	defer server.Close()
 	_, err := (&Client{HTTP: server.Client(), BaseURL: server.URL}).Events(context.Background(), time.Now(), time.Now().Add(time.Hour))
 	if !Denied(err) {
 		t.Fatalf("err: %v", err)
 	}
-	if err.Error() != "Google Calendar denied access" {
+	// Google's reasons, and none of its words.
+	if err.Error() != "Google Calendar denied access (accessNotConfigured, SERVICE_DISABLED)" {
 		t.Errorf("message: %q", err)
 	}
 }

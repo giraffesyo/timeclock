@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -28,8 +29,11 @@ type Client struct {
 
 // Event is a timed event someone is going to, or went to.
 type Event struct {
-	ID    string
-	Title string
+	ID string
+	// SeriesID is the recurring event this is one occurrence of; empty for
+	// a one-off.
+	SeriesID string
+	Title    string
 	// Link opens the event in Google Calendar.
 	Link  string
 	Start time.Time
@@ -44,18 +48,71 @@ type Calendar struct {
 	Events []Event
 }
 
-// Error excludes response bodies: they can contain private data.
-type Error struct{ Status int }
+// Error keeps only Google's reason codes from a response, such as
+// "accessNotConfigured" for an API not enabled in the project: the rest of
+// a body can contain private data.
+type Error struct {
+	Status  int
+	Reasons []string
+}
 
 func (e *Error) Error() string {
+	var msg string
 	switch e.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return "Google Calendar denied access"
+		msg = "Google Calendar denied access"
 	case http.StatusNotFound:
-		return "Google Calendar has no such calendar"
+		msg = "Google Calendar has no such calendar"
 	default:
-		return fmt.Sprintf("Google Calendar returned HTTP %d", e.Status)
+		msg = fmt.Sprintf("Google Calendar returned HTTP %d", e.Status)
 	}
+	if len(e.Reasons) > 0 {
+		msg += " (" + strings.Join(e.Reasons, ", ") + ")"
+	}
+	return msg
+}
+
+// notCode is a character no reason code has.
+func notCode(c rune) bool {
+	return c != '_' && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9')
+}
+
+// reasons reads the reason codes from a Google API error body.
+func reasons(body io.Reader) []string {
+	var out struct {
+		Error struct {
+			Status string `json:"status"`
+			Errors []struct {
+				Reason string `json:"reason"`
+			} `json:"errors"`
+			Details []struct {
+				Reason string `json:"reason"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if json.NewDecoder(io.LimitReader(body, 64<<10)).Decode(&out) != nil {
+		return nil
+	}
+	var list []string
+	seen := map[string]bool{}
+	add := func(r string) {
+		// A code, not prose: letters, digits and underscores only.
+		if r == "" || seen[r] || len(r) > 64 || strings.IndexFunc(r, notCode) >= 0 {
+			return
+		}
+		seen[r] = true
+		list = append(list, r)
+	}
+	for _, e := range out.Error.Errors {
+		add(e.Reason)
+	}
+	for _, d := range out.Error.Details {
+		add(d.Reason)
+	}
+	if len(list) == 0 {
+		add(out.Error.Status)
+	}
+	return list
 }
 
 // Denied reports whether Google refused the credentials.
@@ -74,6 +131,7 @@ type eventsPage struct {
 	Summary string `json:"summary"`
 	Items   []struct {
 		ID           string    `json:"id"`
+		Recurring    string    `json:"recurringEventId"`
 		Status       string    `json:"status"`
 		Summary      string    `json:"summary"`
 		HTMLLink     string    `json:"htmlLink"`
@@ -105,7 +163,7 @@ func (c *Client) Events(ctx context.Context, from, to time.Time) (Calendar, erro
 			// Meetings, focus time and what Gmail added; not working locations,
 			// out of office or birthdays.
 			"eventTypes": {"default", "focusTime", "fromGmail"},
-			"fields":     {"summary,nextPageToken,items(id,status,summary,htmlLink,start,end,transparency,attendees(self,responseStatus))"},
+			"fields":     {"summary,nextPageToken,items(id,recurringEventId,status,summary,htmlLink,start,end,transparency,attendees(self,responseStatus))"},
 		}
 		if token != "" {
 			q.Set("pageToken", token)
@@ -127,7 +185,7 @@ func (c *Client) Events(ctx context.Context, from, to time.Time) (Calendar, erro
 				continue
 			}
 			out.Events = append(out.Events, Event{
-				ID: it.ID, Title: it.Summary, Link: it.HTMLLink, Start: it.Start.DateTime, End: it.End.DateTime,
+				ID: it.ID, SeriesID: it.Recurring, Title: it.Summary, Link: it.HTMLLink, Start: it.Start.DateTime, End: it.End.DateTime,
 			})
 		}
 		if page.NextPageToken == "" {
@@ -158,7 +216,7 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &Error{Status: resp.StatusCode}
+		return &Error{Status: resp.StatusCode, Reasons: reasons(resp.Body)}
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(out); err != nil {
 		return errors.New("google calendar returned an unreadable response")

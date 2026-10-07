@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/meetings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Remember the project the caller copies a calendar meeting to */
+        put: operations["remember-calendar-meeting"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clock/in": {
         parameters: {
             query?: never;
@@ -835,6 +852,12 @@ export interface components {
              * @description Opens the event in Google Calendar.
              */
             link?: string;
+            /** @description Names the event wherever it comes round, for remembering its project. */
+            meeting?: string;
+            /** @description The remembered project; absent with remembered is no project. */
+            projectId?: string;
+            /** @description The caller chose a project for this meeting before: copies go straight to it. */
+            remembered: boolean;
             /** Format: date-time */
             startedAt: string;
             /** @description Empty for an event without one. */
@@ -1431,6 +1454,18 @@ export interface components {
             readonly $schema?: string;
             rows: components["schemas"]["ProjectHours"][] | null;
         };
+        "Remember-calendar-meetingRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Remember-calendar-meetingRequest.json
+             */
+            readonly $schema?: string;
+            /** @description The event's meeting, as listed. */
+            meeting: string;
+            /** @description Absent is no project. */
+            projectId?: string;
+        };
         "Reopen-timesheetRequest": {
             /**
              * Format: uri
@@ -1979,6 +2014,37 @@ export interface operations {
             302: {
                 headers: {
                     Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "remember-calendar-meeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Remember-calendar-meetingRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content?: never;

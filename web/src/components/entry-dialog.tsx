@@ -29,6 +29,7 @@ export function EntryDialog({
   end,
   note,
   anchor,
+  onSaved,
 }: {
   open: boolean;
   onClose: () => void;
@@ -45,6 +46,8 @@ export function EntryDialog({
   note?: string;
   /** Calendar entries edit beside their block, without interrupting the page. */
   anchor?: HTMLElement | null;
+  /** Told what was saved, before the dialog closes. */
+  onSaved?: (saved: Entry) => void;
 }) {
   // A fresh form per entry: remounting on the key resets every field.
   return open ? (
@@ -58,6 +61,7 @@ export function EntryDialog({
       to={end ?? '17:00'}
       about={note ?? ''}
       anchor={anchor}
+      onSaved={onSaved}
     />
   ) : null;
 }
@@ -71,6 +75,7 @@ function Form({
   to,
   about,
   anchor,
+  onSaved,
 }: {
   onClose: () => void;
   entry?: Entry;
@@ -80,6 +85,7 @@ function Form({
   to: string;
   about: string;
   anchor?: HTMLElement | null;
+  onSaved?: (saved: Entry) => void;
 }) {
   const t = useTranslations('entry');
   const tc = useTranslations('common');
@@ -131,7 +137,7 @@ function Form({
     }
     setInvalid(false);
     try {
-      await save.mutateAsync({
+      const saved = await save.mutateAsync({
         id: entry?.id,
         personId: entry ? undefined : personId,
         projectId: projectId || undefined,
@@ -139,6 +145,7 @@ function Form({
         endedAt: endedAt ?? undefined,
         note,
       });
+      onSaved?.(saved);
       onClose();
     } catch {
       // Shown below from save.error; the dialog stays open to fix it.

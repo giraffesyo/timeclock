@@ -1,4 +1,4 @@
-import { AddIcon, CloseIcon, NewWindowIcon, StartIcon } from '@parallelworks/ui/icons';
+import { CloseIcon, CopyIcon, NewWindowIcon, StartIcon } from '@parallelworks/ui/icons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { useContinue } from '@/components/clock-bar';
@@ -7,15 +7,17 @@ import type { CalendarEvent } from '@/lib/queries';
 
 /**
  * An event on the caller's calendar, opened from beside their time: what it
- * is and when, with the clock to start on it, a button that adds its time,
- * and the way back to it in Google Calendar.
+ * is and when, with the clock to start on it, a button that copies it onto
+ * the week, and the way back to it in Google Calendar. A meeting copied
+ * before says which project it copies to, and can change it.
  */
 export function CalendarEventPopover({
   event,
   calendar,
   zone,
   anchor,
-  onAdd,
+  projectName,
+  onCopy,
   onClose,
 }: {
   event: CalendarEvent;
@@ -23,8 +25,10 @@ export function CalendarEventPopover({
   calendar?: string;
   zone: string;
   anchor: HTMLElement;
-  /** Adds the event's time; absent when the day takes no more. */
-  onAdd?: () => void;
+  /** The project a remembered meeting copies to; absent when it isn't remembered. */
+  projectName?: string;
+  /** Copies the event onto the week, asking for its project when `ask`; absent when the day takes no more. */
+  onCopy?: (ask: boolean) => void;
   onClose: () => void;
 }) {
   const t = useTranslations('timeline');
@@ -46,14 +50,14 @@ export function CalendarEventPopover({
             onClose();
           }}
         />
-        {onAdd && (
+        {onCopy && (
           <Button
             variant="ghost"
             className="!size-9 !p-0"
-            aria-label={t('eventAdd')}
-            title={t('eventAdd')}
-            icon={<AddIcon aria-hidden className="!size-5" />}
-            onClick={onAdd}
+            aria-label={projectName ? t('eventCopyTo', { project: projectName }) : t('eventCopy')}
+            title={projectName ? t('eventCopyTo', { project: projectName }) : t('eventCopy')}
+            icon={<CopyIcon aria-hidden className="!size-5" />}
+            onClick={() => onCopy(false)}
           />
         )}
         {event.link && (
@@ -81,6 +85,18 @@ export function CalendarEventPopover({
       <h2 className="text-base font-semibold break-words">{title}</h2>
       {calendar && <p className="mt-1 text-sm break-all text-muted-foreground">{t('eventSource', { calendar })}</p>}
       <p className="tabular mt-1 text-sm">{t('range', { start: time(event.startedAt), end: time(event.endedAt) })}</p>
+      {projectName && onCopy && (
+        <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-sm text-muted-foreground">
+          {t('eventCopiesTo', { project: projectName })}
+          <button
+            type="button"
+            className="cursor-pointer text-primary underline-offset-2 hover:underline"
+            onClick={() => onCopy(true)}
+          >
+            {t('eventChange')}
+          </button>
+        </p>
+      )}
     </EntryPopover>
   );
 }

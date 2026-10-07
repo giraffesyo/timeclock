@@ -248,6 +248,13 @@ export function useDeleteEntry() {
   return useWrite(async (id: string) => unwrap(await api.DELETE('/api/v1/entries/{id}', { params: { path: { id } } })));
 }
 
+/** Remembers the project the caller copies a calendar meeting to; none is no project. */
+export function useRememberMeeting() {
+  return useWrite(async (body: { meeting: string; projectId?: string }) =>
+    unwrap(await api.PUT('/api/v1/calendar/meetings', { body })),
+  );
+}
+
 /** Disconnects the caller's own Google Calendar, and revokes Timeclock's access to it. */
 export function useDisconnectGoogleCalendar() {
   return useWrite(async () => unwrap(await api.DELETE('/api/v1/calendar/google')));
