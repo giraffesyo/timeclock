@@ -21,12 +21,12 @@ test('the week is a strip of days, and a tap on an empty hour adds time', async 
   const dialog = page.getByRole('dialog', { name: 'Add time' });
   await expect(dialog.locator('input[type=date]')).toHaveValue(week.day(2));
   await expect(dialog.locator('input[type=time]').first()).toHaveValue('10:00');
-  await expect(dialog.locator('input[type=time]').last()).toHaveValue('11:00');
+  await expect(dialog.locator('input[type=time]').last()).toHaveValue('10:15');
   await dialog.getByRole('button', { name: /^Project: / }).tap();
   await page.getByRole('option', { name: 'Support' }).tap();
   await dialog.getByRole('button', { name: 'Save' }).tap();
   await expect(dialog).toBeHidden();
-  await expect(wednesday).toContainText('1h 0m');
+  await expect(wednesday).toContainText('0h 15m');
   expect((await api.get(`/entries?from=${week.day(2)}&to=${week.day(2)}`)).entries).toHaveLength(1);
 });
 

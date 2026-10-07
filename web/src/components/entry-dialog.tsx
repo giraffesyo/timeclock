@@ -322,7 +322,7 @@ function Form({
                 onChange={(e) => setEnd(e.target.value)}
               />
             </div>
-            <span className="flex min-w-0 flex-1 flex-col px-1 leading-tight">
+            <span className="flex flex-1 flex-col px-1 leading-tight">
               <span className="text-sm font-medium whitespace-nowrap tabular-nums">
                 {length ? t('length', length) : ''}
               </span>
