@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.18.0...timeclock-v0.19.0) (2026-10-07)
+
+
+### Features
+
+* let managers and admins open an employee's timer ([#92](https://github.com/giraffesyo/timeclock/issues/92)) ([46921e0](https://github.com/giraffesyo/timeclock/commit/46921e07855f834efde2a3c724e7cc62fbcb4d78))
+
+
+### Bug Fixes
+
+* line up the calendar's day headings and stop the Reports tabs scrolling ([#89](https://github.com/giraffesyo/timeclock/issues/89)) ([b823a7e](https://github.com/giraffesyo/timeclock/commit/b823a7ef9b23d150ae3fb0f8ec603da35eb7a2a4))
+* narrow a Toggl history window that outlasts a run ([#91](https://github.com/giraffesyo/timeclock/issues/91)) ([9960e86](https://github.com/giraffesyo/timeclock/commit/9960e869d2cea517e7104bf32d76592786bc7056))
+
 ## [0.18.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.17.0...timeclock-v0.18.0) (2026-10-07)
 
 
