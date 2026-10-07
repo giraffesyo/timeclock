@@ -1,6 +1,5 @@
-import { deriveTheme } from '@parallelworks/ui/theme';
 import type { Plugin } from 'vite';
-import { contrastFailures, DEFAULT_THEME, type Mode, surfaces } from './src/lib/theme-seeds.ts';
+import { contrastFailures, DEFAULT_THEME, look, type Mode } from './src/lib/theme-seeds.ts';
 
 const id = 'virtual:timeclock-theme.css';
 const resolved = `\0${id}`;
@@ -9,7 +8,7 @@ const resolved = `\0${id}`;
 // runs. A workspace's or a host's theme is applied over it at runtime
 // (src/lib/theme.ts). A default that isn't WCAG AA fails the build.
 function block(mode: Mode): string {
-  const vars = deriveTheme(surfaces(DEFAULT_THEME[mode], mode));
+  const vars = look(DEFAULT_THEME[mode], mode);
   const failures = contrastFailures(vars);
   if (failures.length > 0) {
     throw new Error(`timeclock theme (${mode}) is below 4.5:1: ${failures.join(', ')}`);

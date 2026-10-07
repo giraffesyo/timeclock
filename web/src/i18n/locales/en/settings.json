@@ -380,6 +380,10 @@
     "contrast": "Contrast",
     "sidebar": "Its own sidebar colors",
     "sidebarHint": "Otherwise the sidebar is the background, a little deeper.",
+    "sidebarAccent": "Sidebar accent",
+    "sidebarBackground": "Sidebar background",
+    "sidebarContrast": "Sidebar contrast",
+    "picker": "{name}: pick a color",
     "presets": {
       "title": "Start from",
       "own": "Timeclock"

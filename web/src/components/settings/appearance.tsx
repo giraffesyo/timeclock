@@ -1,4 +1,4 @@
-import { deriveTheme, isDarkColor, THEME_PRESETS } from '@parallelworks/ui/theme';
+import { isDarkColor, THEME_PRESETS } from '@parallelworks/ui/theme';
 import { type CSSProperties, useEffect, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
@@ -9,10 +9,18 @@ import { Segmented } from '@/components/segmented';
 import { SwitchRow } from '@/components/settings/switch';
 import { useSaveTheme } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { currentMode, onThemeChange, previewTheme, readPreference, setPreference } from '@/lib/theme';
+import {
+  currentMode,
+  onThemeChange,
+  preferenceChoices,
+  previewTheme,
+  readPreference,
+  setPreference,
+} from '@/lib/theme';
 import {
   contrastFailures,
   DEFAULT_THEME,
+  look,
   type Mode,
   type Scheme,
   schemeFor,
@@ -28,6 +36,7 @@ const MODES: Mode[] = ['light', 'dark'];
 
 /** A color: a swatch that opens the system's picker, and its hex to type or paste. */
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
+  const t = useTranslations('settings.appearance');
   const [text, setText] = useState(value);
   // The field follows the value when it changes from outside (a preset, the picker).
   const shown = HEX.test(text) && text.toLowerCase() !== value.toLowerCase() ? value : text;
@@ -36,7 +45,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       <input
         type="color"
         className="theme-swatch"
-        aria-label={label}
+        aria-label={t('picker', { name: label })}
         value={value}
         onChange={(e) => {
           setText(e.target.value);
@@ -122,7 +131,12 @@ export function Appearance() {
   const t = useTranslations('settings.appearance');
   const { admin } = useSession();
   const preference = useSyncExternalStore(onThemeChange, readPreference);
+  const choices = useSyncExternalStore(onThemeChange, preferenceChoices);
   const [previewing, setPreviewing] = useState(false);
+  // Choosing light, dark or system, here or in the menu, shows that choice
+  // instead of the draft, until the draft is edited again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a choice is the trigger
+  useEffect(() => setPreviewing(false), [choices]);
   return (
     <div className="max-w-2xl space-y-6">
       <Panel title={t('preference.title')}>
@@ -131,11 +145,7 @@ export function Appearance() {
           <Segmented
             label={t('preference.title')}
             value={preference}
-            onChange={(value) => {
-              setPreviewing(false);
-              previewTheme(null);
-              setPreference(value);
-            }}
+            onChange={setPreference}
             options={(['light', 'dark', 'system'] as const).map((value) => ({
               value,
               label: t(`preference.${value}`),
@@ -160,6 +170,8 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
   const saved = draftOf(info.theme);
   const [draft, setDraft] = useState<Draft>(saved);
   const [mode, setMode] = useState<Mode>(() => currentMode());
+  // A sidebar turned off, to bring back as it was if it is turned on again.
+  const [putAway, setPutAway] = useState<Partial<Record<Mode, Seed>>>({});
   const scheme = draft[mode];
   const dirty = !same(draft, saved);
   const custom = !!info.workspaceTheme.light?.interface?.accent || !!info.workspaceTheme.dark?.interface?.accent;
@@ -179,8 +191,7 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
     const s = draft[m];
     const out: string[] = [];
     if (isDarkColor(s.interface.background) !== (m === 'dark')) out.push(t(m === 'dark' ? 'notDark' : 'notLight'));
-    for (const pair of contrastFailures(deriveTheme(surfaces(s, m))))
-      out.push(t('lowContrast', { mode: t(`mode.${m}`), pair }));
+    for (const pair of contrastFailures(look(s, m))) out.push(t('lowContrast', { mode: t(`mode.${m}`), pair }));
     return out;
   });
 
@@ -192,6 +203,11 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
       },
     });
   const names = { accent: t('accent'), background: t('background'), contrast: t('contrast') };
+  const sidebarNames = {
+    accent: t('sidebarAccent'),
+    background: t('sidebarBackground'),
+    contrast: t('sidebarContrast'),
+  };
   const presets = [
     { name: 'timeclock', label: t('presets.own'), seed: DEFAULT_THEME.light, dark: DEFAULT_THEME.dark },
     ...THEME_PRESETS.map((p) => ({ name: p.name, label: p.label, seed: p.seed as Scheme, dark: undefined })),
@@ -228,16 +244,23 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
               label={t('sidebar')}
               hint={t('sidebarHint')}
               value={!!scheme.sidebar}
-              onChange={(on) =>
+              onChange={(on) => {
+                if (!on) setPutAway({ ...putAway, [mode]: scheme.sidebar });
                 set({
                   ...scheme,
-                  sidebar: on ? { ...(surfaces(scheme, mode).sidebar ?? scheme.interface) } : undefined,
-                })
-              }
+                  sidebar: on
+                    ? { ...(putAway[mode] ?? surfaces(scheme, mode).sidebar ?? scheme.interface) }
+                    : undefined,
+                });
+              }}
             />
           </div>
           {scheme.sidebar && (
-            <SeedRows seed={scheme.sidebar} onChange={(seed) => set({ ...scheme, sidebar: seed })} names={names} />
+            <SeedRows
+              seed={scheme.sidebar}
+              onChange={(seed) => set({ ...scheme, sidebar: seed })}
+              names={sidebarNames}
+            />
           )}
         </div>
       </Panel>
@@ -255,7 +278,7 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
                   {
                     '--a': p.seed.interface.accent,
                     '--b': p.seed.interface.background,
-                    '--s': p.seed.sidebar?.background ?? p.seed.interface.background,
+                    '--s': surfaces(p.seed, to).sidebar?.background,
                   } as CSSProperties
                 }
                 onClick={() => {
