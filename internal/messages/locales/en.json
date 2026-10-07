@@ -15,7 +15,10 @@
     },
     "timesheetDue": {
       "title": "Your timesheet is due",
-      "body": "Submit your time for {start} to {end}."
+      "body": "Submit your time for {period}."
     }
+  },
+  "period": {
+    "range": "{start} – {end}"
   }
 }
