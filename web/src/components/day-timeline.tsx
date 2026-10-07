@@ -112,6 +112,9 @@ export function DayTimeline({
   // synchronously, and only render a drag preview once it becomes a drag.
   const gesture = useRef<Drag | null>(null);
   const touchTap = useRef<(Span & { x: number; y: number }) | null>(null);
+  // A new stretch opens on the click that ends its press: opened sooner, the
+  // browser takes that click for one outside the popover and closes it.
+  const pendingNew = useRef<Span | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [tooltipEntries, setTooltipEntries] = useState<Set<string>>(new Set());
@@ -236,12 +239,14 @@ export function DayTimeline({
     // Capture on the pressed control so the browser's click still reaches it.
     e.currentTarget.setPointerCapture(e.pointerId);
     suppressClick.current = false;
+    pendingNew.current = null;
     press.current = { x: e.clientX, y: e.clientY };
     gesture.current = d;
     setHover(null);
   };
 
   const beginCreate = (e: PointerEvent) => {
+    pendingNew.current = null;
     if (!editable || e.button !== 0 || adding) return;
     const ms = instant(e);
     if (ms > cap + SNAP || cap - bounds.start < SNAP) return;
@@ -355,7 +360,7 @@ export function DayTimeline({
     if (touchTap.current) {
       const tap = touchTap.current;
       touchTap.current = null;
-      openNew(tap);
+      pendingNew.current = { start: tap.start, end: tap.end };
       return;
     }
     const drag = gesture.current;
@@ -367,7 +372,7 @@ export function DayTimeline({
     if (drag.kind === 'create') {
       // A click without a drag offers the hour from there.
       const end = drag.moved ? drag.end : Math.min(drag.start + HOUR, drag.hi);
-      if (end - drag.start >= SNAP) openNew({ start: drag.start, end });
+      if (end - drag.start >= SNAP) pendingNew.current = { start: drag.start, end };
       return;
     }
     const b = blocks.find((x) => x.entry.id === drag.id);
@@ -466,12 +471,19 @@ export function DayTimeline({
         )}
 
         {/* Dragging here is the pointer's shortcut; the Add time button and each block's own controls are the keyboard's. */}
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: the click only finishes a pointer press begun here. */}
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard adds time with the Add time button. */}
         <div
           ref={track}
           data-day={day}
           data-editable={editable}
           className={cn('tl-track', editable && 'tl-track-editable')}
           onPointerDown={beginCreate}
+          onClick={() => {
+            const s = pendingNew.current;
+            pendingNew.current = null;
+            if (s) openNew(s);
+          }}
         >
           {marks.slice(1, -1).map((h) => (
             <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': at(h) } as CSSProperties} />
