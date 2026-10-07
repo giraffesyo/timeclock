@@ -16,7 +16,7 @@ import { ZoneBanner } from '@/components/zone';
 import { type Entry, useEntries, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayOf, dayToDate, hoursMinutes } from '@/lib/time';
-import { covered } from '@/lib/timeline';
+import { workedAndPlanned } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
 
@@ -41,7 +41,6 @@ export const Route = createFileRoute('/')({
 /** The week's entries a day at a time, newest day first. */
 function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; locked: boolean }) {
   const t = useTranslations('timer');
-  const tc = useTranslations('common');
   const format = useFormatter();
   const { today } = useSession();
   const zone = useZone();
@@ -60,19 +59,7 @@ function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; lo
                 ? t('today')
                 : format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'short', day: 'numeric' })}
             </h3>
-            <span className="tabular text-sm font-medium">
-              {tc(
-                'duration',
-                hoursMinutes(
-                  covered(
-                    d.entries.map((e) => ({
-                      start: Date.parse(e.startedAt),
-                      end: e.endedAt ? Date.parse(e.endedAt) : Date.now(),
-                    })),
-                  ),
-                ),
-              )}
-            </span>
+            <DayHours entries={d.entries} />
           </div>
           <EntryList entries={d.entries} readOnly={locked} />
         </section>
@@ -81,12 +68,33 @@ function WeekList({ week, entries, locked }: { week: Day[]; entries: Entry[]; lo
   );
 }
 
+const spansOf = (entries: Entry[], now: number) =>
+  entries.map((e) => ({ start: Date.parse(e.startedAt), end: e.endedAt ? Date.parse(e.endedAt) : now }));
+
+/** A day's worked hours, and any still planned. */
+function DayHours({ entries }: { entries: Entry[] }) {
+  const tc = useTranslations('common');
+  const tl = useTranslations('timeline');
+  const now = Date.now();
+  const { worked, planned } = workedAndPlanned(spansOf(entries, now), now);
+  return (
+    <span className="tabular text-sm font-medium">
+      {tc('duration', hoursMinutes(worked))}
+      {planned > 0 && (
+        <span className="ml-2 text-xs font-normal text-muted-foreground">
+          {tl('planned', { length: tc('duration', hoursMinutes(planned)) })}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function TimerPage() {
   const t = useTranslations('timer');
   const te = useTranslations('entry');
   const tc = useTranslations('common');
   const periodLabel = usePeriodLabel();
-  const { today, running } = useSession();
+  const { today, running, settings } = useSession();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const week = useWeek(search.day);
@@ -102,19 +110,18 @@ function TimerPage() {
   const period = sheet.data?.period;
   const submitted = sheet.data?.timesheet?.status === 'submitted' || sheet.data?.timesheet?.status === 'approved';
   const lockedDay = (day: Day) => submitted && !!period && day >= period.start && day <= period.end;
-  const worked = covered(
-    (entries.data ?? []).map((e) => ({
-      start: Date.parse(e.startedAt),
-      end: e.endedAt ? Date.parse(e.endedAt) : now,
-    })),
-  );
+  const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now), now);
 
   return (
     <main className="flex min-h-full flex-col md:h-full md:min-h-0">
       <h1 className="sr-only">{t('title')}</h1>
       <ZoneBanner />
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
-        <WeekNav week={week} onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })} />
+        <WeekNav
+          week={week}
+          ahead={settings.allowPlannedTime}
+          onChange={(day) => navigate({ search: (s) => ({ ...s, day }), replace: true })}
+        />
         <div className="flex items-baseline gap-2">
           <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
           <span className="tabular text-base font-semibold">{tc('duration', hoursMinutes(worked))}</span>

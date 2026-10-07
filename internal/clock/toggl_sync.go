@@ -167,7 +167,7 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 		if w.From.Equal(recent) && w.To.Equal(end) || w.From.Equal(cursor) && w.To.Equal(next) {
 			continue
 		}
-		if err := t.syncWindow(ctx, s, c, client, w.From, w.To); err != nil {
+		if _, err := t.syncWindow(ctx, s, c, client, w.From, w.To); err != nil {
 			if ctx.Err() != nil || !toggl.Timeout(err) {
 				return err
 			}
@@ -184,35 +184,58 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 			}
 		}
 	}
-	if err := t.syncWindow(ctx, s, c, client, recent, end); err != nil {
+	if _, err := t.syncWindow(ctx, s, c, client, recent, end); err != nil {
 		return err
 	}
-	// Four bounded windows per job. A failed window never advances the cursor;
-	// completed windows survive rate limits and process restarts. Continue
-	// sweeping after the first import to discover edits to historical time.
+	// Bounded windows, while the job has time left (four without a deadline).
+	// A failed window never advances the cursor; completed windows survive
+	// rate limits and process restarts. Continue sweeping after the first
+	// import to discover edits to historical time.
+	//
 	// Toggl's reports API can take longer than a request may for a year of a
 	// busy company's time: a window that times out is asked for again in
-	// halves, down to a week, and the run carries on at the smaller size.
-	days := 360
-	for i := 0; i < 4 && cursor.Before(recent); {
+	// halves, down to a week. The size that works is kept for the next run,
+	// and doubled again after a window that came back small.
+	days := min(max(c.historyDays, 7), 360)
+	setDays := func(d int) error {
+		days = d
+		_, err := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET history_days=$1 WHERE workspace_id=$W`, d)
+		return err
+	}
+	more := func(done int) bool {
+		if deadline, ok := ctx.Deadline(); ok {
+			return time.Until(deadline) > time.Minute
+		}
+		return done < 4
+	}
+	for done := 0; more(done) && cursor.Before(recent); {
 		to := cursor.AddDate(0, 0, days)
 		if to.After(recent) {
 			to = recent
 		}
-		if err := t.syncWindow(ctx, s, c, client, cursor, to); err != nil {
+		n, err := t.syncWindow(ctx, s, c, client, cursor, to)
+		if err != nil {
 			if ctx.Err() != nil || !toggl.Timeout(err) || days <= 7 {
 				return err
 			}
 			if _, err := s.pool.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2`, cursor, to); err != nil {
 				return err
 			}
-			days /= 2
+			if err := setDays(days / 2); err != nil {
+				return err
+			}
 			continue
 		}
-		i++
+		done++
 		cursor = to
 		if _, err := s.pool.Exec(ctx, `UPDATE toggl_workspaces SET history_cursor=$1 WHERE workspace_id=$W`, cursor); err != nil {
 			return err
+		}
+		// A quiet stretch: ask for more at a time again.
+		if n < 250 && days < 360 {
+			if err := setDays(min(days*2, 360)); err != nil {
+				return err
+			}
 		}
 	}
 	if !cursor.Before(recent) {
@@ -221,30 +244,41 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 	return err
 }
 
-func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, client *toggl.Client, from, to time.Time) error {
+// syncWindow reconciles one window and says how many entries Toggl reported.
+func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, client *toggl.Client, from, to time.Time) (int, error) {
+	start := time.Now()
+	n, err := t.reconcileWindow(ctx, s, c, client, from, to)
+	if err == nil {
+		t.logger.InfoContext(ctx, "toggl window synced", "workspace", s.ws, "from", from.Format(time.DateOnly),
+			"to", to.Format(time.DateOnly), "entries", n, "took", time.Since(start).Round(time.Millisecond))
+	}
+	return n, err
+}
+
+func (t *Toggl) reconcileWindow(ctx context.Context, s *Service, c togglConfig, client *toggl.Client, from, to time.Time) (int, error) {
 	// Reports use each entry owner's time zone, so fetch boundary days too.
 	// Scope reconciliation to the UTC window; omitted pages never imply deletes.
 	entries, err := t.report(ctx, s, client, c.remote, from, to)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Once a full window is available, discard its staged snapshot before any
 	// writes. A retry after a partial reconciliation must fetch fresh data,
 	// otherwise the cache could undo an outbound edit that already succeeded.
 	if _, err = s.pool.Exec(ctx, `DELETE FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2`, from, to); err != nil {
-		return err
+		return 0, err
 	}
 	people, err := togglPeople(ctx, s.pool)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	projectMap, err := togglProjects(ctx, s.pool)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	links, err := togglLinks(ctx, s.pool)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	byRemote := map[int64]togglLink{}
 	pending := map[string]bool{}
@@ -258,7 +292,7 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 	}
 	away, err := newTogglAway(ctx, t, s, c)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	seen := map[int64]bool{}
 	for _, e := range entries {
@@ -278,7 +312,7 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 		l, linked := byRemote[e.ID]
 		if linked && (!ok || l.person != personID) {
 			if err = t.issue(ctx, s, l.id, "ownership_changed"); err != nil {
-				return err
+				return 0, err
 			}
 			continue
 		}
@@ -289,7 +323,7 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 		if !linked {
 			if claimed, err := away.claim(ctx, e, personID); err != nil || claimed {
 				if err != nil {
-					return err
+					return 0, err
 				}
 				continue
 			}
@@ -303,7 +337,7 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 		state, err := togglRemote(e, projectMap)
 		issue := togglIssueFor(err)
 		if err != nil && issue == "" {
-			return err
+			return 0, err
 		}
 		if !linked {
 			l = togglLink{id: newID(), person: personID, remoteID: &e.ID, base: togglState{Deleted: true}}
@@ -319,16 +353,16 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 				l.base = state
 				if err = audit(ctx, s.pool, Actor{Person: Person{ID: "integration:toggl"}, Admin: true}, "toggl.link", l.person,
 					map[string]any{"entryId": l.id, "remoteId": e.ID, "remoteWorkspace": c.remote, "remoteUser": e.UserID, "after": state}); err != nil {
-					return err
+					return 0, err
 				}
 			} else if !errors.Is(err, pgx.ErrNoRows) {
-				return err
+				return 0, err
 			}
 		}
 		_, err = s.pool.Exec(ctx, `INSERT INTO toggl_entries(workspace_id,entry_id,person_id,remote_id,baseline,remote,issue)
    VALUES($W,$1,$2,$3,$4,$5,$6) ON CONFLICT(workspace_id,entry_id) DO UPDATE SET remote=EXCLUDED.remote,issue=CASE WHEN EXCLUDED.issue<>'' THEN EXCLUDED.issue WHEN toggl_entries.issue IN ('ownership_changed','missing_remote','project_unavailable') THEN '' ELSE toggl_entries.issue END`, l.id, l.person, l.remoteID, stateJSON(l.base), stateJSON(state), issue)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 	// Missing report rows can be moved, running, hidden by permissions, or
@@ -345,34 +379,34 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
 			}
 			_, err = s.pool.Exec(ctx, `UPDATE toggl_entries SET remote=$2,issue=$3 WHERE workspace_id=$W AND entry_id=$1`, l.id, stateJSON(togglState{Deleted: true}), issue)
 			if err != nil {
-				return err
+				return 0, err
 			}
 			continue
 		}
 		if err != nil {
-			return err
+			return 0, err
 		}
 		if e.WorkspaceID != c.remote || people[e.UserID] != l.person {
 			if err = t.issue(ctx, s, l.id, "ownership_changed"); err != nil {
-				return err
+				return 0, err
 			}
 			continue
 		}
 		state, err := togglRemote(e, projectMap)
 		issue := togglIssueFor(err)
 		if err != nil && issue == "" {
-			return err
+			return 0, err
 		}
 		_, err = s.pool.Exec(ctx, `UPDATE toggl_entries SET remote=$2,issue=CASE WHEN $3<>'' THEN $3 WHEN issue IN ('ownership_changed','missing_remote','project_unavailable') THEN '' ELSE issue END WHERE workspace_id=$W AND entry_id=$1`, l.id, stateJSON(state), issue)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 	if err = away.missing(ctx, client, seen, people, from, to); err != nil {
-		return err
+		return 0, err
 	}
 	if err = away.settle(ctx); err != nil {
-		return err
+		return 0, err
 	}
 	// Discover completed local entries only for explicitly matched people.
 	_, err = s.pool.Exec(ctx, `INSERT INTO toggl_entries(workspace_id,entry_id,person_id,baseline,remote)
@@ -385,22 +419,22 @@ func (t *Toggl) syncWindow(ctx context.Context, s *Service, c togglConfig, clien
     AND a.detail->>'remoteWorkspace'=$4)
   ON CONFLICT(workspace_id,entry_id) DO NOTHING`, from, stateJSON(togglState{Deleted: true}), to, fmt.Sprint(c.remote))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	links, err = togglLinks(ctx, s.pool)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	links, err = togglUnsettledLinks(ctx, s.pool, links)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	for _, l := range links {
 		if err = t.reconcile(ctx, s, c, client, l, people, projectMap); err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return len(entries), nil
 }
 
 // Compare local snapshots in one read rather than rereading and acknowledging

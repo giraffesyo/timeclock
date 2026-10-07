@@ -37,6 +37,7 @@ function toDraft(s: Settings): Draft {
     approveTimeOff: s.approveTimeOff,
     requireProject: s.requireProject,
     requireDescription: s.requireDescription,
+    allowPlannedTime: s.allowPlannedTime,
     overtime: String(s.overtimeWeeklyHours),
     longEntry: String(s.longEntryHours),
   };
@@ -75,6 +76,7 @@ export function PayrollSettings() {
     approveTimeOff: draft.approveTimeOff,
     requireProject: draft.requireProject,
     requireDescription: draft.requireDescription,
+    allowPlannedTime: draft.allowPlannedTime,
     longEntryHours: longEntry,
   };
   const valid =
@@ -97,6 +99,7 @@ export function PayrollSettings() {
     next.approveTimeOff !== settings.approveTimeOff ||
     next.requireProject !== settings.requireProject ||
     next.requireDescription !== settings.requireDescription ||
+    next.allowPlannedTime !== settings.allowPlannedTime ||
     next.longEntryHours !== settings.longEntryHours;
 
   // What the chosen cycle does, before it is saved.
@@ -238,6 +241,12 @@ export function PayrollSettings() {
               hint={draft.requireDescription ? t('entries.requireDescriptionOn') : t('entries.requireDescriptionOff')}
               value={draft.requireDescription}
               onChange={(v) => set('requireDescription', v)}
+            />
+            <SwitchRow
+              label={t('entries.allowPlannedTime')}
+              hint={draft.allowPlannedTime ? t('entries.allowPlannedTimeOn') : t('entries.allowPlannedTimeOff')}
+              value={draft.allowPlannedTime}
+              onChange={(v) => set('allowPlannedTime', v)}
             />
             <Field label={t('entries.longEntry')} hint={t('entries.longEntryHint')} className="sm:max-w-xs">
               <input

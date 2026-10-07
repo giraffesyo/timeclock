@@ -72,7 +72,10 @@
       "requireProjectOn": "People can start the timer without a project, but must choose one before stopping it or saving completed time.",
       "requireProjectOff": "Off: time can be recorded with no project, and shows as “No project” in reports.",
       "longEntry": "Long-entry limit (hours)",
-      "longEntryHint": "An entry or a running clock longer than this is flagged as an exception, usually a forgotten clock-out."
+      "longEntryHint": "An entry or a running clock longer than this is flagged as an exception, usually a forgotten clock-out.",
+      "allowPlannedTime": "Allow planned time",
+      "allowPlannedTimeOn": "People can add time ahead, up to a year out, such as a scheduled shift. It counts toward hours, overtime and payroll only as it passes, and a timesheet can’t be submitted while its period still has some.",
+      "allowPlannedTimeOff": "Off: time can be recorded up to now, not ahead."
     },
     "unsaved": "Unsaved changes.",
     "invalid": "A value is missing or out of range.",

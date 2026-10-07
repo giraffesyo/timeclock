@@ -23,5 +23,7 @@
   "locked": "In a submitted timesheet",
   "range": "{start} – {end}",
   "rangeRunning": "{start} – now",
-  "continue": "Start the clock on this again"
+  "continue": "Start the clock on this again",
+  "planned": "Planned",
+  "plannedHint": "Hasn’t happened yet. It counts toward hours and payroll once it passes."
 }

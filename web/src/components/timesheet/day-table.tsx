@@ -36,7 +36,7 @@ export function DayTable({
   const te = useTranslations('entry');
   const tc = useTranslations('common.columns');
   const format = useFormatter();
-  const { today } = useSession();
+  const { today, settings } = useSession();
   const zone = useZone(personId);
   const { period } = summary;
   const days = summary.days ?? [];
@@ -94,7 +94,8 @@ export function DayTable({
               const weekend = weekday === 0 || weekday === 6;
               const isOpen = open.has(d.day);
               const dayEntries = byDay.get(d.day) ?? [];
-              const future = d.day > today;
+              // Days ahead stay closed, unless the organization allows planned time.
+              const future = d.day > today && !settings.allowPlannedTime;
               const longDate = format.dateTime(date, { weekday: 'long', month: 'long', day: 'numeric' });
               const rowId = `day-${d.day}`;
               return (

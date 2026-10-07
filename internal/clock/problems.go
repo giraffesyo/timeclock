@@ -65,7 +65,13 @@ var (
 		Code:   "in_the_future",
 		Status: http.StatusUnprocessableEntity,
 		Title:  "Time in the future",
-		Doc:    "Worked time can't end in the future.",
+		Doc:    "Worked time can't end in the future, unless the organization allows planned time, and then no more than a year ahead. A running clock can't start in the future.",
+	})
+	ErrPlannedTime = Problems.Define(problem.Type{
+		Code:   "planned_time_in_period",
+		Status: http.StatusConflict,
+		Title:  "Time still planned",
+		Doc:    "A timesheet can't be submitted while its pay period has time that hasn't happened yet. Submit it once that time has passed, or remove it.",
 	})
 	ErrPeriodOpen = Problems.Define(problem.Type{
 		Code:   "clock_still_running",

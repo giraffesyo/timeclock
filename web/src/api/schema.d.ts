@@ -1357,6 +1357,8 @@ export interface components {
              * @example https://example.com/api/schemas/Settings.json
              */
             readonly $schema?: string;
+            /** @description Entries may be recorded ahead of time, up to a year out. Planned time counts toward hours, overtime and payroll only as it passes, and a timesheet can't be submitted while its period still has some. */
+            allowPlannedTime: boolean;
             /** @description Time off waits for the person's manager or an admin. */
             approveTimeOff: boolean;
             /** @description A submitted timesheet waits for the person's manager or an admin. */
