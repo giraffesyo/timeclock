@@ -25,6 +25,19 @@ const BREACHED = ['breached passphrase'];
 
 // --- Mail ---
 
+/** A header's RFC 2047 encoded words (=?utf-8?q?...?= or ?b?), as text. */
+const decodeWords = (value) =>
+  value.replace(/=\?([^?]+)\?([qQbB])\?([^?]*)\?=\s*/g, (_, charset, kind, text) =>
+    kind.toLowerCase() === 'b'
+      ? Buffer.from(text, 'base64').toString(charset)
+      : Buffer.from(
+          text
+            .replaceAll('_', ' ')
+            .replace(/=([0-9A-F]{2})/gi, (_m, hex) => String.fromCharCode(Number.parseInt(hex, 16))),
+          'latin1',
+        ).toString(charset),
+  );
+
 /** @type {{to: string, from: string, subject: string, text: string}[]} */
 const outbox = [];
 
@@ -46,7 +59,7 @@ createTcpServer((socket) => {
         buffer = buffer.slice(end + 5);
         data = null;
         const split = raw.indexOf('\r\n\r\n');
-        const subject = raw.slice(0, split).match(/^Subject: (.*)$/m)?.[1] ?? '';
+        const subject = decodeWords(raw.slice(0, split).match(/^Subject: (.*)$/m)?.[1] ?? '');
         outbox.push({ to: to.toLowerCase(), from, subject, text: raw.slice(split + 4).replaceAll('\r\n', '\n') });
         say('250 OK');
         continue;

@@ -19,6 +19,7 @@ import (
 
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/clock"
+	"github.com/giraffesyo/timeclock/internal/messages"
 )
 
 // Routes registers sign-in and account management under /auth.
@@ -571,10 +572,8 @@ func (a *Auth) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		link := strings.TrimRight(a.cfg.PublicURL, "/") + "/reset?token=" + token
 		if err := a.mailer.Send(ctx, host.Message{
 			To:      email,
-			Subject: "Reset your Timeclock password",
-			Text: "Someone asked to reset the password for this address.\n\n" +
-				"Choose a new one here:\n" + link + "\n\n" +
-				"The link works for an hour, once. If it wasn't you, ignore this: your password hasn't changed.\n",
+			Subject: messages.T("reset.subject", nil),
+			Text:    messages.T("reset.body", messages.Args{"link": link}),
 		}); err != nil {
 			a.cfg.Logger.ErrorContext(ctx, "timeclock: reset email not sent", "to", email, "error", err)
 		}

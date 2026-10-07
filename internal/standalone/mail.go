@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net"
 	"net/mail"
 	"net/smtp"
@@ -87,7 +88,8 @@ func (s SMTP) Send(ctx context.Context, m host.Message) error {
 	clean := strings.NewReplacer("\r", " ", "\n", " ")
 	msg := "From: " + from.String() + "\r\n" +
 		"To: " + to.String() + "\r\n" +
-		"Subject: " + clean.Replace(m.Subject) + "\r\n" +
+		// Encoded where it isn't plain ASCII (a curly apostrophe, a workspace's accented name).
+		"Subject: " + mime.QEncoding.Encode("utf-8", clean.Replace(m.Subject)) + "\r\n" +
 		"Date: " + time.Now().Format(time.RFC1123Z) + "\r\n" +
 		"MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" +
 		strings.ReplaceAll(strings.ReplaceAll(m.Text, "\r\n", "\n"), "\n", "\r\n") + "\r\n"

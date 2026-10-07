@@ -1,0 +1,21 @@
+{
+  "invite": {
+    "subject": "You’re invited to {workspace}",
+    "body": "You’ve been invited to track time in {workspace}.\n\nSet up your account here:\n{link}\n\nThe link works for 7 days. If you weren’t expecting this, you can ignore it.\n",
+    "defaultWorkspace": "Timeclock"
+  },
+  "reset": {
+    "subject": "Reset your Timeclock password",
+    "body": "Someone asked to reset the password for this address.\n\nChoose a new one here:\n{link}\n\nThe link works for an hour, once. If it wasn’t you, ignore this: your password hasn’t changed.\n"
+  },
+  "reminder": {
+    "clockRunning": {
+      "title": "Your clock is still running",
+      "body": "It has run for {hours} hours. Clock out, or fix the entry if you forgot."
+    },
+    "timesheetDue": {
+      "title": "Your timesheet is due",
+      "body": "Submit your time for {start} to {end}."
+    }
+  }
+}
