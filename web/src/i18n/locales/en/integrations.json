@@ -7,7 +7,7 @@
   "notAvailable": "Not available yet",
   "toggl": {
     "title": "Toggl Track",
-    "intro": "Try Timeclock alongside Toggl. An admin connects the workspace and matches people once; completed time entries then sync in both directions every 10 minutes.",
+    "intro": "Use Timeclock alongside Toggl. An admin connects the workspace and matches people once; completed time entries then sync in both directions every 10 minutes.",
     "unavailable": "Your server administrator needs to configure an integration secret key before connecting Toggl.",
     "workspace": "Toggl workspace",
     "matchedPeople": "People matched",

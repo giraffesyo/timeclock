@@ -1,4 +1,4 @@
-import { Avatar, ConfirmModal } from '@parallelworks/ui';
+import { ConfirmModal } from '@parallelworks/ui';
 import { CheckIcon, DownloadIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -8,8 +8,9 @@ import { Button, buttonClass } from '@/components/button';
 import { Hours } from '@/components/hours';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PeriodNav } from '@/components/period-nav';
+import { PersonIdentity } from '@/components/person-identity';
 import { Chip, SheetStatus } from '@/components/status';
-import { type PayrollRow, usePayroll } from '@/lib/queries';
+import { type PayrollRow, usePayroll, usePeople } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import type { Day } from '@/lib/time';
 import { ReportTable, rowLine, TimesheetLink, td, tdNum, textLink, th, thNum, useStickyPeriod } from './shared';
@@ -22,12 +23,15 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
   const tr = useTranslations('reports');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today, period: current, settings } = useSession();
+  const { today, period: current, settings, admin, manager } = useSession();
   const payroll = usePayroll(day);
+  // The people profile cards can name as managers.
+  const people = usePeople(admin || manager);
   const period = useStickyPeriod(payroll.data?.period ?? (day ? undefined : current));
   const [confirming, setConfirming] = useState(false);
 
   const rows = payroll.data?.rows ?? [];
+  const directory = [...(people.data ?? []), ...rows.map((r) => r.person)];
   const waiting = rows.filter((r) => !r.ready);
   const ready = rows.length - waiting.length;
   const noId = rows.filter((r) => !r.person.payrollId);
@@ -122,7 +126,8 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
           </Panel>
 
           <Panel flush>
-            <ReportTable>
+            {/* Ten columns: a little less padding keeps them on a laptop screen without scrolling. */}
+            <ReportTable className="[&_td]:px-3 [&_th]:px-3">
               <thead>
                 <tr>
                   <th scope="col" className={th}>
@@ -159,21 +164,13 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.person.id} className={rowLine}>
-                    <th scope="row" className={`${td} text-left font-normal`}>
-                      <span className="flex items-center gap-2">
-                        <Avatar src={r.person.avatarUrl} name={r.person.name} size="sm" className="shrink-0" />
-                        <TimesheetLink
-                          person={r.person.id}
-                          day={r.period.start}
-                          label={tr('openTimesheetFor', { name: r.person.name })}
-                          className="font-medium whitespace-nowrap hover:underline"
-                        >
-                          {r.person.name}
-                        </TimesheetLink>
-                      </span>
+                  // Centered: the name's profile button is taller than a line of text.
+                  <tr key={r.person.id} className={`${rowLine} [&>*]:align-middle`}>
+                    {/* A floor, so a name can wrap but the column never collapses to a letter. */}
+                    <th scope="row" className={`${td} min-w-44 text-left font-normal`}>
+                      <PersonIdentity person={r.person} people={directory} />
                       {(r.running || r.pendingTimeOff > 0) && (
-                        <div className="mt-0.5 space-x-2 text-xs whitespace-nowrap text-muted-foreground">
+                        <div className="mt-0.5 flex flex-wrap gap-x-2 pl-8 text-xs text-muted-foreground">
                           {r.running && <span>{t('clockRunning')}</span>}
                           {r.pendingTimeOff > 0 && (
                             <span>{t('pendingTimeOff', { hours: format.number(r.pendingTimeOff) })}</span>
@@ -210,7 +207,15 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                       <Hours value={total(r)} strong />
                     </td>
                     <td className={td}>
-                      <SheetStatus timesheet={r.timesheet} reportsOnly={!r.person.submitsTimesheets} />
+                      {/* The name opens the profile; the sheet is reached from its status. */}
+                      <TimesheetLink
+                        person={r.person.id}
+                        day={r.period.start}
+                        label={tr('openTimesheetFor', { name: r.person.name })}
+                        className="inline-flex rounded-full outline-offset-2 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-primary"
+                      >
+                        <SheetStatus timesheet={r.timesheet} reportsOnly={!r.person.submitsTimesheets} />
+                      </TimesheetLink>
                     </td>
                     <td className={td}>
                       {r.ready ? (
