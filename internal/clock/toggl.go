@@ -120,11 +120,13 @@ type TogglTimeOff struct {
 type togglConfig struct {
 	history         *time.Time
 	historyComplete bool
-	remote          int64
-	token           []byte
-	from            time.Time
-	next            time.Time
-	roles           []togglRole
+	// historyDays is how many days the sweep asks Toggl for at a time.
+	historyDays int
+	remote      int64
+	token       []byte
+	from        time.Time
+	next        time.Time
+	roles       []togglRole
 }
 
 // togglRole is a project whose entries are not work, from the day it was chosen.
@@ -151,9 +153,9 @@ func (t *Toggl) config(ctx context.Context, s *Service) (togglConfig, error) {
 	var c togglConfig
 	var projects [3]*int64
 	var froms [3]*time.Time
-	err := s.pool.QueryRow(ctx, `SELECT remote_id, token, sync_from, next_sync, history_cursor, history_complete,
+	err := s.pool.QueryRow(ctx, `SELECT remote_id, token, sync_from, next_sync, history_cursor, history_complete, history_days,
     holiday_project, holiday_from, vacation_project, vacation_from, sick_project, sick_from FROM toggl_workspaces WHERE workspace_id=$W`).Scan(
-		&c.remote, &c.token, &c.from, &c.next, &c.history, &c.historyComplete,
+		&c.remote, &c.token, &c.from, &c.next, &c.history, &c.historyComplete, &c.historyDays,
 		&projects[0], &froms[0], &projects[1], &froms[1], &projects[2], &froms[2])
 	for i, kind := range []string{"holiday", Vacation, Sick} {
 		if projects[i] != nil && froms[i] != nil {
