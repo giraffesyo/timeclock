@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.18.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.17.0...timeclock-v0.18.0) (2026-10-07)
+
+
+### Features
+
+* explain badges on hover and focus ([#81](https://github.com/giraffesyo/timeclock/issues/81)) ([98e2923](https://github.com/giraffesyo/timeclock/commit/98e29239c4ec9fa60fb05dfe7e0e6f68a8e22e14))
+* give admins a Manage group in the sidebar ([#77](https://github.com/giraffesyo/timeclock/issues/77)) ([dfa1845](https://github.com/giraffesyo/timeclock/commit/dfa1845c4bc45eb15d2794a52b34ea03adba3d93))
+* keep the server's emails and reminders in a string catalog ([#87](https://github.com/giraffesyo/timeclock/issues/87)) ([46c36af](https://github.com/giraffesyo/timeclock/commit/46c36afede84db17a14c722d049951ef392f77ca))
+* let an organization allow planned time ([#82](https://github.com/giraffesyo/timeclock/issues/82)) ([0a4b8a0](https://github.com/giraffesyo/timeclock/commit/0a4b8a0d191f84efa515672fd20aef58d9c01852))
+* open people's profiles from Payroll and Exceptions, and fit the payroll table ([#80](https://github.com/giraffesyo/timeclock/issues/80)) ([7d78c80](https://github.com/giraffesyo/timeclock/commit/7d78c8058eb6e758b5d37b7fccafdb28eccb7b7f))
+* search time zones by city, region or offset ([#75](https://github.com/giraffesyo/timeclock/issues/75)) ([397866c](https://github.com/giraffesyo/timeclock/commit/397866cdc38a8eef7dec361c9eba6fbc2ef2268f))
+* tidy the Overview: hover a project, fill the chart, show only running clocks ([#78](https://github.com/giraffesyo/timeclock/issues/78)) ([ad484ef](https://github.com/giraffesyo/timeclock/commit/ad484ef1d86a555aa3715f00aeca1d8774f8f51c))
+
+
+### Bug Fixes
+
+* import Toggl entries without a description or project ([#85](https://github.com/giraffesyo/timeclock/issues/85)) ([293a051](https://github.com/giraffesyo/timeclock/commit/293a051960ce86ba1e06b4db3670dcee8c29dea6))
+* keep the Toggl history window that works between runs ([#83](https://github.com/giraffesyo/timeclock/issues/83)) ([ebeef64](https://github.com/giraffesyo/timeclock/commit/ebeef64bd4947b1244bd1e98b1cde4f212819ec3))
+* let Sync now retry Toggl after any error but its rate limit ([#79](https://github.com/giraffesyo/timeclock/issues/79)) ([f4b26cb](https://github.com/giraffesyo/timeclock/commit/f4b26cb333db18a541d757b7ff67f3483856298a))
+* number the planned time migration 00021 ([#86](https://github.com/giraffesyo/timeclock/issues/86)) ([04ad1fe](https://github.com/giraffesyo/timeclock/commit/04ad1fe44642212f6ca93c6bfae736a5b696ed13))
+
 ## [0.17.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.16.0...timeclock-v0.17.0) (2026-10-06)
 
 
