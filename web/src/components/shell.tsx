@@ -241,7 +241,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
           <UserMenu mobile />
         </div>
-        <nav aria-label={t('nav.label')} className="flex gap-1 overflow-x-auto px-3 pb-2">
+        <nav aria-label={t('nav.label')} className="flex gap-1 overflow-x-auto overflow-y-hidden px-3 pb-2">
           {links.map((l) => link(l, 'shrink-0'))}
           {info.homeUrl && (
             <a href={info.homeUrl} className={`${item} shrink-0`}>

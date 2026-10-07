@@ -90,7 +90,7 @@ export function WeekCalendar({
   return (
     <div className="wk">
       {/* The days: on a wide screen the heads of the columns, on a narrow one the way to pick a day. */}
-      <div className={cn('grid shrink-0 border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
+      <div className={cn('wk-head grid shrink-0 border-b border-border', wide ? 'wk-grid' : 'grid-cols-7')}>
         {wide && <span />}
         {days.map((d) => {
           const date = dayToDate(d.day);

@@ -28,6 +28,13 @@ test('the payroll table fits a desktop window without scrolling sideways', async
     const scroller = page.locator('table').last().locator('..');
     await expect(scroller.getByText(LONG[1]).first()).toBeVisible();
     expect(await scroller.evaluate((el) => el.scrollWidth - el.clientWidth), `at ${width}px`).toBe(0);
+    // The tabs' underline must not make the tab bar scroll up and down.
+    const tabs = page.getByRole('navigation', { name: 'Reports' });
+    expect(
+      await tabs.evaluate((el) => el.scrollHeight <= el.clientHeight || getComputedStyle(el).overflowY === 'hidden'),
+      `tabs at ${width}px`,
+    ).toBe(true);
+    if (width === 1440) await page.screenshot({ path: '/tmp/timeclock-reports-tabs.png' });
     // A name sits on the same line as the rest of its row.
     // A row with no note under the name ("Clock running"), which would sit the name above center.
     const row = page

@@ -669,6 +669,14 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;
+    scrollbar-gutter: stable;
+  }
+  /* The day heads leave the same room as the hours' scrollbar, so where
+   * scrollbars take space the columns still line up. */
+  .wk-head {
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
   }
   @media (min-width: 48rem) {
     .wk-scroll {
