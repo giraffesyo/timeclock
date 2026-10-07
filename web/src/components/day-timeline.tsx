@@ -22,6 +22,9 @@ import { type Entry, useAdjustEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
 import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
+
+/** What a click or tap on empty time offers. */
+const CLICKED = 15 * MINUTE;
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
@@ -252,8 +255,8 @@ export function DayTimeline({
     if (ms > cap + SNAP || cap - bounds.start < SNAP) return;
     const anchor = clamp(snap(ms), bounds.start, cap);
     if (e.pointerType === 'touch') {
-      // A touch scrolls the page; a tap adds an hour here.
-      const end = Math.min(anchor + HOUR, cap);
+      // A touch scrolls the page; a tap adds a quarter hour here.
+      const end = Math.min(anchor + CLICKED, cap);
       if (end - anchor >= SNAP) touchTap.current = { start: anchor, end, x: e.clientX, y: e.clientY };
       return;
     }
@@ -370,8 +373,8 @@ export function DayTimeline({
     setDrag(null);
     onMovePreview?.(null);
     if (drag.kind === 'create') {
-      // A click without a drag offers the hour from there.
-      const end = drag.moved ? drag.end : Math.min(drag.start + HOUR, drag.hi);
+      // A click without a drag offers a quarter hour from there.
+      const end = drag.moved ? drag.end : Math.min(drag.start + CLICKED, drag.hi);
       if (end - drag.start >= SNAP) pendingNew.current = { start: drag.start, end };
       return;
     }

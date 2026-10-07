@@ -114,7 +114,7 @@ test('dragging an empty stretch adds time there', async ({ me }) => {
   expect(instant(entries[0].startedAt)).toBe(instant(week.at(2, '09:00')));
 });
 
-test('a click on empty space offers the hour from there, and stays open', async ({ me }) => {
+test('a click on empty space offers a quarter hour from there, and stays open', async ({ me }) => {
   const { page } = me;
   const week = lastWeek();
   await page.goto(`/?day=${week.day(2)}`);
@@ -124,7 +124,7 @@ test('a click on empty space offers the hour from there, and stays open', async 
   await page.mouse.click(p.x, p.y);
   const add = dialog(page, 'Add time');
   await expect(add.locator('input[type=time]').first()).toHaveValue('14:00');
-  await expect(add.locator('input[type=time]').last()).toHaveValue('15:00');
+  await expect(add.locator('input[type=time]').last()).toHaveValue('14:15');
   // The click that ended the press isn't one outside the popover.
   await page.waitForTimeout(200);
   await expect(add).toBeVisible();
