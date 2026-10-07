@@ -78,4 +78,15 @@ export function covered(spans: Span[]): number {
   return total;
 }
 
+/**
+ * Time worked up to now, and what lies ahead of it: planned time, which
+ * counts once it passes. Overlaps count once, as in covered.
+ */
+export function workedAndPlanned(spans: Span[], now: number): { worked: number; planned: number } {
+  return {
+    worked: covered(spans.filter((s) => s.start < now).map((s) => ({ start: s.start, end: Math.min(s.end, now) }))),
+    planned: covered(spans.filter((s) => s.end > now).map((s) => ({ start: Math.max(s.start, now), end: s.end }))),
+  };
+}
+
 export { projectHue } from '@giraffesyo/timeclock';

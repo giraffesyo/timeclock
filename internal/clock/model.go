@@ -20,6 +20,7 @@ type Settings struct {
 	RequireDescription  bool     `json:"requireDescription" doc:"Every time entry has a description."`
 	RequireProject      bool     `json:"requireProject" doc:"Every time entry names a project."`
 	LongEntryHours      float64  `json:"longEntryHours" exclusiveMinimum:"0" maximum:"24" doc:"An entry or a running clock longer than this is an exception."`
+	AllowPlannedTime    bool     `json:"allowPlannedTime" doc:"Entries may be recorded ahead of time, up to a year out. Planned time counts toward hours, overtime and payroll only as it passes, and a timesheet can't be submitted while its period still has some."`
 }
 
 // Location is the settings' time zone.

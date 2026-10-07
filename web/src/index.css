@@ -394,6 +394,16 @@
     border-start-start-radius: 0;
     border-start-end-radius: 0;
   }
+  /* Planned: ahead of now, so it hasn't counted yet. Lighter, and outlined in its hue. */
+  .tl-planned {
+    background-color: color-mix(in oklab, oklch(0.92 calc(0.065 * var(--k)) var(--hue)) 45%, transparent);
+    outline: 1.5px dashed oklch(0.62 calc(0.12 * var(--k)) var(--hue));
+    outline-offset: -1.5px;
+  }
+  .dark .tl-planned {
+    background-color: color-mix(in oklab, oklch(0.36 calc(0.085 * var(--k)) var(--hue)) 40%, transparent);
+    outline-color: oklch(0.62 calc(0.1 * var(--k)) var(--hue));
+  }
   .tl-locked {
     background-image: repeating-linear-gradient(
       135deg,

@@ -80,6 +80,7 @@ function TimesheetPage() {
           <PeriodNav
             period={period}
             today={me.today}
+            ahead={me.settings.allowPlannedTime}
             onChange={(day) => navigate({ search: (prev) => ({ ...prev, day }), replace: true })}
           />
         )

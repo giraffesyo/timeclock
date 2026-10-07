@@ -43,7 +43,8 @@ func (s *Service) Activity(ctx context.Context, actor Actor) ([]Activity, error)
 	for _, e := range entries {
 		end := now
 		if e.EndedAt != nil {
-			end = *e.EndedAt
+			// Planned time counts only as it passes.
+			end = minTime(*e.EndedAt, now)
 		} else {
 			running[e.PersonID] = &e
 		}
@@ -93,9 +94,10 @@ func (s *Service) HoursByDayAndProject(ctx context.Context, actor Actor, from, t
 	}
 	now := s.now()
 	// Wide enough for every time zone; each person's own midnights cut it below.
-	rows, err := s.pool.Query(ctx, `SELECT coalesce(e.project_id::text, ''), pe.timezone, e.started_at, coalesce(e.ended_at, $3)
+	// Planned time counts only as it passes: entries are cut off at now.
+	rows, err := s.pool.Query(ctx, `SELECT coalesce(e.project_id::text, ''), pe.timezone, e.started_at, least(coalesce(e.ended_at, $3), $3)
 		FROM time_entries e JOIN people pe ON pe.id = e.person_id AND pe.workspace_id = e.workspace_id
-		WHERE e.workspace_id = $W AND e.started_at < $2 AND coalesce(e.ended_at, $3) > $1
+		WHERE e.workspace_id = $W AND e.started_at < least($2, $3) AND coalesce(e.ended_at, $3) > $1
 		AND (pe.id = $5 OR (NOT $6 AND ($4 OR (CASE WHEN pe.manager_id <> '' THEN pe.manager_id ELSE pe.host_manager_id END) = $5)))`,
 		from.AddDays(-1).Time(), to.AddDays(2).Time(), now, actor.Admin, actor.ID, mine)
 	if err != nil {

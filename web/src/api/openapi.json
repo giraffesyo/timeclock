@@ -1601,6 +1601,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "allowPlannedTime": {
+            "description": "Entries may be recorded ahead of time, up to a year out. Planned time counts toward hours, overtime and payroll only as it passes, and a timesheet can't be submitted while its period still has some.",
+            "type": "boolean"
+          },
           "approveTimeOff": {
             "description": "Time off waits for the person's manager or an admin.",
             "type": "boolean"
@@ -1680,7 +1684,8 @@
           "approveTimeOff",
           "requireDescription",
           "requireProject",
-          "longEntryHours"
+          "longEntryHours",
+          "allowPlannedTime"
         ],
         "type": "object"
       },

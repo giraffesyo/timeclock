@@ -44,8 +44,9 @@ func periodFor(ctx context.Context, q querier, cfg Settings, personID string, d 
 	return Period{Start: DateFromTime(start), End: DateFromTime(end)}, nil
 }
 
-// summarize adds up a person's pay period.
-func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Period) (PeriodSummary, error) {
+// summarize adds up a person's pay period as of now. Planned time counts only
+// as it passes: an entry still ahead adds nothing, one under way counts to now.
+func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Period, now time.Time) (PeriodSummary, error) {
 	loc := cfg.LocationOf(p)
 	rule := cfg.Overtime(p.OvertimeExempt)
 	out := PeriodSummary{Person: p, Period: period}
@@ -67,7 +68,10 @@ func summarize(ctx context.Context, q querier, cfg Settings, p Person, period Pe
 			out.Running = true
 			return nil
 		}
-		spans = append(spans, Span{Start: start, End: *end})
+		if !start.Before(now) {
+			return nil
+		}
+		spans = append(spans, Span{Start: start, End: minTime(*end, now)})
 		return nil
 	}); err != nil {
 		return out, fmt.Errorf("read entries: %w", err)
@@ -151,7 +155,7 @@ func (s *Service) Summary(ctx context.Context, actor Actor, personID string, day
 	if err != nil {
 		return PeriodSummary{}, err
 	}
-	return summarize(ctx, s.pool, cfg, p, period)
+	return summarize(ctx, s.pool, cfg, p, period, s.now())
 }
 
 // Team returns the pay period containing day for everyone whose time actor
@@ -174,7 +178,7 @@ func (s *Service) Team(ctx context.Context, actor Actor, day Date) ([]PeriodSumm
 		if err != nil {
 			return nil, err
 		}
-		sum, err := summarize(ctx, s.pool, cfg, p, period)
+		sum, err := summarize(ctx, s.pool, cfg, p, period, s.now())
 		if err != nil {
 			return nil, err
 		}
@@ -220,6 +224,16 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 		if running {
 			return ErrPeriodOpen.New("")
 		}
+		// Planned time hasn't been worked yet: the period isn't done.
+		var planned bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM time_entries WHERE workspace_id = $W AND person_id = $1
+			AND ended_at > $3 AND started_at < $2)`,
+			p.ID, period.End.AddDays(1).In(cfg.LocationOf(p)), s.now()).Scan(&planned); err != nil {
+			return fmt.Errorf("check planned time: %w", err)
+		}
+		if planned {
+			return ErrPlannedTime.New("")
+		}
 		status, decidedAt := StatusSubmitted, (*time.Time)(nil)
 		if !cfg.ApproveTimesheets {
 			now := s.now()
@@ -240,7 +254,7 @@ func (s *Service) Submit(ctx context.Context, actor Actor, personID string, day 
 		if err := audit(ctx, tx, actor, "timesheet.submit", p.ID, ts); err != nil {
 			return err
 		}
-		out, err = summarize(ctx, tx, cfg, p, period)
+		out, err = summarize(ctx, tx, cfg, p, period, s.now())
 		return err
 	})
 	return out, err
