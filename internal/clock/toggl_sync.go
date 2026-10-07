@@ -671,16 +671,11 @@ func (t *Toggl) reconcile(ctx context.Context, s *Service, c togglConfig, client
 					validation = err
 					return nil
 				}
-				if err = checkDescription(cfg, l.remote.Note); err != nil {
-					validation = err
-					return nil
-				}
+				// Imported time keeps what Toggl recorded: the workspace's
+				// description and project requirements apply to time entered
+				// here, not to history people already logged elsewhere.
 				if len([]rune(l.remote.Note)) > 2000 {
 					validation = invalidField("note", "description is too long")
-					return nil
-				}
-				if cfg.RequireProject && l.remote.ProjectID == nil {
-					validation = ErrProjectRequired.New("")
 					return nil
 				}
 				_, err = q.Exec(ctx, `INSERT INTO time_entries(id,workspace_id,person_id,project_id,started_at,ended_at,note,source,created_by)
