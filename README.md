@@ -64,6 +64,17 @@ Timeclock keeps its tables, and [hopper](https://github.com/parallelworks/hopper
 
 It is built on [foundation](https://github.com/parallelworks/foundation): errors are RFC 9457 problems with stable codes (`/problems/timeclock/<code>`), the handler sets security headers and a strict CSP, and refuses cross-site writes.
 
+### Google Calendar
+
+Set `Options.GoogleCalendar` and each person's week shows the events on their primary Google Calendar in a strip beside their time. An event opens to add its time as an entry, start the clock on it, or open it in Google Calendar. All-day events, cancelled ones and those the person declined are left out. Events are read when a week is shown, with the person's own credentials, and never stored. A manager or admin opening someone else's week sees none of their calendar.
+
+The option returns credentials for a person, allowed `timeclock.GoogleCalendarScope` (`calendar.events.readonly`), or `ok` false when there are none:
+
+- **Everyone in a Google Workspace.** A service account with [domain-wide delegation](https://support.google.com/a/answer/162106): a Workspace super admin allows its client ID the scope, and the host acts as each person by their email. `examples/host` reads its JSON key from `EXAMPLE_GOOGLE_KEY`; on Google Cloud, the IAM Credentials API can sign the delegated token without a key file.
+- **People who granted it.** A host whose Google sign-in also asks for the scope, with offline access, keeps each person's refresh token and returns a source for it.
+
+It is called whenever a week is read, so reuse token sources rather than minting a token per call.
+
 ### The clock in the host's own pages
 
 [`@giraffesyo/timeclock`](web/packages/timeclock) is the clock bar as an npm package, for the host's own header: a ready-made `ClockBar`, a headless `useClock()` hook, and a store with no React. Timeclock's own bar is that package.
@@ -166,7 +177,7 @@ All history is selected by default, including completed entries on archived proj
 - Partial reports and API limits stop that attempt. Backoff is saved in the database, including `Retry-After`; **Sync now** cannot bypass it. Sync resumes from durable entry mappings. If an external create may have succeeded before a network or database failure, the bridge asks the admin to link the created entry or confirm that it is absent before retrying.
 - **Disconnect** waits for the active workspace sync, then deletes credentials, person/project/entry mappings, staged report pages and sync state. Imported time, customers, projects and the audit history stay in Timeclock; no data is deleted in Toggl. Reconnecting requires a token and person matching again. The retained audit history restores entry identity and the last shared version for the same Toggl workspace and people, avoiding duplicates and detecting offline conflicts or deletions. Previously imported users must be matched to their original Timeclock people.
 
-The integration uses Toggl's [Track API](https://engineering.toggl.com/docs/track/api/time_entries/), [detailed Reports API](https://engineering.toggl.com/docs/track/reports/detailed_reports/), and [workspace membership API](https://engineering.toggl.com/docs/track/api/workspaces/). Google Calendar and Gusto have reserved rows on the Integrations page but are not connected services yet.
+The integration uses Toggl's [Track API](https://engineering.toggl.com/docs/track/api/time_entries/), [detailed Reports API](https://engineering.toggl.com/docs/track/reports/detailed_reports/), and [workspace membership API](https://engineering.toggl.com/docs/track/api/workspaces/). Gusto has a reserved row on the Integrations page but is not a connected service yet.
 
 The regular browser suite uses a local fake Toggl service, synthetic tokens, the real API/database, and the Hopper worker. `make e2e ARGS="e2e/integrations.spec.ts --project=chromium"` covers history pagination, edits, disconnect, reconnect and conflict resolution without any Toggl account. The `e2e` build tag redirects Toggl requests to localhost and refuses real Toggl traffic; production builds have no override.
 

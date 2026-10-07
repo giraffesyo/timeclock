@@ -22,10 +22,11 @@ build-server: build-web
 build-host: build-web
 	go build -o example-host ./examples/host
 
-# Build the test server directly, without first linking a production server
-# that would immediately be overwritten. The host keeps its production tags.
-build-e2e: build-web build-host cli
+# Build the test servers directly, without first linking production ones that
+# would immediately be overwritten.
+build-e2e: build-web cli
 	go build -tags=e2e -o timeclock-server ./cmd/timeclock-server
+	go build -tags=e2e -o example-host ./examples/host
 
 # The CLI needs neither PostgreSQL nor the web build.
 CLI_VERSION ?= dev

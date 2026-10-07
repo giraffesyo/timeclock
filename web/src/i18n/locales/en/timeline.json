@@ -18,5 +18,13 @@
   "dayTotal": "{date}: {length}",
   "dayTotalPlanned": "{date}: {length}, and {planned} planned",
   "planned": "+{length} planned",
-  "plannedBlock": "Planned: {block}"
+  "plannedBlock": "Planned: {block}",
+  "event": "{title}, {range}, on your calendar",
+  "untitled": "(No title)",
+  "eventTitle": "Calendar event",
+  "eventSource": "{calendar} (Google Calendar)",
+  "eventAdd": "Add as time",
+  "eventStart": "Start the clock on this",
+  "eventOpen": "Open in Google Calendar",
+  "eventClose": "Close event"
 }

@@ -2,7 +2,7 @@ import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { DayTimeline, type MovePreview } from '@/components/day-timeline';
 import { cn } from '@/lib/cn';
-import type { Entry } from '@/lib/queries';
+import { type Entry, useCalendarEvents } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayToDate, hoursMinutes } from '@/lib/time';
 import { covered, dayBounds, HOUR, type Span } from '@/lib/timeline';
@@ -13,7 +13,8 @@ import { useZone } from '@/lib/zone';
 /**
  * A workweek as seven day rulers side by side over the same hours, each with
  * its total. On a narrow screen one day shows at a time, picked from the
- * week's days above it.
+ * week's days above it. Where the host reads the caller's Google Calendar,
+ * their own week has its events beside the time, to add from.
  */
 export function WeekCalendar({
   week,
@@ -32,7 +33,7 @@ export function WeekCalendar({
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today, settings } = useSession();
+  const { today, settings, info } = useSession();
   const planning = settings.allowPlannedTime;
   const zone = useZone(personId);
   const wide = useMedia('(min-width: 48rem)');
@@ -42,6 +43,8 @@ export function WeekCalendar({
   const positioned = useRef('');
   const hasToday = week.includes(today);
   const now = useNow(30_000, hasToday);
+  const calendar = useCalendarEvents(week[0] ?? today, week[6] ?? today, !!info.calendar && !personId);
+  const events = calendar.data?.connected ? (calendar.data.events ?? []) : undefined;
 
   const days = week.map((day) => {
     const bounds = dayBounds(day, zone);
@@ -183,6 +186,10 @@ export function WeekCalendar({
                 movePreview={movePreview?.day === d.day ? movePreview : null}
                 onMovePreview={setMovePreview}
                 personId={personId}
+                events={events?.filter(
+                  (e) => Date.parse(e.startedAt) < d.bounds.end && Date.parse(e.endedAt) > d.bounds.start,
+                )}
+                calendar={calendar.data?.calendar}
               />
             </div>
           ))}

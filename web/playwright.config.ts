@@ -159,6 +159,7 @@ export default defineConfig({
         PORT: String(hostPort),
         EXAMPLE_DATABASE_URL: database,
         EXAMPLE_SCHEMA: `e2e_host_${Date.now()}`,
+        E2E_SERVICES_URL: SERVICES_URL,
       },
     },
   ],

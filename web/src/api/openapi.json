@@ -62,6 +62,74 @@
         ],
         "type": "object"
       },
+      "CalendarBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/CalendarBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "calendar": {
+            "description": "The calendar's name, normally its owner's email address.",
+            "type": "string"
+          },
+          "connected": {
+            "description": "Whether the caller has a calendar to read; false lists no events.",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarEvent"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "connected",
+          "events"
+        ],
+        "type": "object"
+      },
+      "CalendarEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "link": {
+            "description": "Opens the event in Google Calendar.",
+            "format": "uri",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "description": "Empty for an event without one.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "startedAt",
+          "endedAt"
+        ],
+        "type": "object"
+      },
       "Clock-inRequest": {
         "additionalProperties": false,
         "properties": {
@@ -620,6 +688,9 @@
           "apiKeysUrl": {
             "format": "uri",
             "type": "string"
+          },
+          "calendar": {
+            "type": "boolean"
           },
           "homeLabel": {
             "type": "string"
@@ -2527,6 +2598,59 @@
         "summary": "Recent changes to payroll data",
         "tags": [
           "Reports"
+        ]
+      }
+    },
+    "/api/v1/calendar/events": {
+      "get": {
+        "operationId": "list-calendar-events",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The caller's Google Calendar events on a range of days",
+        "tags": [
+          "Entries"
         ]
       }
     },

@@ -14,11 +14,12 @@ import {
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
+import { CalendarEventPopover } from '@/components/calendar-event';
 import { EntryDialog } from '@/components/entry-dialog';
 import { useProjectName } from '@/components/project-select';
 import { cn } from '@/lib/cn';
 import { morph } from '@/lib/morph';
-import { type Entry, useAdjustEntry } from '@/lib/queries';
+import { type CalendarEvent, type Entry, useAdjustEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
 import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
@@ -70,7 +71,8 @@ const DRAG_DISTANCE = 8;
  *
  * On its own the ruler runs left to right on a wide screen and top to bottom
  * on a narrow one. As a column of a week (`hours` given) it runs top to
- * bottom over hours its parent chose and labels.
+ * bottom over hours its parent chose and labels, and can keep a strip on its
+ * right for the caller's calendar: each event there opens to add its time.
  */
 export function DayTimeline({
   day,
@@ -80,6 +82,8 @@ export function DayTimeline({
   hours: shared,
   movePreview,
   onMovePreview,
+  events,
+  calendar,
 }: {
   day: Day;
   /** The entries that touch the day. */
@@ -92,6 +96,10 @@ export function DayTimeline({
   hours?: { from: number; to: number };
   movePreview?: MovePreview | null;
   onMovePreview?: (preview: MovePreview | null) => void;
+  /** The calendar events that touch the day, in a strip beside the time; absent keeps no strip. */
+  events?: CalendarEvent[];
+  /** Their calendar's name. */
+  calendar?: string;
 }) {
   const t = useTranslations('timeline');
   const tc = useTranslations('common');
@@ -126,6 +134,8 @@ export function DayTimeline({
   const [editing, setEditing] = useState<Entry | null>(null);
   const [adding, setAdding] = useState<Span | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [addNote, setAddNote] = useState('');
+  const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null);
 
   const isToday = day === today;
   const now = useNow(15_000, isToday);
@@ -153,6 +163,15 @@ export function DayTimeline({
     .filter((b) => b.end > b.start)
     .sort((a, b) => a.start - b.start);
   const side = lanes(blocks);
+  const suggestions = (column ? (events ?? []) : [])
+    .map((event) => ({
+      event,
+      start: Math.max(Date.parse(event.startedAt), bounds.start),
+      end: Math.min(Date.parse(event.endedAt), bounds.end),
+    }))
+    .filter((s) => s.end > s.start)
+    .sort((a, b) => a.start - b.start);
+  const eventSide = lanes(suggestions);
 
   const win = shared
     ? { start: bounds.start + shared.from * HOUR, end: Math.min(bounds.end, bounds.start + shared.to * HOUR) }
@@ -211,6 +230,7 @@ export function DayTimeline({
 
   const blockEl = (id: string) => root.current?.querySelector<HTMLElement>(`[data-entry="${id}"]`) ?? null;
   const draftEl = () => root.current?.querySelector<HTMLElement>('[data-draft]') ?? null;
+  const eventEl = (id: string) => root.current?.querySelector<HTMLElement>(`[data-event="${CSS.escape(id)}"]`) ?? null;
   const openEntry = (entry: Entry) => setEditing(entry);
   const activateEntry = (e: MouseEvent, entry: Entry) => {
     e.stopPropagation();
@@ -219,12 +239,13 @@ export function DayTimeline({
     if (e.detail > 0 && suppressClick.current) return;
     openEntry(entry);
   };
-  const openNew = (s: Span) => {
+  const openNew = (s: Span, note = '') => {
     // The stretch is drawn first, so the editor can open beside it on the
     // calendar, or the dialog out of it on a narrow day.
     flushSync(() => {
       setDrag(null);
       setAdding(s);
+      setAddNote(note);
     });
     if (column) setAddOpen(true);
     else morph(() => setAddOpen(true), draftEl);
@@ -233,6 +254,11 @@ export function DayTimeline({
     setAddOpen(false);
     setAdding(null);
   };
+  // An event's time on this day, up to now unless time can be planned.
+  const eventSpan = (event: CalendarEvent): Span => ({
+    start: Math.max(Date.parse(event.startedAt), bounds.start),
+    end: Math.min(Date.parse(event.endedAt), bounds.end, cap),
+  });
 
   // --- Pointer ---
 
@@ -426,6 +452,7 @@ export function DayTimeline({
         'tl',
         across && 'tl-across',
         column && 'tl-column',
+        column && events && 'tl-aside',
         drag && 'tl-dragging',
         drag && (drag.kind === 'move' ? 'cursor-grabbing' : 'tl-resizing'),
       )}
@@ -598,6 +625,36 @@ export function DayTimeline({
             </div>
           )}
 
+          {suggestions.map((s, i) => {
+            const title = s.event.title || t('untitled');
+            return (
+              <button
+                key={s.event.id}
+                type="button"
+                data-event={s.event.id}
+                className={cn('tl-event', openEvent?.id === s.event.id && 'tl-event-open')}
+                style={
+                  {
+                    ...place(s),
+                    '--lane': eventSide[i]?.lane ?? 0,
+                    '--lanes': eventSide[i]?.of ?? 1,
+                  } as CSSProperties
+                }
+                aria-label={t('event', { title, range: range(s) })}
+                data-tooltip-id={!drag && !openEvent ? TOOLTIP_ID : undefined}
+                data-tooltip-content={`${title} · ${range(s)}`}
+                // The press is the event's: the track under it must not take it for a new stretch.
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenEvent(s.event);
+                }}
+              >
+                <span className="tl-event-title">{title}</span>
+              </button>
+            );
+          })}
+
           {draft && (
             <div data-draft className="tl-pos tl-draft" style={place(draft)} aria-hidden>
               <span className="tl-body">
@@ -664,8 +721,27 @@ export function DayTimeline({
         personId={personId}
         start={adding ? timeInput(iso(adding.start), zone) : undefined}
         end={adding ? timeInput(iso(adding.end), zone) : undefined}
+        note={addNote}
         anchor={column && addOpen ? draftEl() : undefined}
       />
+      {openEvent && eventEl(openEvent.id) && (
+        <CalendarEventPopover
+          event={openEvent}
+          calendar={calendar}
+          zone={zone}
+          anchor={eventEl(openEvent.id) as HTMLElement}
+          onClose={() => setOpenEvent(null)}
+          onAdd={
+            editable && !adding && eventSpan(openEvent).end - eventSpan(openEvent).start >= MINUTE
+              ? () => {
+                  const s = eventSpan(openEvent);
+                  setOpenEvent(null);
+                  openNew(s, openEvent.title);
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

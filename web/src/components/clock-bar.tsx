@@ -75,15 +75,15 @@ export function ClockBar() {
 }
 
 /**
- * Starts the clock on what an entry was about: its project and note. A clock
- * already running moves to it.
+ * Starts the clock on what an entry, or a calendar event, was about: its
+ * project and note. A clock already running moves to it.
  */
 export function useContinue() {
   const t = useTranslations('clock');
   const errorMessage = useErrorMessage();
   const client = useQueryClient();
   return {
-    start: (entry: Entry) => {
+    start: (entry: Pick<Entry, 'projectId' | 'note'>) => {
       clock.resume(entry).then(
         () => client.invalidateQueries(),
         (err) => toast.error(t('inFailed'), { description: errorMessage(asApiError(err)) }),

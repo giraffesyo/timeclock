@@ -5,6 +5,8 @@
   "googleCalendar": "Google Calendar",
   "gusto": "Gusto",
   "notAvailable": "Not available yet",
+  "calendarOn": "On: everyone’s week shows their meetings beside their time",
+  "calendarOff": "Your server administrator sets this up",
   "toggl": {
     "title": "Toggl Track",
     "intro": "Use Timeclock alongside Toggl. An admin connects the workspace and matches people once; completed time entries then sync in both directions every 10 minutes.",
