@@ -192,8 +192,19 @@ func serve(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
+	// People connect their own Google Calendars through the server's own
+	// Google OAuth client, when it has one.
+	var google *timeclock.GoogleOAuth
+	if id := os.Getenv("TIMECLOCK_GOOGLE_CLIENT_ID"); id != "" {
+		google = &timeclock.GoogleOAuth{
+			ClientID: id, ClientSecret: os.Getenv("TIMECLOCK_GOOGLE_CLIENT_SECRET"),
+			RedirectURL: strings.TrimRight(env("TIMECLOCK_PUBLIC_URL", "http://localhost:"+env("PORT", "8080")), "/") +
+				"/api/v1/calendar/google/callback",
+		}
+	}
 	tc, err := timeclock.New(ctx, timeclock.Options{
 		DatabaseURL:          dsn,
+		GoogleOAuth:          google,
 		IntegrationSecretKey: os.Getenv("TIMECLOCK_SECRET_KEY"),
 		Schema:               schema,
 		SkipMigrations:       true,

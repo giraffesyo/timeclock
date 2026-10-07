@@ -4,8 +4,9 @@
   "adminOnly": "An admin manages payroll settings, projects and people.",
   "tabs": {
     "payroll": "Payroll",
+    "signin": "Sign-in",
     "appearance": "Appearance",
-    "signin": "Sign-in"
+    "calendar": "Calendar"
   },
   "payroll": {
     "periods": {

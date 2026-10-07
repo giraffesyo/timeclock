@@ -6,6 +6,7 @@
   "gusto": "Gusto",
   "notAvailable": "Not available yet",
   "calendarOn": "On: everyone’s week shows their meetings beside their time",
+  "calendarConnect": "On: people connect their own calendar in Settings → Calendar",
   "calendarOff": "Your server administrator sets this up",
   "toggl": {
     "title": "Toggl Track",

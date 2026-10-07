@@ -87,6 +87,15 @@ export function useCalendarEvents(from: Day, to: Day, enabled: boolean) {
   });
 }
 
+/** Whether the caller's own Google Calendar is connected, or the host reads it for them. */
+export function useGoogleCalendar(enabled = true) {
+  return useQuery({
+    queryKey: ['google-calendar'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/calendar/google')),
+    enabled,
+  });
+}
+
 export function useTimeOff(from: Day, to: Day, person?: string) {
   return useQuery({
     queryKey: ['time-off', person ?? '', from, to],
@@ -237,6 +246,11 @@ export function useAdjustEntry() {
 
 export function useDeleteEntry() {
   return useWrite(async (id: string) => unwrap(await api.DELETE('/api/v1/entries/{id}', { params: { path: { id } } })));
+}
+
+/** Disconnects the caller's own Google Calendar, and revokes Timeclock's access to it. */
+export function useDisconnectGoogleCalendar() {
+  return useWrite(async () => unwrap(await api.DELETE('/api/v1/calendar/google')));
 }
 
 export function useRequestTimeOff() {

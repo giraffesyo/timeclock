@@ -78,6 +78,10 @@
             "description": "The calendar's name, normally its owner's email address.",
             "type": "string"
           },
+          "connectable": {
+            "description": "Whether the caller can connect their own calendar: the host doesn't read it for them, and Timeclock has a Google client.",
+            "type": "boolean"
+          },
           "connected": {
             "description": "Whether the caller has a calendar to read; false lists no events.",
             "type": "boolean"
@@ -94,6 +98,7 @@
         },
         "required": [
           "connected",
+          "connectable",
           "events"
         ],
         "type": "object"
@@ -533,6 +538,45 @@
         ],
         "type": "object"
       },
+      "GoogleStatusBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/GoogleStatusBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "account": {
+            "description": "The Google account it reads, normally an email address.",
+            "type": "string"
+          },
+          "connectable": {
+            "description": "Whether the caller can connect, or disconnect, their own calendar.",
+            "type": "boolean"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "connectedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "managed": {
+            "description": "The host application reads the caller's calendar for them, so there is nothing to connect.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "managed",
+          "connectable",
+          "connected"
+        ],
+        "type": "object"
+      },
       "Holiday": {
         "additionalProperties": false,
         "properties": {
@@ -690,6 +734,9 @@
             "type": "string"
           },
           "calendar": {
+            "type": "boolean"
+          },
+          "calendarConnect": {
             "type": "boolean"
           },
           "homeLabel": {
@@ -2650,7 +2697,162 @@
         },
         "summary": "The caller's Google Calendar events on a range of days",
         "tags": [
-          "Entries"
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/google": {
+      "delete": {
+        "operationId": "disconnect-google-calendar",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Disconnect the caller's own Google Calendar, and revoke Timeclock's access",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "get": {
+        "operationId": "get-google-calendar",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleStatusBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Whether the caller's Google Calendar is connected",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/google/callback": {
+      "get": {
+        "operationId": "google-calendar-callback",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "code",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Set by Google when the caller didn't allow access.",
+            "explode": false,
+            "in": "query",
+            "name": "error",
+            "schema": {
+              "description": "Set by Google when the caller didn't allow access.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Where Google returns the caller after they connect their calendar",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/google/connect": {
+      "get": {
+        "operationId": "connect-google-calendar",
+        "parameters": [
+          {
+            "description": "The path in the web app to come back to, such as /settings?tab=calendar.",
+            "explode": false,
+            "in": "query",
+            "name": "return",
+            "schema": {
+              "description": "The path in the web app to come back to, such as /settings?tab=calendar.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Go to Google to connect the caller's calendar",
+        "tags": [
+          "Calendar"
         ]
       }
     },

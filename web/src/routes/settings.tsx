@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
+import { CalendarSettings } from '@/components/calendar-connect';
 import { Page } from '@/components/page';
 import { Appearance } from '@/components/settings/appearance';
 import { PayrollSettings } from '@/components/settings/payroll';
@@ -7,7 +8,9 @@ import { SignIn } from '@/components/settings/sso';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 
-const TABS = ['payroll', 'signin', 'appearance'] as const;
+const TABS = ['payroll', 'signin', 'appearance', 'calendar'] as const;
+/** Everyone's own, beside the admins' workspace settings. */
+const PERSONAL: readonly Tab[] = ['appearance', 'calendar'];
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
@@ -20,8 +23,11 @@ const isMoved = (value: unknown): value is Moved => typeof value === 'string' &&
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
   // Payroll is the default, so it stays out of the URL.
-  validateSearch: (search: Record<string, unknown>): { tab?: Tab | Moved } =>
-    (isTab(search['tab']) && search['tab'] !== 'payroll') || isMoved(search['tab']) ? { tab: search['tab'] } : {},
+  validateSearch: (search: Record<string, unknown>): { tab?: Tab | Moved; calendar?: 'denied' | 'failed' } => ({
+    ...((isTab(search['tab']) && search['tab'] !== 'payroll') || isMoved(search['tab']) ? { tab: search['tab'] } : {}),
+    // How connecting a calendar went, when it didn't.
+    ...(search['calendar'] === 'denied' || search['calendar'] === 'failed' ? { calendar: search['calendar'] } : {}),
+  }),
   beforeLoad: ({ search }) => {
     if (isMoved(search.tab)) throw redirect({ to: MOVED[search.tab], replace: true });
   },
@@ -29,11 +35,13 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsPage() {
   const t = useTranslations('settings');
-  const { admin } = useSession();
-  const { tab: requestedTab } = Route.useSearch();
+  const { admin, info } = useSession();
+  const { tab: requestedTab, calendar } = Route.useSearch();
+  // The calendar tab is there where a calendar can be read at all.
+  const shown = TABS.filter((name) => (admin || PERSONAL.includes(name)) && (name !== 'calendar' || info.calendar));
   const tab = (isTab(requestedTab) ? requestedTab : undefined) ?? (admin ? 'payroll' : 'appearance');
 
-  if (!admin && tab !== 'appearance') {
+  if (!shown.includes(tab)) {
     return (
       <Page title={t('title')}>
         <p className="text-sm text-muted-foreground">{t('adminOnly')}</p>
@@ -44,7 +52,7 @@ function SettingsPage() {
   return (
     <Page title={t('title')} description={t('description')}>
       <nav aria-label={t('title')} className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
-        {TABS.filter((name) => admin || name === 'appearance').map((name) => (
+        {shown.map((name) => (
           <Link
             key={name}
             to="/settings"
@@ -64,6 +72,7 @@ function SettingsPage() {
       {tab === 'payroll' && <PayrollSettings />}
       {tab === 'appearance' && <Appearance />}
       {tab === 'signin' && <SignIn />}
+      {tab === 'calendar' && <CalendarSettings outcome={calendar} />}
     </Page>
   );
 }

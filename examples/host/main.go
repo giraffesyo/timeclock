@@ -64,9 +64,12 @@ func main() {
 		},
 		Directory:      directory{},
 		GoogleCalendar: calendar,
-		HomeURL:        "/",
-		HomeLabel:      "Example Portal",
-		SignInURL:      "/?signin=1&next=",
+		GoogleOAuth:    googleOAuth(env("EXAMPLE_PUBLIC_URL", "http://localhost:"+os.Getenv("PORT"))),
+		// Seals the Google tokens people connect. At least 32 characters.
+		IntegrationSecretKey: os.Getenv("EXAMPLE_SECRET_KEY"),
+		HomeURL:              "/",
+		HomeLabel:            "Example Portal",
+		SignInURL:            "/?signin=1&next=",
 		// The portal's own look: teal on warm white, and on deep green.
 		Theme: host.Theme{
 			Light: &host.Scheme{
@@ -97,4 +100,11 @@ func main() {
 		logger.Error("example host stopped", "error", err)
 		os.Exit(1)
 	}
+}
+
+func env(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

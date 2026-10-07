@@ -35,6 +35,15 @@ func NewToggl(s *Service, key string, logger *slog.Logger) (*Toggl, error) {
 	if key == "" {
 		return t, nil
 	}
+	var err error
+	t.box, err = integrationBox(key)
+	return t, err
+}
+
+// integrationBox seals integration credentials with the integration secret
+// key. Each sealing names what it is for in its associated data, so one
+// can't be opened as another.
+func integrationBox(key string) (cipher.AEAD, error) {
 	if len(key) < 32 {
 		return nil, errors.New("timeclock: integration secret key must contain at least 32 characters")
 	}
@@ -43,8 +52,7 @@ func NewToggl(s *Service, key string, logger *slog.Logger) (*Toggl, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.box, err = cipher.NewGCMWithRandomNonce(block)
-	return t, err
+	return cipher.NewGCMWithRandomNonce(block)
 }
 
 type TogglMapping struct {

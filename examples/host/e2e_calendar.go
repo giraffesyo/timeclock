@@ -2,17 +2,19 @@
 
 package main
 
-// Compiled only into the browser-test host: everyone has a calendar, and
-// Google is the fake one in web/e2e/services.mjs.
+// Compiled only into the browser-test host, whose Google is the fake one in
+// web/e2e/google.mjs.
 import (
 	"context"
 	"errors"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"golang.org/x/oauth2"
 
+	"github.com/giraffesyo/timeclock"
 	"github.com/giraffesyo/timeclock/host"
 )
 
@@ -35,7 +37,21 @@ func (t e2eGoogleTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 
 func init() {
 	http.DefaultTransport = e2eGoogleTransport{next: http.DefaultTransport}
+	// The host reads the calendars of its own domain's people; everyone else
+	// connects theirs.
 	e2eCalendar = func(_ context.Context, p host.Person) (oauth2.TokenSource, bool, error) {
-		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "e2e:" + p.Email}), p.Email != "", nil
+		if !strings.HasSuffix(p.Email, "@host.test") {
+			return nil, false, nil
+		}
+		return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "e2e:" + p.Email}), true, nil
+	}
+	e2eOAuth = func(publicURL string) *timeclock.GoogleOAuth {
+		google := os.Getenv("E2E_SERVICES_URL") + "/google"
+		return &timeclock.GoogleOAuth{
+			ClientID: "timeclock-e2e", ClientSecret: "the fake Google’s secret",
+			RedirectURL: publicURL + "/timeclock/api/v1/calendar/google/callback",
+			Endpoint:    oauth2.Endpoint{AuthURL: google + "/auth", TokenURL: google + "/token", AuthStyle: oauth2.AuthStyleInParams},
+			RevokeURL:   google + "/revoke",
+		}
 	}
 }
