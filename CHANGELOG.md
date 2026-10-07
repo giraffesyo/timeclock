@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.19.0...timeclock-v0.20.0) (2026-10-07)
+
+
+### Features
+
+* let the UI package stack list columns on a phone ([#98](https://github.com/giraffesyo/timeclock/issues/98)) ([a2c7d39](https://github.com/giraffesyo/timeclock/commit/a2c7d3992cfea20fe7bb1c120aa93a0520eb2e3b))
+* replace native selects that read better as other controls ([#95](https://github.com/giraffesyo/timeclock/issues/95)) ([6974b0f](https://github.com/giraffesyo/timeclock/commit/6974b0f3eab08c39377e947ed96df40f5b7e9db2))
+
+
+### Bug Fixes
+
+* keep the team list's status on screen on a phone ([#94](https://github.com/giraffesyo/timeclock/issues/94)) ([e975bd5](https://github.com/giraffesyo/timeclock/commit/e975bd58a9020a64f36b96ffb2d4cefbfcf3b44a))
+* let a click on the calendar add time again, a quarter hour by default ([#97](https://github.com/giraffesyo/timeclock/issues/97)) ([3a5d2de](https://github.com/giraffesyo/timeclock/commit/3a5d2de7d7eaccf31514f390d92dc2178161fb39))
+* name the pay period in the timesheet reminder as the app does ([#93](https://github.com/giraffesyo/timeclock/issues/93)) ([e64b64f](https://github.com/giraffesyo/timeclock/commit/e64b64f298b432d50c9f403b104a7d79b09c81ce))
+
 ## [0.19.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.18.0...timeclock-v0.19.0) (2026-10-07)
 
 
