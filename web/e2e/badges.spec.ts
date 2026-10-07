@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, lastWeek, test } from './fixtures';
 
 const tooltip = (page: Page) => page.locator('#global-tooltip');
@@ -11,27 +11,36 @@ test('badges explain themselves on hover and on keyboard focus', async ({ someon
   await ada.api.post('/time-off', { from: week.day(3), to: week.day(3), hours: 8, kind: 'vacation' });
   const { page } = await adminPerson();
 
+  // One tooltip serves every badge: let the last one close before showing the next,
+  // or a check can read a tooltip that is still on its way out.
+  const shows = async (target: Locator, text: string | RegExp, how: 'hover' | 'focus' = 'hover') => {
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await expect(tooltip(page)).toBeHidden();
+    await (how === 'hover' ? target.hover() : target.focus());
+    await expect(tooltip(page)).toContainText(text);
+  };
+
   // Payroll: why someone isn't in the export yet.
   await page.goto(`/reports?day=${week.day(0)}`);
   const row = page.getByRole('row').filter({ hasText: ada.name });
-  const notReady = row.getByRole('button', { name: /^Not ready/ });
-  await notReady.hover();
-  await expect(tooltip(page)).toContainText('Left out of the export until their timesheet is approved');
-  // The status inside the timesheet link explains itself on hover too.
-  await row.getByText('Not submitted').hover();
-  await expect(tooltip(page)).toContainText('Not submitted yet for this pay period');
+  const notReady = row.getByRole('button', { name: 'Not ready', exact: true });
+  await shows(notReady, 'Left out of the export until their timesheet is approved');
   // From the keyboard: focusing a badge shows the same.
-  await page.mouse.move(0, 0);
-  await notReady.focus();
-  await expect(tooltip(page)).toContainText('Left out of the export');
-  // Screen readers get the explanation with the badge.
+  await shows(notReady, 'Left out of the export', 'focus');
+  // Screen readers get the explanation with the badge, as its description.
   await expect(notReady).toHaveAccessibleName('Not ready');
   await expect(notReady).toHaveAccessibleDescription(/^Left out of the export/);
+  // The status inside the timesheet link explains itself on hover, and is read as part of the link.
+  const sheet = row.getByRole('link', { name: /^Open the timesheet of/ });
+  await shows(sheet, 'Not submitted yet for this pay period');
+  await expect(sheet).toContainText(/Not submitted\.\s*Not submitted yet for this pay period/);
 
   // People: what Admin means.
   await page.goto('/people');
-  await page.getByRole('button', { name: 'Admin', exact: true }).first().hover();
-  await expect(tooltip(page)).toContainText('Runs payroll');
+  const adminBadge = page.getByRole('button', { name: 'Admin', exact: true }).first();
+  await expect(adminBadge).toHaveAccessibleDescription(/^Runs payroll/);
+  await shows(adminBadge, 'Runs payroll');
 
   // Projects: billable, and archived.
   const customer = await admin.post('/customers', {
@@ -57,16 +66,19 @@ test('badges explain themselves on hover and on keyboard focus', async ({ someon
     .click();
   await page.keyboard.press('Escape');
   const archivedRow = page.getByRole('row').filter({ hasText: old });
-  await archivedRow.getByRole('button', { name: 'Archived', exact: true }).first().hover();
-  await expect(tooltip(page)).toContainText('No new time can be recorded');
-  await archivedRow.getByRole('button', { name: 'Billable', exact: true }).first().hover();
-  await expect(tooltip(page)).toContainText('can be billed to the customer');
+  const archived = archivedRow.getByRole('button', { name: 'Archived', exact: true }).first();
+  const billable = archivedRow.getByRole('button', { name: 'Billable', exact: true }).first();
+  await expect(archived).toHaveAccessibleDescription(/^No new time can be recorded/);
+  await expect(billable).toHaveAccessibleDescription(/can be billed to the customer/);
+  await shows(archived, 'No new time can be recorded');
+  await shows(billable, 'can be billed to the customer');
 
   // Exceptions: what the severity means.
   await page.goto(`/reports?tab=exceptions&day=${week.day(0)}`);
   const group = page.locator('section').filter({ has: page.getByRole('button', { name: ada.name }) });
-  await group.getByRole('button', { name: 'Settle before payroll' }).first().hover();
-  await expect(tooltip(page)).toContainText('Payroll would be wrong or incomplete');
+  const severity = group.getByRole('button', { name: 'Settle before payroll' }).first();
+  await expect(severity).toHaveAccessibleDescription(/^Payroll would be wrong or incomplete/);
+  await shows(severity, 'Payroll would be wrong or incomplete');
 });
 
 test('Not ready follows whether timesheets need approval', async ({ someone, adminPerson }) => {
