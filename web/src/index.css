@@ -109,9 +109,12 @@
     background-color: var(--theme-bg);
   }
   /* The sidebar and the phone's top strip sit on the sidebar's own colors:
-   * inside them, the usual color names mean the sidebar's. */
+   * inside them, the usual color names mean the sidebar's. The current
+   * section wears the sidebar's accent: its icon, and a wash behind it (the
+   * same share lib/theme-seeds.ts checks the contrast of). */
   .shell-side,
   .shell-top {
+    --sidebar-wash: color-mix(in srgb, var(--sidebar-accent) 14%, transparent);
     --color-foreground: var(--theme-sidebar-text);
     --color-muted-foreground: color-mix(in oklab, var(--theme-sidebar-text) 66%, var(--theme-bg));
     --color-border: color-mix(in oklab, var(--theme-sidebar-text) 14%, var(--theme-bg));

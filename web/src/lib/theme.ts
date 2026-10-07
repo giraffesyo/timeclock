@@ -3,8 +3,8 @@
 // (Info.themeStorageKey); on its own Timeclock keeps one under its own key.
 // The colors are the workspace's or the host's theme (Info.theme), derived
 // from a few values and laid over Timeclock's own, which is in the CSS.
-import { deriveTheme, applyTheme as setTokens, THEME_TOKENS } from '@parallelworks/ui/theme';
-import { type Mode, schemeFor, surfaces, type Theme } from '@/lib/theme-seeds';
+import { applyTheme as setTokens, THEME_TOKENS } from '@parallelworks/ui/theme';
+import { look, type Mode, schemeFor, type Theme } from '@/lib/theme-seeds';
 
 const OWN_KEY = 'timeclock-theme';
 // The host's key, and the theme, remembered from the last load so the page
@@ -49,6 +49,9 @@ function cachedTheme(): Theme {
 let theme: Theme = cachedTheme();
 // While an admin edits the theme, the page shows the draft, in the mode being edited.
 let preview: { theme: Theme; mode: Mode } | null = null;
+// How many times the person has chosen light, dark or system, so the editor
+// can tell a choice, even of what was already chosen, ended its preview.
+let choices = 0;
 
 export function readPreference(): ThemePreference {
   const v = get(storageKey());
@@ -72,10 +75,10 @@ export function applyTheme() {
   root.style.colorScheme = mode;
   const active = preview?.theme ?? theme;
   if (hasScheme(active, mode)) {
-    setTokens(root, deriveTheme(surfaces(schemeFor(active, mode), mode)));
+    setTokens(root, look(schemeFor(active, mode), mode));
   } else {
     // Timeclock's own colors are in the stylesheet.
-    for (const token of THEME_TOKENS) root.style.removeProperty(token);
+    for (const token of [...THEME_TOKENS, '--sidebar-accent']) root.style.removeProperty(token);
   }
   for (const listener of listeners) listener();
 }
@@ -105,10 +108,17 @@ export function previewTheme(draft: { theme: Theme; mode: Mode } | null) {
   applyTheme();
 }
 
-/** Sets the person's light, dark or system choice. */
+/** Sets the person's light, dark or system choice, and ends any preview: the page shows what they chose. */
 export function setPreference(p: ThemePreference) {
   put(storageKey(), p);
+  preview = null;
+  choices++;
   applyTheme();
+}
+
+/** How many times the person has chosen; it changes on every choice. */
+export function preferenceChoices(): number {
+  return choices;
 }
 
 media.addEventListener('change', applyTheme);

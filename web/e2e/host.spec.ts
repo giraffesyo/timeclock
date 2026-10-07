@@ -100,6 +100,10 @@ test('it wears the host’s colors, until the workspace chooses its own', async 
   // The host's sidebar and page backgrounds, in light and in dark.
   await expect.poll(() => ground(page)).toBe('rgb(243, 239, 228)');
   expect(await sheet(page)).toBe('rgb(255, 253, 248)');
+  // The current section wears the host's sidebar accent.
+  expect(
+    await page.locator('.shell-side nav a[aria-current="page"] svg').evaluate((el) => getComputedStyle(el).color),
+  ).toBe('rgb(15, 118, 110)');
   await page.goto('/timeclock/settings?tab=appearance');
   const preference = page.getByRole('group', { name: 'Color theme' });
   await preference.getByRole('button', { name: 'Dark', exact: true }).click();
