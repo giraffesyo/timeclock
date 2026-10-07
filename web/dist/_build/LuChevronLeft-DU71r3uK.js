@@ -1,0 +1,1 @@
+import{f as e}from"./page-DNBmKnls.js";function t(t){return e({tag:`svg`,attr:{viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,strokeLinecap:`round`,strokeLinejoin:`round`},child:[{tag:`path`,attr:{d:`m15 18-6-6 6-6`},child:[]}]})(t)}export{t};
