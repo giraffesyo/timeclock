@@ -39,6 +39,9 @@ type Info struct {
 	// APIKeysURL is where a person creates an API key for the CLI, when the
 	// host signs it in with one instead of through the browser.
 	APIKeysURL string `json:"apiKeysUrl,omitempty" format:"uri"`
+	// Calendar is whether the week can show the caller's Google Calendar
+	// events beside their time.
+	Calendar bool `json:"calendar,omitempty"`
 	// ThemeStorageKey is the localStorage key holding the host's light,
 	// dark or system choice, so Timeclock matches it.
 	ThemeStorageKey string `json:"themeStorageKey,omitempty"`
@@ -54,7 +57,9 @@ type Deps struct {
 	Toggl     *clock.Toggl
 	Clock     *clock.Service
 	Directory host.Directory
-	Info      Info
+	// Calendar reads a person's Google Calendar; nil reads none.
+	Calendar GoogleCalendar
+	Info     Info
 	// HostTheme is the host application's look, which a workspace's own overrides.
 	HostTheme host.Theme
 }
@@ -147,6 +152,7 @@ func New(mux *http.ServeMux, deps Deps) huma.API {
 	registerPeople(a, deps)
 	registerCatalog(a, deps)
 	registerEntries(a, deps)
+	registerCalendar(a, deps)
 	registerTimeOff(a, deps)
 	registerTimesheets(a, deps)
 	registerReports(a, deps)

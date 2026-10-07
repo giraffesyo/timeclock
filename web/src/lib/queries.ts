@@ -26,6 +26,7 @@ export type Activity = Schemas['Activity'];
 export type DayProjectHours = Schemas['DayProjectHours'];
 export type Holiday = Schemas['Holiday'];
 export type HolidayInput = Schemas['HolidayInput'];
+export type CalendarEvent = Schemas['CalendarEvent'];
 
 // --- Reads ---
 
@@ -71,6 +72,18 @@ export function useEntries(from: Day, to: Day, person?: string) {
     queryKey: ['entries', person ?? '', from, to],
     queryFn: async () =>
       unwrap(await api.GET('/api/v1/entries', { params: { query: { from, to, person } } })).entries ?? [],
+  });
+}
+
+/** The caller's Google Calendar events on a range of days, when the host reads their calendar. */
+export function useCalendarEvents(from: Day, to: Day, enabled: boolean) {
+  return useQuery({
+    queryKey: ['calendar', from, to],
+    queryFn: async () => unwrap(await api.GET('/api/v1/calendar/events', { params: { query: { from, to } } })),
+    enabled,
+    // Meetings move rarely; a week read a few minutes ago is current enough.
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 }
 

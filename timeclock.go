@@ -36,13 +36,19 @@ import (
 	"github.com/parallelworks/foundation/problem"
 	"github.com/parallelworks/foundation/server"
 	"github.com/parallelworks/hopper"
+	"golang.org/x/oauth2"
 
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/api"
 	"github.com/giraffesyo/timeclock/internal/clock"
+	"github.com/giraffesyo/timeclock/internal/gcal"
 	"github.com/giraffesyo/timeclock/migrations"
 	"github.com/giraffesyo/timeclock/web"
 )
+
+// GoogleCalendarScope is the OAuth scope [Options.GoogleCalendar]'s
+// credentials need: reading events, and nothing else.
+const GoogleCalendarScope = gcal.Scope
 
 // Options configures a Timeclock.
 type Options struct {
@@ -117,6 +123,14 @@ type Options struct {
 	// IntegrationSecretKey encrypts integration credentials. At least 32 characters.
 	// Empty disables new connections. Keep this key outside database backups.
 	IntegrationSecretKey string
+	// GoogleCalendar lets the week show a person's Google Calendar events
+	// beside their time, as suggestions to add. It returns credentials
+	// allowed [GoogleCalendarScope] for that person, or ok false when they
+	// have none: a service account with domain-wide delegation acting as
+	// p.Email covers everyone in a Google Workspace, and the refresh token a
+	// person granted when they signed in covers them. It is called on every
+	// read of a week, so it should reuse tokens. Nil shows no calendar.
+	GoogleCalendar func(ctx context.Context, p host.Person) (ts oauth2.TokenSource, ok bool, err error)
 	// Logger defaults to slog.Default().
 	Logger *slog.Logger
 }
@@ -195,10 +209,10 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		}
 	}
 
-	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Info: api.Info{
+	deps := api.Deps{Clock: svc, Toggl: toggl, Directory: opts.Directory, Calendar: opts.GoogleCalendar, Info: api.Info{
 		HomeURL: opts.HomeURL, HomeLabel: opts.HomeLabel, SignInURL: opts.SignInURL, SignOutURL: opts.SignOutURL,
 		ThemeStorageKey: opts.ThemeStorageKey, AccountsURL: opts.AccountsURL,
-		APIKeysURL: opts.APIKeysURL,
+		APIKeysURL: opts.APIKeysURL, Calendar: opts.GoogleCalendar != nil,
 	}, HostTheme: opts.Theme}
 	h := server.New(server.Options{
 		Logger: logger,

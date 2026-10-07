@@ -27,6 +27,7 @@ export function EntryDialog({
   personId,
   start,
   end,
+  note,
   anchor,
 }: {
   open: boolean;
@@ -40,6 +41,8 @@ export function EntryDialog({
   /** The HH:mm a new entry starts and ends at, when the caller already knows. */
   start?: string;
   end?: string;
+  /** What a new entry is about, when the caller already knows. */
+  note?: string;
   /** Calendar entries edit beside their block, without interrupting the page. */
   anchor?: HTMLElement | null;
 }) {
@@ -53,6 +56,7 @@ export function EntryDialog({
       personId={personId}
       from={start ?? '09:00'}
       to={end ?? '17:00'}
+      about={note ?? ''}
       anchor={anchor}
     />
   ) : null;
@@ -65,6 +69,7 @@ function Form({
   personId,
   from,
   to,
+  about,
   anchor,
 }: {
   onClose: () => void;
@@ -73,6 +78,7 @@ function Form({
   personId?: string;
   from: string;
   to: string;
+  about: string;
   anchor?: HTMLElement | null;
 }) {
   const t = useTranslations('entry');
@@ -90,7 +96,7 @@ function Form({
   const [start, setStart] = useState(entry ? timeInput(entry.startedAt, zone) : from);
   const [end, setEnd] = useState(entry?.endedAt ? timeInput(entry.endedAt, zone) : entry ? '' : to);
   const [projectId, setProjectId] = useState(entry?.projectId ?? '');
-  const [note, setNote] = useState(entry?.note ?? '');
+  const [note, setNote] = useState(entry?.note ?? about);
   const [invalid, setInvalid] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const cancelDelete = useRef<HTMLButtonElement>(null);
@@ -365,7 +371,8 @@ function Form({
   );
 }
 
-function EntryPopover({
+/** A panel beside a block on the calendar, which closes on a click elsewhere or Escape. */
+export function EntryPopover({
   anchor,
   onClose,
   title,
@@ -401,7 +408,7 @@ function EntryPopover({
       observer.disconnect();
       window.removeEventListener('resize', position);
       window.removeEventListener('scroll', followScroll, true);
-      anchor.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+      (anchor instanceof HTMLButtonElement ? anchor : anchor.querySelector('button'))?.focus({ preventScroll: true });
     };
   }, [anchor]);
   return createPortal(

@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's Google Calendar events on a range of days */
+        get: operations["list-calendar-events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clock/in": {
         parameters: {
             query?: never;
@@ -742,6 +759,33 @@ export interface components {
             id: string;
             personId?: string;
         };
+        CalendarBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/CalendarBody.json
+             */
+            readonly $schema?: string;
+            /** @description The calendar's name, normally its owner's email address. */
+            calendar?: string;
+            /** @description Whether the caller has a calendar to read; false lists no events. */
+            connected: boolean;
+            events: components["schemas"]["CalendarEvent"][] | null;
+        };
+        CalendarEvent: {
+            /** Format: date-time */
+            endedAt: string;
+            id: string;
+            /**
+             * Format: uri
+             * @description Opens the event in Google Calendar.
+             */
+            link?: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** @description Empty for an event without one. */
+            title: string;
+        };
         "Clock-inRequest": {
             /**
              * Format: uri
@@ -970,6 +1014,7 @@ export interface components {
             accountsUrl?: string;
             /** Format: uri */
             apiKeysUrl?: string;
+            calendar?: boolean;
             homeLabel?: string;
             homeUrl?: string;
             signInUrl?: string;
@@ -1712,6 +1757,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["List-auditResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-calendar-events": {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarBody"];
                 };
             };
             /** @description Error */

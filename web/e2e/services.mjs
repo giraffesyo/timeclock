@@ -7,10 +7,12 @@
 //     GET /mail?to=ADDRESS         the messages sent to an address, oldest first
 //     /idp/...                     the provider (its issuer is <origin>/idp)
 //     GET /breach/range/PREFIX     the breach list, in the range API's format
+//     /toggl/..., /google/...      Toggl and Google Calendar (toggl.mjs, google.mjs)
 
 import { createHash, createSign, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createTcpServer } from 'node:net';
+import { google } from './google.mjs';
 import { toggl } from './toggl.mjs';
 
 const httpPort = Number(process.env.E2E_SERVICES_PORT ?? 8095);
@@ -132,6 +134,7 @@ createHttpServer(async (req, res) => {
   };
   const path = url.pathname;
   if (await toggl(req, res, url)) return;
+  if (await google(req, res, url)) return;
 
   if (path === '/readyz') return json(200, { ok: true });
 

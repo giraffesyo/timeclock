@@ -45,6 +45,11 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 
+	calendar, err := googleCalendar(os.Getenv("EXAMPLE_GOOGLE_KEY"))
+	if err != nil {
+		logger.Error("start Timeclock", "error", err)
+		os.Exit(1)
+	}
 	tc, err := timeclock.New(ctx, timeclock.Options{
 		DatabaseURL: os.Getenv("EXAMPLE_DATABASE_URL"),
 		Schema:      os.Getenv("EXAMPLE_SCHEMA"),
@@ -57,10 +62,11 @@ func main() {
 			org := r.Header.Get("X-Example-Org")
 			return org, org != ""
 		},
-		Directory: directory{},
-		HomeURL:   "/",
-		HomeLabel: "Example Portal",
-		SignInURL: "/?signin=1&next=",
+		Directory:      directory{},
+		GoogleCalendar: calendar,
+		HomeURL:        "/",
+		HomeLabel:      "Example Portal",
+		SignInURL:      "/?signin=1&next=",
 		// The portal's own look: teal on warm white, and on deep green.
 		Theme: host.Theme{
 			Light: &host.Scheme{

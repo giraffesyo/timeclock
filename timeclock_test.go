@@ -6,12 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/parallelworks/foundation/pgdb/pgdbtest"
+	"golang.org/x/oauth2"
 
 	"github.com/giraffesyo/timeclock"
 	"github.com/giraffesyo/timeclock/host"
@@ -40,8 +42,14 @@ func (d directory) People(context.Context) ([]host.Person, error) {
 // host's mux, with the caller named by a header standing in for a session.
 func mounted(t *testing.T) http.Handler {
 	t.Helper()
+	return mountedWith(t, nil)
+}
+
+// mountedWith is mounted with options of the test's own on top.
+func mountedWith(t *testing.T, also func(*timeclock.Options)) http.Handler {
+	t.Helper()
 	url, schema := pgdbtest.Schema(t, "TIMECLOCK_TEST_DATABASE_URL")
-	tc, err := timeclock.New(t.Context(), timeclock.Options{
+	opts := timeclock.Options{
 		DatabaseURL: url,
 		Schema:      schema,
 		BasePath:    "/timeclock",
@@ -66,7 +74,11 @@ func mounted(t *testing.T) http.Handler {
 			Light: &host.Scheme{Interface: host.ThemeSeed{Accent: "#06354f", Background: "#f3f4f6"}},
 			Dark:  &host.Scheme{Interface: host.ThemeSeed{Accent: "#2f81f7", Background: "#0d1117"}},
 		},
-	})
+	}
+	if also != nil {
+		also(&opts)
+	}
+	tc, err := timeclock.New(t.Context(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,4 +363,71 @@ func TestImageSourcesAreOneSourceEach(t *testing.T) {
 			t.Errorf("%q: %v", src, err)
 		}
 	}
+}
+
+// toServer sends every request to a test server, wherever it was bound.
+type toServer struct{ url *url.URL }
+
+func (s toServer) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.URL.Scheme, r.URL.Host = s.url.Scheme, s.url.Host
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+func TestGoogleCalendarEvents(t *testing.T) {
+	if os.Getenv("TIMECLOCK_TEST_DATABASE_URL") == "" {
+		t.Skip("TIMECLOCK_TEST_DATABASE_URL not set")
+	}
+	google := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer pat-token" || r.URL.Path != "/calendar/v3/calendars/primary/events" {
+			http.Error(w, "no", http.StatusForbidden)
+			return
+		}
+		_, _ = io.WriteString(w, `{"summary":"pat@example.com","items":[{"id":"standup","status":"confirmed","summary":"Standup",
+			"htmlLink":"https://calendar.example/standup","start":{"dateTime":"2026-10-05T09:00:00-05:00"},"end":{"dateTime":"2026-10-05T09:15:00-05:00"}}]}`)
+	}))
+	defer google.Close()
+	target, _ := url.Parse(google.URL)
+	var asked []string
+	h := mountedWith(t, func(o *timeclock.Options) {
+		o.GoogleCalendar = func(_ context.Context, p host.Person) (oauth2.TokenSource, bool, error) {
+			asked = append(asked, p.Email)
+			if p.ID != "pat" {
+				return nil, false, nil
+			}
+			return oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "pat-token"}), true, nil
+		}
+	})
+	// A host chooses the HTTP client its credentials go out on, as oauth2 does.
+	h = withContext(h, oauth2.HTTPClient, &http.Client{Transport: toServer{target}})
+	const api = "/timeclock/api/v1"
+
+	if _, info := call(t, h, "", http.MethodGet, api+"/info", ""); info["calendar"] != true {
+		t.Fatalf("/info: %v", info)
+	}
+	rec, body := call(t, h, "pat", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-10-11", "")
+	events, _ := body["events"].([]any)
+	if rec.Code != http.StatusOK || body["connected"] != true || body["calendar"] != "pat@example.com" || len(events) != 1 {
+		t.Fatalf("pat: %d %s", rec.Code, rec.Body)
+	}
+	if e := events[0].(map[string]any); e["title"] != "Standup" || e["startedAt"] != "2026-10-05T14:00:00Z" || e["endedAt"] != "2026-10-05T14:15:00Z" {
+		t.Fatalf("standup: %v", e)
+	}
+	// Someone the host has no credentials for has no calendar, which is no error.
+	rec, body = call(t, h, "ada", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-10-11", "")
+	if rec.Code != http.StatusOK || body["connected"] != false || len(body["events"].([]any)) != 0 {
+		t.Fatalf("ada: %d %s", rec.Code, rec.Body)
+	}
+	if strings.Join(asked, ",") != "pat@example.com,ada@example.com" {
+		t.Fatalf("asked for %v", asked)
+	}
+	if rec, _ := call(t, h, "pat", http.MethodGet, api+"/calendar/events?from=2026-10-05&to=2026-12-31", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("a long range: %d", rec.Code)
+	}
+}
+
+func withContext(h http.Handler, key, value any) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), key, value)))
+	})
 }
