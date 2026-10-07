@@ -51,7 +51,10 @@ function ReportsPage() {
   return (
     <Page wide title={t('title')}>
       {allowed.length > 1 && (
-        <nav aria-label={t('tabs.label')} className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
+        <nav
+          aria-label={t('tabs.label')}
+          className="mb-4 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border"
+        >
           {allowed.map((name) => (
             <Link
               key={name}

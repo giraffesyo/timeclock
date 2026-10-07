@@ -31,6 +31,23 @@ test('the calendar fills the space above payroll at different window heights', a
   }
 });
 
+test('the day headings line up with their columns', async ({ me }) => {
+  const { page } = me;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Calendar hours' })).toBeVisible();
+  // Where scrollbars take space, the hours' scrollbar must not shift the columns.
+  const offsets = await page.evaluate(() => {
+    const left = (els: NodeListOf<Element>) => [...els].map((el) => el.getBoundingClientRect().left);
+    const heads = left(document.querySelectorAll('.wk-head > [role="group"]'));
+    const columns = left(document.querySelectorAll('.wk-scroll > .grid > .border-l'));
+    return heads.map((x, i) => Math.abs(x - (columns[i] ?? Number.NaN)));
+  });
+  expect(offsets).toHaveLength(7);
+  for (const off of offsets) expect(off).toBeLessThan(1);
+  await page.screenshot({ path: '/tmp/timeclock-calendar-columns.png' });
+});
+
 test('the calendar opens around now and keeps the chosen scroll position', async ({ me }) => {
   const { page } = me;
   // Midday today, so "now" is never at the very top or bottom of the day.
