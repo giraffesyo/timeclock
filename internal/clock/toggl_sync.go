@@ -204,7 +204,7 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 	}
 	more := func(done int) bool {
 		if deadline, ok := ctx.Deadline(); ok {
-			return time.Until(deadline) > time.Minute
+			return time.Until(deadline) > t.historyMargin
 		}
 		return done < 4
 	}
@@ -215,6 +215,18 @@ func (t *Toggl) sync(ctx context.Context, s *Service, c togglConfig, client *tog
 		}
 		n, err := t.syncWindow(ctx, s, c, client, cursor, to)
 		if err != nil {
+			// A window with more time in it than one run can reconcile: the
+			// next run asks for half as much, so the sweep keeps moving.
+			// What this run imported is kept; only the cursor waits.
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) && days > 7 {
+				save, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+				defer cancel()
+				_, e := s.pool.Exec(save, `DELETE FROM toggl_report_pages WHERE workspace_id=$W AND from_date=$1 AND to_date=$2`, cursor, to)
+				if e == nil {
+					_, e = s.pool.Exec(save, `UPDATE toggl_workspaces SET history_days=$1 WHERE workspace_id=$W`, days/2)
+				}
+				return errors.Join(err, e)
+			}
 			if ctx.Err() != nil || !toggl.Timeout(err) || days <= 7 {
 				return err
 			}

@@ -24,11 +24,14 @@ type Toggl struct {
 	box              cipher.AEAD
 	client           func(string) *toggl.Client
 	workspaceTimeout time.Duration
-	logger           *slog.Logger
+	// historyMargin is how much of a run's time must be left to start
+	// another history window.
+	historyMargin time.Duration
+	logger        *slog.Logger
 }
 
 func NewToggl(s *Service, key string, logger *slog.Logger) (*Toggl, error) {
-	t := &Toggl{svc: s, workspaceTimeout: 5 * time.Minute, logger: logger, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
+	t := &Toggl{svc: s, workspaceTimeout: 5 * time.Minute, historyMargin: time.Minute, logger: logger, client: func(token string) *toggl.Client { return &toggl.Client{Token: token} }}
 	if key == "" {
 		return t, nil
 	}

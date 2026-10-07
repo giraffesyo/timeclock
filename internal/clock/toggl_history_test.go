@@ -1,6 +1,7 @@
 package clock
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -444,5 +445,35 @@ func TestTogglUnreachableSaysWhy(t *testing.T) {
 	_, err := c.Projects(t.Context(), 42)
 	if err == nil || !strings.HasPrefix(err.Error(), "toggl could not be reached: ") || len(err.Error()) == len("toggl could not be reached: ") {
 		t.Fatalf("the cause must be kept: %v", err)
+	}
+}
+
+// A window with more time in it than one run can reconcile halves for the
+// next run, instead of being retried whole until the sweep gives up moving.
+func TestTogglHistoryNarrowsWindowsThatOutlastARun(t *testing.T) {
+	f, b, fake := togglFixture(t)
+	seedToggl(f, fake)
+	fake.slowerThan, fake.slow = 100, time.Second
+	b.historyMargin = 100 * time.Millisecond
+	if err := b.Configure(t.Context(), f.Service, f.admin, TogglSetup{Token: "fake", WorkspaceID: 42, From: "2024-10-01", People: []TogglMapping{{PersonID: f.ada.ID, UserID: 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := b.config(t.Context(), f.Service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := b.token(t.Context(), f.Service, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The run's deadline passes while Toggl is still answering for a year.
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	if err = b.sync(ctx, f.Service, c, b.client(token)); err == nil {
+		t.Fatal("the run must not finish")
+	}
+	var days int
+	if err := f.pool.QueryRow(t.Context(), `SELECT history_days FROM toggl_workspaces WHERE workspace_id=$W`).Scan(&days); err != nil || days != 180 {
+		t.Fatalf("the next run asks for half as much: %d %v", days, err)
 	}
 }
