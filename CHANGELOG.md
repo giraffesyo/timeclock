@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.21.1...timeclock-v0.22.0) (2026-10-07)
+
+
+### Features
+
+* copy a calendar meeting onto the week, to the project it went to before ([#106](https://github.com/giraffesyo/timeclock/issues/106)) ([0d12012](https://github.com/giraffesyo/timeclock/commit/0d120128ecfc20248574c3c16fad4206738b2e50))
+
 ## [0.21.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.21.0...timeclock-v0.21.1) (2026-10-07)
 
 
