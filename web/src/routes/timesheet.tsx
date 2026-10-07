@@ -69,11 +69,21 @@ function TimesheetPage() {
     <Page
       title={summary && s && !s.own ? t('titleFor', { name: summary.person.name }) : t('title')}
       description={
-        personId ? (
-          <Link to="/team" className="underline underline-offset-2 hover:text-foreground">
-            {t('backToTeam')}
+        <span className="flex flex-wrap gap-x-3 gap-y-1">
+          {personId && (
+            <Link to="/team" className="underline underline-offset-2 hover:text-foreground">
+              {t('backToTeam')}
+            </Link>
+          )}
+          {/* The same person's week, entry by entry. */}
+          <Link
+            to="/"
+            search={{ person: personId, day: search.day }}
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            {t('openTimer')}
           </Link>
-        ) : undefined
+        </span>
       }
       actions={
         period && (

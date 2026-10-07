@@ -79,7 +79,7 @@ function Form({
   const tc = useTranslations('common');
   const format = useFormatter();
   const projectName = useProjectName();
-  const { settings } = useSession();
+  const { settings, person: me } = useSession();
   const zone = useZone(entry?.personId ?? personId);
   const save = useSaveEntry();
   const duplicate = useSaveEntry();
@@ -141,7 +141,8 @@ function Form({
 
   const actions = entry && (
     <>
-      {entry.endedAt && (
+      {/* Starting again runs your clock, so only from your own time. */}
+      {entry.endedAt && entry.personId === me.id && (
         <Button
           variant="primary"
           className="!size-9 !rounded-full !p-0"

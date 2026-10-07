@@ -9,6 +9,7 @@ import { ErrorNote } from '@/components/page';
 import { ProjectDot, useProjectName } from '@/components/project-select';
 import { Chip } from '@/components/status';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
+import { useSession } from '@/lib/session';
 import { dayOf, elapsed, hoursMinutes } from '@/lib/time';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
@@ -25,6 +26,7 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
   const projectName = useProjectName();
   const remove = useDeleteEntry();
   const again = useContinue();
+  const { person: me } = useSession();
   const [editing, setEditing] = useState<Entry | null>(null);
   const [deleting, setDeleting] = useState<Entry | null>(null);
   useNow(
@@ -83,7 +85,8 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
                 </span>
               ) : (
                 <span className="flex w-24 justify-end gap-0.5">
-                  {e.endedAt && (
+                  {/* Starting again runs your clock, so only from your own time. */}
+                  {e.endedAt && e.personId === me.id && (
                     <Button
                       variant="ghost"
                       size="sm"

@@ -111,6 +111,7 @@ function TeamRow({
   // Your own timesheet is your manager's or an admin's to decide.
   const decidable = waiting && (!own || admin);
   const open = () => navigate({ to: '/timesheet', search: { person: m.person.id, day: m.period.start } });
+  const openTimer = () => navigate({ to: '/', search: { person: m.person.id, day: m.period.start } });
 
   const decisions: PinnedRowAction[] = decidable
     ? [
@@ -120,6 +121,7 @@ function TeamRow({
     : [];
   const items: RowMenuItem[] = [
     { kind: 'action', label: t('openSheet', { name: m.person.name }), icon: <FileTextIcon />, onSelect: open },
+    { kind: 'action', label: t('openTimer', { name: m.person.name }), icon: <ClockIcon />, onSelect: openTimer },
     ...decisions.map((d): RowMenuItem => ({ kind: 'action', label: d.label, icon: d.icon, onSelect: d.onSelect })),
   ];
 
