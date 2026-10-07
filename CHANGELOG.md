@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.20.0...timeclock-v0.20.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **ci:** release jobs check out the release, not the commit that started the run ([#99](https://github.com/giraffesyo/timeclock/issues/99)) ([e10ba9a](https://github.com/giraffesyo/timeclock/commit/e10ba9ae741d86c3ec36f5820c8ef4d1eac215cf))
+
 ## [0.20.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.19.0...timeclock-v0.20.0) (2026-10-07)
 
 
