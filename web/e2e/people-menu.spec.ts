@@ -72,7 +72,8 @@ for (const mobile of [false, true]) {
     const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Ada Lovelace', exact: true }) });
     await expect(row.getByRole('combobox')).toHaveCount(0);
     await expect(row.getByRole('textbox')).toHaveCount(0);
-    await expect(row.locator('img')).toHaveCount(2);
+    // The person's and their manager's; a copy of the manager waits, hidden, to stack on a phone.
+    await expect(row.locator('img').filter({ visible: true })).toHaveCount(2);
     await expect(row.getByRole('button', { name: 'Grace Hopper', exact: true })).toBeVisible();
     await row.getByRole('button', { name: 'Ada Lovelace', exact: true }).hover();
     await expect(page.getByText('Manager: Grace Hopper')).toBeVisible();

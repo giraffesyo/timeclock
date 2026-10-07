@@ -103,7 +103,8 @@ for (const mobile of [false, true]) {
         .click();
       await page.keyboard.press('Escape');
       await expect(projectRow).toBeVisible();
-      await expect(projectRow.getByText('Archived')).toBeVisible();
+      // The status column's; a copy waits, hidden, to stack under the name on a phone.
+      await expect(projectRow.getByText('Archived').filter({ visible: true })).toHaveCount(1);
       await page.screenshot({ path: `/tmp/timeclock-catalog-archived-${device}.png` });
       await testInfo.attach(`Catalog archived ${device}`, {
         path: `/tmp/timeclock-catalog-archived-${device}.png`,

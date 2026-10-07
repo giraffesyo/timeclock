@@ -56,10 +56,11 @@ export function useTeamView(): ListView<PeriodSummary> {
       { key: 'vacation', label: tc('vacation'), headerClassName: 'text-right', priority: 'low' },
       { key: 'sick', label: tc('sick'), headerClassName: 'text-right', priority: 'low' },
       { key: 'holiday', label: tc('holiday'), headerClassName: 'text-right', priority: 'low' },
-      { key: 'total', label: tc('total'), headerClassName: 'text-right' },
+      // Stays a column on a phone, so totals line up to compare.
+      { key: 'total', label: tc('total'), headerClassName: 'text-right', stack: false },
       { key: 'pendingTimeOff', label: t('pendingTimeOff'), headerClassName: 'text-right', priority: 'low' },
-      // On a phone its column gives way, and the status sits under the name instead.
-      { key: 'status', label: t('status'), priority: 'medium' },
+      // No priority: on a phone the list view stacks it under the name.
+      { key: 'status', label: t('status') },
     ],
     orderBys: [
       { value: 'name', label: t('person'), compare: (a, b) => a.person.name.localeCompare(b.person.name) },
@@ -153,8 +154,6 @@ function TeamRow({
             {t('running')}
           </span>
         )}
-        {/* Narrower than the status column needs: stacked under the name. */}
-        <div className="basis-full @[36rem]:hidden">{status}</div>
       </div>
     ),
     regular: <Hours value={m.regular} />,
