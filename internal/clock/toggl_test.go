@@ -509,3 +509,23 @@ func TestTogglSyncNowAfterOtherErrors(t *testing.T) {
 		t.Fatalf("sync now waited for the hourly retry: %v", c.next)
 	}
 }
+
+// Time imported from Toggl keeps what was recorded there: a workspace that
+// requires a description and a project for new time still imports entries
+// without them instead of holding them as issues.
+func TestTogglImportsEntriesWithoutDescriptionOrProject(t *testing.T) {
+	f, b, fake := togglFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = true; s.RequireDescription = true })
+	end := f.time("2026-10-01 10:00")
+	fake.entries[101] = toggl.Entry{ID: 101, WorkspaceID: 42, UserID: 1, Start: f.time("2026-10-01 09:00"), Stop: &end, Duration: 3600}
+	setupToggl(t, f, b)
+	requireSync(t, f, b)
+	entries := togglEntries(t, f)
+	if len(entries) != 1 || entries[0].ProjectID != nil || entries[0].Note != "" {
+		t.Fatalf("the entry must import as recorded: %+v", entries)
+	}
+	status, err := b.Status(t.Context(), f.Service, f.admin)
+	if err != nil || len(status.Issues) != 0 {
+		t.Fatalf("nothing waits for an admin: %+v %v", status.Issues, err)
+	}
+}
