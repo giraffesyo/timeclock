@@ -11,6 +11,14 @@ type Span struct {
 	Start, End time.Time
 }
 
+// minTime is the earlier of two times.
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
+}
+
 // segment is the part of a span that falls on one calendar day.
 type segment struct {
 	day        Date

@@ -15,5 +15,8 @@
   "later": "Show later hours",
   "hours": "Calendar hours",
   "adjustFailed": "Couldn’t change the time.",
-  "dayTotal": "{date}: {length}"
+  "dayTotal": "{date}: {length}",
+  "dayTotalPlanned": "{date}: {length}, and {planned} planned",
+  "planned": "+{length} planned",
+  "plannedBlock": "Planned: {block}"
 }

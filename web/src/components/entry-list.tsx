@@ -7,6 +7,7 @@ import { useContinue } from '@/components/clock-bar';
 import { EntryDialog } from '@/components/entry-dialog';
 import { ErrorNote } from '@/components/page';
 import { ProjectDot, useProjectName } from '@/components/project-select';
+import { Chip } from '@/components/status';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
 import { dayOf, elapsed, hoursMinutes } from '@/lib/time';
 import { useNow } from '@/lib/use-now';
@@ -61,6 +62,11 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
                 </span>
               </span>
             </span>
+            {e.endedAt && Date.parse(e.startedAt) >= Date.now() && (
+              <Chip tone="neutral" hint={t('plannedHint')}>
+                {t('planned')}
+              </Chip>
+            )}
             <span className="tabular shrink-0 text-sm font-medium">
               {tc('duration', hoursMinutes(elapsed(e.startedAt, e.endedAt)))}
             </span>

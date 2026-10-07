@@ -24,5 +24,6 @@
   "not_a_member": "You’re not in that workspace.",
   "invalid_code": "That code isn’t right, or was already used.",
   "passkey_refused": "That passkey wasn’t accepted.",
-  "sso_required": "This needs your workspace’s single sign-on."
+  "sso_required": "This needs your workspace’s single sign-on.",
+  "planned_time_in_period": "This period still has planned time that hasn’t happened. Submit it once that time has passed."
 }

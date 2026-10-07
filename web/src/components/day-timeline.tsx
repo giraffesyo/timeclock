@@ -46,6 +46,8 @@ export type MovePreview = Span & { entry: Entry; day: Day };
 type Block = Span & {
   entry: Entry;
   running: boolean;
+  /** Wholly ahead of now: planned time, which counts once it passes. */
+  planned: boolean;
   /** The entry reaches past this day's midnight on that side. */
   clippedStart: boolean;
   clippedEnd: boolean;
@@ -92,7 +94,8 @@ export function DayTimeline({
   const tc = useTranslations('common');
   const format = useFormatter();
   const errorMessage = useErrorMessage();
-  const { today } = useSession();
+  const { today, settings } = useSession();
+  const planning = settings.allowPlannedTime;
   const zone = useZone(personId ?? entries[0]?.personId);
   const projectName = useProjectName();
   const adjust = useAdjustEntry();
@@ -121,9 +124,9 @@ export function DayTimeline({
   const isToday = day === today;
   const now = useNow(15_000, isToday);
   const bounds = dayBounds(day, zone);
-  // Time can't be recorded in the future.
-  const cap = clamp(Math.floor(now / SNAP) * SNAP, bounds.start, bounds.end);
-  const editable = !readOnly && day <= today;
+  // Time can't be recorded in the future, unless the organization allows planned time.
+  const cap = planning ? bounds.end : clamp(Math.floor(now / SNAP) * SNAP, bounds.start, bounds.end);
+  const editable = !readOnly && (planning || day <= today);
 
   const blocks: Block[] = entries
     .map((entry) => {
@@ -133,6 +136,8 @@ export function DayTimeline({
       return {
         entry,
         running: !entry.endedAt,
+        // Wholly ahead: it counts once it passes.
+        planned: !!entry.endedAt && start >= now,
         clippedStart: start < bounds.start,
         clippedEnd: end > bounds.end,
         start: held ? held.start : Math.max(start, bounds.start),
@@ -475,11 +480,12 @@ export function DayTimeline({
           {blocks.map((b, i) => {
             const name = projectName(b.entry.projectId);
             const title = b.entry.note || name;
-            const label = t('block', {
+            const described = t('block', {
               project: b.entry.note ? `${b.entry.note}, ${name}` : name,
               range: b.running ? t('rangeRunning', { start: clock(b.start) }) : range(b),
               length: span(b),
             });
+            const label = b.planned ? t('plannedBlock', { block: described }) : described;
             const live = editable && !b.entry.locked;
             const inHand = held?.id === b.entry.id;
             const slider = (kind: 'start' | 'end') => (
@@ -514,6 +520,7 @@ export function DayTimeline({
                   'tl-pos tl-block',
                   !b.entry.projectId && 'tl-plain',
                   b.running && 'tl-running',
+                  b.planned && 'tl-planned',
                   b.entry.locked && 'tl-locked',
                   b.clippedStart && 'tl-clipped-start',
                   b.clippedEnd && 'tl-clipped-end',

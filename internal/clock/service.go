@@ -74,13 +74,15 @@ func audit(ctx context.Context, q querier, actor Actor, action, personID string,
 // --- Settings ---
 
 const settingsColumns = `timezone, pay_cycle, cycle_anchor, week_start, overtime_weekly_hours::float8,
-	approve_timesheets, approve_time_off, require_project, require_description, long_entry_hours::float8, submit_timesheets, holiday_pay`
+	approve_timesheets, approve_time_off, require_project, require_description, long_entry_hours::float8, submit_timesheets, holiday_pay,
+	allow_planned_time`
 
 func scanSettings(row pgx.Row) (Settings, error) {
 	var s Settings
 	var anchor time.Time
 	err := row.Scan(&s.Timezone, &s.PayCycle, &anchor, &s.WeekStart, &s.OvertimeWeeklyHours,
-		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.RequireDescription, &s.LongEntryHours, &s.SubmitTimesheets, &s.HolidayPay)
+		&s.ApproveTimesheets, &s.ApproveTimeOff, &s.RequireProject, &s.RequireDescription, &s.LongEntryHours, &s.SubmitTimesheets, &s.HolidayPay,
+		&s.AllowPlannedTime)
 	s.CycleAnchor = DateFromTime(anchor)
 	return s, err
 }
@@ -114,9 +116,9 @@ func (s *Service) UpdateSettings(ctx context.Context, actor Actor, in Settings) 
 		}
 		if _, err := tx.Exec(ctx, `UPDATE settings SET timezone = $1, pay_cycle = $2, cycle_anchor = $3, week_start = $4,
 			overtime_weekly_hours = $5, approve_timesheets = $6, approve_time_off = $7, require_project = $8,
-			long_entry_hours = $9, require_description = $10, submit_timesheets = $12, holiday_pay = $13, updated_at = now(), updated_by = $11 WHERE workspace_id = $W`,
+			long_entry_hours = $9, require_description = $10, submit_timesheets = $12, holiday_pay = $13, allow_planned_time = $14, updated_at = now(), updated_by = $11 WHERE workspace_id = $W`,
 			in.Timezone, in.PayCycle, in.CycleAnchor.Time(), in.WeekStart, in.OvertimeWeeklyHours,
-			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, in.RequireDescription, actor.ID, in.SubmitTimesheets, in.HolidayPay); err != nil {
+			in.ApproveTimesheets, in.ApproveTimeOff, in.RequireProject, in.LongEntryHours, in.RequireDescription, actor.ID, in.SubmitTimesheets, in.HolidayPay, in.AllowPlannedTime); err != nil {
 			return fmt.Errorf("update settings: %w", err)
 		}
 		return audit(ctx, tx, actor, "settings.update", "", map[string]any{"before": before, "after": in})
