@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.20.1...timeclock-v0.21.0) (2026-10-07)
+
+
+### Features
+
+* let people connect their own Google Calendar ([#102](https://github.com/giraffesyo/timeclock/issues/102)) ([da9666e](https://github.com/giraffesyo/timeclock/commit/da9666eff19542b047e2ad915702f58f3f489090))
+* show Google Calendar events beside the week's time, to add from ([#101](https://github.com/giraffesyo/timeclock/issues/101)) ([696489e](https://github.com/giraffesyo/timeclock/commit/696489ea14294d0fed5036adfd0d5930f3efae9c))
+
 ## [0.20.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.20.0...timeclock-v0.20.1) (2026-10-07)
 
 
