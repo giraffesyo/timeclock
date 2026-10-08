@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.0...timeclock-v0.23.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* give the sidebar's muted text and group labels the sidebar's own colors ([#111](https://github.com/giraffesyo/timeclock/issues/111)) ([2ca91ea](https://github.com/giraffesyo/timeclock/commit/2ca91ead834f9fc294fc517aebebcb1effaceca4))
+
 ## [0.23.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.22.0...timeclock-v0.23.0) (2026-10-08)
 
 
