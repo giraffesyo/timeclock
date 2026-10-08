@@ -451,7 +451,7 @@
     height: max(calc(var(--w) * 100% - 1px), 3px);
     overflow: hidden;
     border-radius: 0.25rem;
-    border-inline-start: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+    border: 1px solid color-mix(in oklab, var(--color-primary) 30%, transparent);
     background-color: color-mix(in oklab, var(--color-primary) 9%, var(--color-background));
     padding: 0.125rem 0.25rem;
     text-align: left;
@@ -461,6 +461,7 @@
   }
   .tl-event:hover,
   .tl-event-open {
+    border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
     background-color: color-mix(in oklab, var(--color-primary) 17%, var(--color-background));
     color: var(--color-foreground);
   }
