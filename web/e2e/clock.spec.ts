@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+import { ZONE } from '../playwright.config';
 import { expect, lastWeek, RECENT, test } from './fixtures';
 
 const note = (page: import('@playwright/test').Page) => page.getByRole('textbox', { name: 'What you are working on' });
@@ -155,4 +157,49 @@ test('a submitted pay period turns the clock off', async ({ me }) => {
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeDisabled();
   await expect(note(page)).toBeDisabled();
   await expect(note(page)).toHaveAttribute('placeholder', /timesheet is submitted/);
+});
+
+test('the running time opens a panel that moves the start to another day', async ({ me }) => {
+  const { page, api } = me;
+  const started = await api.clockInAgo('Acme / Platform', 30, 'Build');
+  await page.goto('/');
+  const bar = page.getByRole('form', { name: 'Clock' });
+  await bar.getByRole('button', { name: 'Change the start or stop time' }).click();
+  const panel = page.getByRole('dialog', { name: 'Start and stop' });
+  const start = DateTime.fromISO(started.startedAt).setZone(ZONE);
+  await expect(panel.getByLabel('Start', { exact: true })).toHaveValue(start.toFormat('HH:mm'));
+  await expect(panel).toContainText('Today');
+
+  // Escape leaves it as it was.
+  await panel.getByLabel('Start', { exact: true }).fill('00:00');
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  expect((await api.get('/me')).running.startedAt).toBe(started.startedAt);
+
+  await bar.getByRole('button', { name: 'Change the start or stop time' }).click();
+  const yesterday = start.minus({ days: 1 });
+  await panel.getByRole('button', { name: yesterday.setLocale('en-US').toLocaleString(DateTime.DATE_HUGE) }).click();
+  await panel.getByLabel('Start', { exact: true }).press('Enter');
+  await expect(panel).toBeHidden();
+  await expect
+    .poll(async () => Date.parse((await api.get('/me')).running.startedAt))
+    .toBe(yesterday.startOf('minute').toMillis());
+  await expect(bar.getByRole('timer')).toHaveText(/^2[345]:\d\d:\d\d$/);
+});
+
+test('changing the stop time stops the clock then', async ({ me }) => {
+  const { page, api } = me;
+  const started = await api.clockInAgo('Acme / Platform', 120, 'Build');
+  await page.goto('/');
+  const bar = page.getByRole('form', { name: 'Clock' });
+  await bar.getByRole('button', { name: 'Change the start or stop time' }).click();
+  const panel = page.getByRole('dialog', { name: 'Start and stop' });
+  const stop = DateTime.now().setZone(ZONE).minus({ minutes: 60 });
+  await panel.getByLabel('Stop', { exact: true }).fill(stop.toFormat('HH:mm'));
+  await panel.getByLabel('Stop', { exact: true }).press('Enter');
+  await expect(bar.getByRole('timer')).toHaveCount(0);
+  const { entries } = await api.get(RECENT());
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({ id: started.id, startedAt: started.startedAt, note: 'Build' });
+  expect(Date.parse(entries[0].endedAt)).toBe(stop.startOf('minute').toMillis());
 });

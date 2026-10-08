@@ -25,6 +25,7 @@ import '@giraffesyo/timeclock/styles.css';
 
 - While the clock runs, choosing another project moves the clock to it without stopping: the time so far stays on the project it was on.
 - The note saves when the field is left; a note typed just before choosing a project goes with the new stretch.
+- The running time is a button: it opens the start and stop, to move when the stretch started (its time, or another day from a calendar) or to stop it at an earlier time. It saves when it closes; Escape leaves it as it was.
 - `labels` replaces any of its words, for another language or voice.
 - Colors come from `--tc-*` custom properties. They default to [@parallelworks/ui](https://www.npmjs.com/package/@parallelworks/ui)'s theme tokens (`--theme-*`) when the page has them, and to plain light values when it doesn't. Set `--tc-bg`, `--tc-fg`, `--tc-muted`, `--tc-border`, `--tc-hover`, `--tc-accent`, `--tc-accent-fg` and `--tc-stop` on an ancestor to fit another look.
 
@@ -68,7 +69,7 @@ function HeaderClock() {
 }
 ```
 
-`useClock()` gives the state (`status`, `running`, `projects`, `requireProject`, `requireDescription`, `locked`, `timeZone`, `busy`), what is being typed (`note`, `setNote`, `projectId`), and what can be done (`start`, `stop`, `chooseProject`, `saveNote`, `resume`). Everything that changes the clock returns a promise that rejects with a `ClockError` when Timeclock refuses.
+`useClock()` gives the state (`status`, `running`, `projects`, `requireProject`, `requireDescription`, `locked`, `timeZone`, `busy`), what is being typed (`note`, `setNote`, `projectId`), and what can be done (`start`, `stop`, `chooseProject`, `saveNote`, `saveTimes`, `resume`). Everything that changes the clock returns a promise that rejects with a `ClockError` when Timeclock refuses.
 
 ## The store
 

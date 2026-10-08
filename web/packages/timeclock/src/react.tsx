@@ -43,6 +43,8 @@ export interface Clock extends ClockState {
   chooseProject: (projectId: string) => Promise<Entry | null>;
   /** Saves an edited note onto the running stretch. */
   saveNote: () => Promise<void>;
+  /** Moves when the running stretch started, or stops it at `endedAt`, with the note as typed. */
+  saveTimes: (times: { startedAt: string; endedAt?: string }) => Promise<Entry>;
   start: () => Promise<Entry>;
   /** Stops the clock, saving an edited note first. */
   stop: () => Promise<Entry>;
@@ -89,6 +91,7 @@ export function useClock(options: UseClockOptions = {}): Clock {
       });
     },
     saveNote,
+    saveTimes: (times) => store.saveTimes({ ...times, note: noteEdited ? note : undefined }),
     start: () => store.start({ projectId: current.projectId, note }),
     stop: async () => {
       await saveNote();
@@ -108,6 +111,65 @@ function useSecond(enabled: boolean): number {
     return () => clearInterval(id);
   }, [enabled]);
   return now;
+}
+
+// --- Wall-clock time in a zone, without a date library ---
+
+/** A calendar day (YYYY-MM-DD) and a time of day (HH:mm). */
+interface Wall {
+  day: string;
+  time: string;
+}
+
+/** What a clock on the wall in the zone reads at an instant. */
+function wallClock(ms: number, timeZone: string): Wall {
+  const parts: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(ms))
+    parts[p.type] = p.value;
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+/** A YYYY-MM-DD day's year, month (1–12) and day of the month. */
+const ymd = (day: string) => [Number(day.slice(0, 4)), Number(day.slice(5, 7)), Number(day.slice(8, 10))] as const;
+
+const utcOf = ({ day, time }: Wall) => {
+  const [y, m, d] = ymd(day);
+  return Date.UTC(y, m - 1, d, Number(time.slice(0, 2)), Number(time.slice(3, 5)));
+};
+
+/** The instant a wall clock in the zone reads a day and time. */
+function instant(wall: Wall, timeZone: string): number {
+  const guess = utcOf(wall);
+  const offset = (ms: number) => utcOf(wallClock(ms, timeZone)) - Math.floor(ms / 60_000) * 60_000;
+  // Twice, for a day whose offset changes between the guess and the answer.
+  return guess - offset(guess - offset(guess));
+}
+
+const addDays = (day: string, n: number) => {
+  const [y, m, d] = ymd(day);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+};
+
+/** The first day of the week where the person is: 0 for Sunday. */
+function firstWeekday(): number {
+  try {
+    const locale = new Intl.Locale(navigator.language) as Intl.Locale & {
+      getWeekInfo?: () => { firstDay: number };
+      weekInfo?: { firstDay: number };
+    };
+    const info = locale.getWeekInfo?.() ?? locale.weekInfo;
+    return info ? info.firstDay % 7 : 1;
+  } catch {
+    return 1;
+  }
 }
 
 const cx = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -379,6 +441,164 @@ export function ProjectPicker({
   );
 }
 
+// --- When the running stretch started ---
+
+/** A month of days to pick one from; days after `max` can't be picked. */
+function MonthCalendar({
+  value,
+  max,
+  onChange,
+  labels,
+}: {
+  value: string;
+  max: string;
+  onChange: (day: string) => void;
+  labels: Pick<ClockBarLabels, 'startDay' | 'previousMonth' | 'nextMonth'>;
+}) {
+  const [month, setMonth] = useState(value.slice(0, 7));
+  const [y, m] = ymd(`${month}-01`);
+  const weekStart = firstWeekday();
+  const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() - weekStart + 7) % 7;
+  const length = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const step = (n: number) => setMonth(new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7));
+  const utc = (day: string) => new Date(`${day}T12:00:00Z`);
+  const title = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+    utc(`${month}-01`),
+  );
+  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: 'UTC' });
+  const named = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeZone: 'UTC' });
+  const days = Array.from({ length }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
+  return (
+    <fieldset className="tc-calendar" aria-label={labels.startDay}>
+      <div className="tc-calendar-head">
+        <span className="tc-calendar-title">{title}</span>
+        <button type="button" className="tc-calendar-step" aria-label={labels.previousMonth} onClick={() => step(-1)}>
+          <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M7.5 2.5 4 6l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="tc-calendar-step"
+          aria-label={labels.nextMonth}
+          disabled={month >= max.slice(0, 7)}
+          onClick={() => step(1)}
+        >
+          <svg aria-hidden viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <path d="M4.5 2.5 8 6 4.5 9.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <div className="tc-calendar-grid">
+        {Array.from({ length: 7 }, (_, i) =>
+          weekday.format(new Date(Date.UTC(2024, 0, 7 + ((weekStart + i) % 7), 12))),
+        ).map((name) => (
+          <span key={name} aria-hidden className="tc-calendar-weekday">
+            {name}
+          </span>
+        ))}
+        {days.map((day, i) => (
+          <button
+            key={day}
+            type="button"
+            className="tc-calendar-day"
+            style={i === 0 ? { gridColumnStart: lead + 1 } : undefined}
+            aria-label={named.format(utc(day))}
+            aria-pressed={day === value}
+            aria-current={day === max ? 'date' : undefined}
+            disabled={day > max}
+            onClick={() => onChange(day)}
+          >
+            {Number(day.slice(8))}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/** What is typed in the start and stop panel. */
+interface TimesDraft {
+  day: string;
+  start: string;
+  stop: string;
+  /** The stop was changed: the stretch ends there instead of running on. */
+  stopping: boolean;
+}
+
+/**
+ * When the running stretch started, and when it should stop: a time and a
+ * day for the start, and a stop that, once changed, ends the stretch then.
+ */
+function TimesFields({
+  draft,
+  onChange,
+  today,
+  onDone,
+  labels,
+}: {
+  draft: TimesDraft;
+  onChange: (draft: TimesDraft) => void;
+  today: string;
+  onDone: () => void;
+  labels: ClockBarLabels;
+}) {
+  const startId = useId();
+  const stopId = useId();
+  const day =
+    draft.day === today
+      ? labels.today
+      : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+          new Date(`${draft.day}T12:00:00Z`),
+        );
+  // Enter is done: the panel closes and saves.
+  const enter = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onDone();
+    }
+  };
+  return (
+    <>
+      <div className="tc-times-fields">
+        <div className="tc-times-field">
+          <label className="tc-times-label" htmlFor={startId}>
+            {labels.startTime}
+          </label>
+          <span className="tc-times-box">
+            <input
+              id={startId}
+              type="time"
+              required
+              className="tc-times-input"
+              value={draft.start}
+              onChange={(e) => onChange({ ...draft, start: e.target.value })}
+              onKeyDown={enter}
+            />
+            <span className="tc-times-day">{day}</span>
+          </span>
+        </div>
+        <div className="tc-times-field">
+          <label className="tc-times-label" htmlFor={stopId}>
+            {labels.stopTime}
+          </label>
+          <span className="tc-times-box">
+            <input
+              id={stopId}
+              type="time"
+              className="tc-times-input"
+              value={draft.stop}
+              onChange={(e) => onChange({ ...draft, stop: e.target.value, stopping: true })}
+              onKeyDown={enter}
+            />
+          </span>
+        </div>
+      </div>
+      <MonthCalendar value={draft.day} max={today} onChange={(d) => onChange({ ...draft, day: d })} labels={labels} />
+    </>
+  );
+}
+
 // --- The bar ---
 
 export interface ClockBarLabels extends ProjectPickerLabels {
@@ -397,6 +617,17 @@ export interface ClockBarLabels extends ProjectPickerLabels {
   missingDescription: string;
   missingProject: string;
   missingDescriptionAndProject: string;
+  /** The running time's button, which changes when the stretch started or stops it earlier. */
+  editTimes: string;
+  /** The panel the button opens. */
+  times: string;
+  startTime: string;
+  stopTime: string;
+  /** The calendar the start's day is picked from. */
+  startDay: string;
+  today: string;
+  previousMonth: string;
+  nextMonth: string;
 }
 
 const barLabels: ClockBarLabels = {
@@ -412,10 +643,18 @@ const barLabels: ClockBarLabels = {
   missingDescription: 'Add a description to stop the clock and save this time entry.',
   missingProject: 'Choose a project to stop the clock and save this time entry.',
   missingDescriptionAndProject: 'Add a description and choose a project to stop the clock and save this time entry.',
+  editTimes: 'Change the start or stop time',
+  times: 'Start and stop',
+  startTime: 'Start',
+  stopTime: 'Stop',
+  startDay: 'Day it started',
+  today: 'Today',
+  previousMonth: 'Previous month',
+  nextMonth: 'Next month',
 };
 
 /** What the person was doing when something was refused. */
-export type ClockAction = 'start' | 'stop' | 'switch' | 'note';
+export type ClockAction = 'start' | 'stop' | 'switch' | 'note' | 'times';
 
 /**
  * The clock as a bar: say what you are working on, pick its project, and
@@ -451,6 +690,34 @@ export function ClockBar({
   const errorId = useId();
   // Whether a press that began inside the bar is under way.
   const pressed = useRef(false);
+  const timesId = useId();
+  const timeButton = useRef<HTMLButtonElement>(null);
+  const timesPanel = useRef<HTMLDivElement>(null);
+  // What the start and stop panel holds while it is open.
+  const [times, setTimes] = useState<TimesDraft | null>(null);
+  // Escape leaves the panel without saving.
+  const cancelTimes = useRef(false);
+
+  // The running time is the panel's invoker, so the browser opens and closes
+  // it, and a press on the time doesn't count as one outside.
+  useLayoutEffect(() => {
+    timeButton.current?.setAttribute('popovertarget', timesId);
+  });
+  const timesOpen = !!times;
+  useLayoutEffect(() => {
+    const el = timesPanel.current;
+    const button = timeButton.current;
+    if (!timesOpen || !el || !button) return;
+    const position = () => {
+      const rect = button.getBoundingClientRect();
+      el.style.left = `${Math.max(8, Math.min(rect.right - el.offsetWidth, window.innerWidth - el.offsetWidth - 8))}px`;
+      el.style.top = `${rect.bottom + 6}px`;
+    };
+    position();
+    el.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    window.addEventListener('resize', position);
+    return () => window.removeEventListener('resize', position);
+  }, [timesOpen]);
 
   if (clock.status !== 'ready') return null;
 
@@ -483,6 +750,28 @@ export function ClockBar({
     // doesn't focus a button that is clicked, so the press is noted as well.
     if (pressed.current || bar.current?.contains(e.relatedTarget)) return;
     clock.saveNote().then(onChanged, failed('note'));
+  };
+  const startWall = running ? wallClock(Date.parse(running.startedAt), clock.timeZone) : null;
+  const saveTimes = (draft: TimesDraft) => {
+    if (!running || !startWall) return;
+    const moved = draft.start && (draft.day !== startWall.day || draft.start !== startWall.time);
+    const startedAt = moved
+      ? new Date(instant({ day: draft.day, time: draft.start }, clock.timeZone)).toISOString()
+      : running.startedAt;
+    const start = moved ? draft.start : startWall.time;
+    // A stop at or before the start is the next day, so a night's work is one stretch.
+    const endedAt =
+      draft.stopping && draft.stop
+        ? new Date(
+            instant({ day: draft.stop <= start ? addDays(draft.day, 1) : draft.day, time: draft.stop }, clock.timeZone),
+          ).toISOString()
+        : undefined;
+    if (startedAt === running.startedAt && !endedAt) return;
+    if (endedAt && missing) {
+      setStopAttempt(running.id);
+      return;
+    }
+    clock.saveTimes({ startedAt, endedAt }).then(onChanged, failed('times'));
   };
   const since = running
     ? labels.since(
@@ -547,10 +836,57 @@ export function ClockBar({
         label={running ? labels.switchProject : undefined}
         labels={labels}
       />
-      {running ? (
-        <span className="tc-time" role="timer" title={since}>
-          {stopwatch(now - Date.parse(running.startedAt))}
-        </span>
+      {running && startWall ? (
+        <>
+          <button
+            ref={timeButton}
+            type="button"
+            className="tc-time tc-time-button"
+            title={since}
+            aria-label={labels.editTimes}
+            aria-expanded={timesOpen}
+            aria-controls={timesId}
+            disabled={clock.locked || clock.busy}
+          >
+            <span role="timer">{stopwatch(now - Date.parse(running.startedAt))}</span>
+          </button>
+          <div
+            ref={timesPanel}
+            id={timesId}
+            popover="auto"
+            role="dialog"
+            aria-label={labels.times}
+            className="tc-popover tc-times"
+            onKeyDownCapture={(e) => {
+              if (e.key === 'Escape') cancelTimes.current = true;
+            }}
+            onToggle={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.newState === 'open') {
+                cancelTimes.current = false;
+                setTimes({
+                  day: startWall.day,
+                  start: startWall.time,
+                  stop: wallClock(Date.now(), clock.timeZone).time,
+                  stopping: false,
+                });
+                return;
+              }
+              if (times && !cancelTimes.current) saveTimes(times);
+              setTimes(null);
+            }}
+          >
+            {times && (
+              <TimesFields
+                draft={times}
+                onChange={setTimes}
+                today={wallClock(now, clock.timeZone).day}
+                onDone={() => timesPanel.current?.hidePopover()}
+                labels={labels}
+              />
+            )}
+          </div>
+        </>
       ) : (
         <span aria-hidden className="tc-time tc-time-idle">
           {stopwatch(0)}
