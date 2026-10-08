@@ -94,18 +94,21 @@ function HolidayDialog({ holiday, onClose }: { holiday?: Holiday; onClose: () =>
                 value={d.day}
                 onChange={(e) => change(d.key, { day: e.target.value })}
               />
-              <input
-                type="number"
-                min={0.25}
-                max={24}
-                step="any"
-                inputMode="decimal"
-                className={`${controlClass} tabular w-24`}
-                aria-label={t('hoursLabel', { n: i + 1 })}
-                placeholder={String(FULL_DAY)}
-                value={d.hours}
-                onChange={(e) => change(d.key, { hours: e.target.value })}
-              />
+              {/* controlClass is full width, so the hours take theirs from a box around them. */}
+              <div className="w-20 shrink-0">
+                <input
+                  type="number"
+                  min={0.25}
+                  max={24}
+                  step="any"
+                  inputMode="decimal"
+                  className={`${controlClass} tabular`}
+                  aria-label={t('hoursLabel', { n: i + 1 })}
+                  placeholder={String(FULL_DAY)}
+                  value={d.hours}
+                  onChange={(e) => change(d.key, { hours: e.target.value })}
+                />
+              </div>
               <span className="text-xs text-muted-foreground">{t('hoursUnit')}</span>
               <Button
                 variant="ghost"
