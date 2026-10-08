@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.22.0...timeclock-v0.23.0) (2026-10-08)
+
+
+### Features
+
+* click the running time to change when it started, or stop it earlier ([#109](https://github.com/giraffesyo/timeclock/issues/109)) ([17c0d73](https://github.com/giraffesyo/timeclock/commit/17c0d7334e580415fe1f764cf5100a8e7b4f3a41))
+
 ## [0.22.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.21.1...timeclock-v0.22.0) (2026-10-07)
 
 
