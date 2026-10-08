@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "dev": { "command": "go", "args": ["-C", "tools", "tool", "dev", "mcp"] }
+  }
+}
