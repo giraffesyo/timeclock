@@ -38,6 +38,7 @@ export function ClockBar() {
     stop: t('outFailed'),
     switch: t('switchFailed'),
     note: t('noteFailed'),
+    times: t('timesFailed'),
   };
   const time = (iso: string) => format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
   return (
@@ -62,6 +63,14 @@ export function ClockBar() {
             missingDescription: t('missingDescription'),
             missingProject: t('missingProject'),
             missingDescriptionAndProject: t('missingDescriptionAndProject'),
+            editTimes: t('editTimes'),
+            times: t('times'),
+            startTime: t('startTime'),
+            stopTime: t('stopTime'),
+            startDay: t('startDay'),
+            today: t('today'),
+            previousMonth: t('previousMonth'),
+            nextMonth: t('nextMonth'),
           }}
           onError={(err, action) => toast.error(failures[action], { description: errorMessage(asApiError(err)) })}
           onSwitched={(next: ClockEntry) =>

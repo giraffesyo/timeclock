@@ -84,6 +84,11 @@ export interface ClockStore {
   switchTo(input: ClockInput): Promise<Entry>;
   /** Sets the running stretch's note. */
   saveNote(note: string): Promise<Entry>;
+  /**
+   * Moves when the running stretch started. With `endedAt` it stops there
+   * instead of now. `note` defaults to the stretch's own.
+   */
+  saveTimes(times: { startedAt: string; endedAt?: string; note?: string }): Promise<Entry>;
   /** Starts the clock on what an entry was about; a running clock moves to it. */
   resume(entry: Pick<Entry, 'projectId' | 'note'>): Promise<Entry>;
 }
@@ -209,6 +214,19 @@ export function createClock(options: ClockOptions = {}): ClockStore {
         return Promise.reject(new ClockError(409, 'clock_not_running', 'the clock is not running', undefined));
       return change(() =>
         call('PUT', `/entries/${running.id}`, { projectId: running.projectId, startedAt: running.startedAt, note }),
+      );
+    },
+    saveTimes: ({ startedAt, endedAt, note }) => {
+      const running = state.running;
+      if (!running)
+        return Promise.reject(new ClockError(409, 'clock_not_running', 'the clock is not running', undefined));
+      return change(() =>
+        call('PUT', `/entries/${running.id}`, {
+          projectId: running.projectId,
+          startedAt,
+          endedAt,
+          note: note ?? running.note,
+        }),
       );
     },
     resume: (entry) => (state.running ? store.switchTo(entry) : store.start(entry)),

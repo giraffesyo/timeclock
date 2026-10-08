@@ -367,3 +367,166 @@
 .tc-clock-open:hover {
   color: var(--tc-fg);
 }
+
+/* The running time opens a panel to change when the stretch started, or stop it earlier. */
+.tc-time-button {
+  padding: 0.25rem 0.375rem;
+  border: 0;
+  border-radius: var(--tc-radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.tc-time-button:hover:enabled,
+.tc-time-button[aria-expanded="true"] {
+  background: var(--tc-hover);
+}
+.tc-time-button:disabled {
+  cursor: default;
+}
+.tc-times {
+  width: 20rem;
+  padding: 0.875rem;
+  color: var(--tc-fg);
+  font-variant-numeric: tabular-nums;
+}
+.tc-times:popover-open {
+  gap: 0.875rem;
+}
+.tc-times * {
+  box-sizing: border-box;
+}
+.tc-times-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--tc-border);
+}
+.tc-times-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.tc-times-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tc-muted);
+}
+.tc-times-box {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--tc-border);
+  border-radius: var(--tc-radius);
+  background: var(--tc-bg);
+}
+.tc-times-box:focus-within {
+  border-color: var(--tc-accent);
+  box-shadow: 0 0 0 1px var(--tc-accent);
+}
+.tc-times-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  color-scheme: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+}
+.tc-times-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.tc-times-day {
+  flex-shrink: 0;
+  color: var(--tc-accent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.tc-calendar {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.tc-calendar-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.tc-calendar-title {
+  flex: 1;
+  font-weight: 600;
+}
+.tc-calendar-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--tc-border);
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.tc-calendar-step svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.tc-calendar-step:hover:enabled {
+  background: var(--tc-hover);
+}
+.tc-calendar-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.tc-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.125rem;
+  text-align: center;
+}
+.tc-calendar-weekday {
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: var(--tc-muted);
+}
+.tc-calendar-day {
+  height: 2rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.tc-calendar-day:hover:enabled {
+  background: var(--tc-hover);
+}
+.tc-calendar-day[aria-current="date"] {
+  font-weight: 700;
+}
+.tc-calendar-day[aria-pressed="true"] {
+  background: var(--tc-accent);
+  color: var(--tc-accent-fg);
+}
+.tc-calendar-day:disabled {
+  cursor: default;
+  color: color-mix(in oklab, var(--tc-muted) 50%, transparent);
+}
