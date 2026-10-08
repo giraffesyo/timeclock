@@ -273,6 +273,34 @@ test('the sidebar has colors of its own, and the current section wears its accen
   }
 });
 
+test('the sidebar’s muted text is its own text toward its background, not the page’s', async ({ me, adminPerson }) => {
+  const admin = await adminPerson();
+  await admin.api.put('/theme', {
+    dark: {
+      interface: { accent: '#7c83f7', background: '#17181d', contrast: 0.9 },
+      sidebar: { accent: '#ffffff', background: '#223daa', contrast: 0.9 },
+    },
+  });
+  try {
+    const { page } = me;
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/');
+    await expect.poll(() => ground(page)).toBe('rgb(34, 61, 170)');
+    // Near white, two thirds of the way from the blue: AA on it, where the
+    // page's gray was not. The sections and the group labels alike, and on a
+    // phone, the strip of sections.
+    const muted = /^color\(srgb 0\.67\d* 0\.71\d* 0\.87\d*\)$/;
+    expect(await style(page, '.shell-side nav a:not([aria-current])', 'color')).toMatch(muted);
+    expect(await style(page, '.shell-side nav > div > div:first-child', 'color')).toMatch(muted);
+    await page.screenshot({ path: '/tmp/timeclock-sidebar-muted.png', animations: 'disabled' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await style(page, '.shell-top nav a:not([aria-current])', 'color')).toMatch(muted);
+    await page.screenshot({ path: '/tmp/timeclock-sidebar-muted-mobile.png', animations: 'disabled' });
+  } finally {
+    await admin.api.put('/theme', {});
+  }
+});
+
 test('choosing light or dark from the menu ends a preview of the workspace’s colors', async ({ adminPerson }) => {
   const admin = await adminPerson();
   const { page } = admin;
