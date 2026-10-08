@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.2](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.1...timeclock-v0.23.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* give a holiday's date its room, and outline calendar events instead of striping their edge ([#113](https://github.com/giraffesyo/timeclock/issues/113)) ([412fa30](https://github.com/giraffesyo/timeclock/commit/412fa30713460af741f4924c6cac2deef926b91f))
+
 ## [0.23.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.0...timeclock-v0.23.1) (2026-10-08)
 
 
