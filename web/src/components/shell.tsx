@@ -216,7 +216,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav aria-label={t('nav.label')} className="mt-3 flex flex-1 flex-col gap-4 overflow-y-auto">
           {groups.map((g) => (
             <div key={g.label}>
-              <div className="px-2 pb-1 text-xs text-muted-foreground/80">{g.label}</div>
+              <div className="px-2 pb-1 text-xs text-muted-foreground">{g.label}</div>
               <div className="flex flex-col gap-px">{g.links.map((l) => link(l))}</div>
             </div>
           ))}

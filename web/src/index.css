@@ -15,13 +15,9 @@
  * and follow whatever theme is live. */
 @theme inline {
   --color-background: var(--theme-app-bg);
-  --color-foreground: var(--theme-app);
   --color-card: var(--theme-panel-bg);
   --color-card-foreground: var(--theme-panel);
   --color-muted: var(--theme-hover);
-  --color-muted-foreground: var(--theme-muted-text-color);
-  --color-border: var(--theme-border);
-  --color-primary: var(--theme-accent);
   --color-primary-foreground: var(--theme-accent-text);
   --color-ring: var(--theme-accent);
 
@@ -38,6 +34,15 @@
 
   --radius-md: 0.5rem;
   --radius-lg: 0.625rem;
+}
+
+/* The names the sidebar gives its own colors (.shell-side below): not
+ * inline, so their classes read these variables and follow it there. */
+@theme {
+  --color-foreground: var(--theme-app);
+  --color-muted-foreground: var(--theme-muted-text-color);
+  --color-border: var(--theme-border);
+  --color-primary: var(--theme-accent);
 }
 
 :root {
@@ -109,15 +114,16 @@
     background-color: var(--theme-bg);
   }
   /* The sidebar and the phone's top strip sit on the sidebar's own colors:
-   * inside them, the usual color names mean the sidebar's. The current
-   * section wears the sidebar's accent: its icon, and a wash behind it (the
-   * same share lib/theme-seeds.ts checks the contrast of). */
+   * inside them, the usual color names mean the sidebar's. Muted text is the
+   * sidebar's text toward its background, and the current section wears the
+   * sidebar's accent: its icon, and a wash behind it. lib/theme-seeds.ts
+   * checks the contrast of the same shares. */
   .shell-side,
   .shell-top {
     --sidebar-wash: color-mix(in srgb, var(--sidebar-accent) 14%, transparent);
     --color-foreground: var(--theme-sidebar-text);
-    --color-muted-foreground: color-mix(in oklab, var(--theme-sidebar-text) 66%, var(--theme-bg));
-    --color-border: color-mix(in oklab, var(--theme-sidebar-text) 14%, var(--theme-bg));
+    --color-muted-foreground: color-mix(in srgb, var(--theme-sidebar-text) 66%, var(--theme-bg));
+    --color-border: color-mix(in srgb, var(--theme-sidebar-text) 14%, var(--theme-bg));
     --color-primary: var(--theme-sidebar-text);
     color: var(--theme-sidebar-text);
   }

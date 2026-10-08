@@ -57,6 +57,11 @@ const shade = (hex: string, amount: number) => mix(hex, '#000000', amount);
  * shell's CSS (--sidebar-wash in index.css) uses the same.
  */
 const SIDEBAR_WASH = 0.14;
+/**
+ * How much of the sidebar's text its muted text keeps, toward the sidebar's
+ * background; the shell's CSS (--color-muted-foreground) uses the same.
+ */
+const SIDEBAR_MUTED = 0.66;
 
 /** The scheme a theme has for a mode, or Timeclock's own. */
 export function schemeFor(theme: Theme | undefined, mode: Mode): Scheme {
@@ -84,6 +89,7 @@ export function surfaces(scheme: Scheme, mode: Mode): SurfaceSeeds {
 export type Look = ThemeVariables & { '--sidebar-accent': string };
 
 const washOf = (vars: ThemeVariables, accent: string) => mix(vars['--theme-bg'], accent, SIDEBAR_WASH);
+const sidebarMuted = (vars: ThemeVariables) => mix(vars['--theme-bg'], vars['--theme-sidebar-text'], SIDEBAR_MUTED);
 
 export function look(scheme: Scheme, mode: Mode): Look {
   const seeds = surfaces(scheme, mode);
@@ -114,7 +120,7 @@ const name = (token: string) => token.replace('--theme-', '');
 
 /**
  * The text pairs of a look that fall below 4.5:1, as "token on token
- * (ratio)", the current section's among them.
+ * (ratio)", the sidebar's muted text and the current section's among them.
  */
 export function contrastFailures(vars: Look): string[] {
   const pairs = [
@@ -124,6 +130,7 @@ export function contrastFailures(vars: Look): string[] {
       bg: 'sidebar-wash',
       ratio: contrastRatio(vars['--theme-sidebar-text'], washOf(vars, vars['--sidebar-accent'])),
     },
+    { fg: 'sidebar-muted', bg: name('--theme-bg'), ratio: contrastRatio(sidebarMuted(vars), vars['--theme-bg']) },
   ];
   return pairs.filter((p) => p.ratio < 4.5).map((p) => `${p.fg} on ${p.bg} (${p.ratio.toFixed(1)}:1)`);
 }
