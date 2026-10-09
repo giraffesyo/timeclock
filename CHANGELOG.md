@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.2...timeclock-v0.24.0) (2026-10-09)
+
+
+### Features
+
+* suggest earlier work while the clock's description is typed ([#115](https://github.com/giraffesyo/timeclock/issues/115)) ([5712601](https://github.com/giraffesyo/timeclock/commit/571260139d8f4a2fed64e139dbd674cd2829d45e))
+
 ## [0.23.2](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.1...timeclock-v0.23.2) (2026-10-08)
 
 
