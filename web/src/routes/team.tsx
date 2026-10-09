@@ -7,6 +7,8 @@ import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
 import { PeriodNav, usePeriodLabel } from '@/components/period-nav';
 import { PendingTimeOff, pendingRuns } from '@/components/team/pending-time-off';
 import { TeamTable, useTeamView } from '@/components/team/team-table';
+import { cn } from '@/lib/cn';
+import { periodContaining } from '@/lib/periods';
 import { type PeriodSummary, type Person, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
@@ -58,21 +60,25 @@ function Approvals() {
   const t = useTranslations('team');
   const format = useFormatter();
   const periodLabel = usePeriodLabel();
-  const { person: me, admin, today } = useSession();
+  const { person: me, admin, today, settings } = useSession();
   const { day } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const team = useTeam(day);
+  const team = useTeam(day, true, true);
   const pending = usePendingTimeOff();
   const people = usePeople();
   const view = useTeamView();
 
   const show = (next: Day | undefined) => navigate({ search: (prev) => ({ ...prev, day: next }), replace: true });
 
-  const period = team.data?.period;
+  // Known before the team loads, so the navigation stays put and steps on from where it is.
+  const period = periodContaining(settings.payCycle, settings.cycleAnchor, day ?? today);
+  // The last period's team stays, dimmed, while this one loads.
+  const stale = team.isPlaceholderData;
+  const shown = stale ? undefined : team.data;
   const members = team.data?.members ?? [];
-  const ended = period ? period.end < today : false;
+  const ended = period.end < today;
   // While the shown period is still open, the one before it is where late timesheets are.
-  const previous = useTeam(period ? addDays(period.start, -1) : undefined, !!period && !ended);
+  const previous = useTeam(addDays(period.start, -1), !ended);
 
   // A manager's own timesheet waits for someone else.
   const mine = (m: PeriodSummary) => admin || m.person.id !== me.id;
@@ -94,12 +100,12 @@ function Approvals() {
   const previousMissing = missingIn(previousMembers);
 
   return (
-    <Page wide title={t('title')} actions={period && <PeriodNav period={period} today={today} onChange={show} />}>
+    <Page wide title={t('title')} actions={<PeriodNav period={period} today={today} onChange={show} />}>
       <div className="space-y-4">
         <Panel>
           <div className="flex flex-wrap gap-x-10 gap-y-3">
             <Stat label={t('needs.sheets')} hint={t('needs.sheetsHint')}>
-              <Count value={team.data ? waitingIn(members) : undefined} />
+              <Count value={shown ? waitingIn(members) : undefined} />
             </Stat>
             <Stat
               label={t('needs.timeOff')}
@@ -110,13 +116,12 @@ function Approvals() {
             <Stat
               label={t('needs.missing')}
               hint={
-                period &&
-                (ended
+                ended
                   ? t('needs.missingEnded', { date: shortDay(period.end) })
-                  : t('needs.missingOpen', { date: shortDay(period.end) }))
+                  : t('needs.missingOpen', { date: shortDay(period.end) })
               }
             >
-              <Count value={team.data && ended ? missingIn(members) : undefined} />
+              <Count value={shown && ended ? missingIn(members) : undefined} />
             </Stat>
           </div>
           {previous.data && (previousWaiting > 0 || previousMissing > 0) && (
@@ -149,7 +154,7 @@ function Approvals() {
 
         <Panel
           flush
-          title={period ? periodLabel(period) : t('table.title')}
+          title={periodLabel(period)}
           actions={
             <>
               <ListFilterMenu view={view} />
@@ -164,7 +169,9 @@ function Approvals() {
           ) : members.length === 0 ? (
             <Empty>{t('table.empty')}</Empty>
           ) : (
-            <TeamTable members={members} people={everyone} view={view} />
+            <div aria-busy={stale || undefined} className={cn('transition-opacity', stale && 'opacity-50')}>
+              <TeamTable members={members} people={everyone} view={view} />
+            </div>
           )}
         </Panel>
       </div>

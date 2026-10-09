@@ -3,7 +3,7 @@ import { useFormatter, useTranslations } from 'use-intl';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { PersonSelect, personChoices } from '@/components/person-select';
-import { isDay } from '@/components/settings/periods';
+import { isDay } from '@/lib/periods';
 import { type AuditEntry, useAudit, usePeople } from '@/lib/queries';
 import { dayToDate } from '@/lib/time';
 import { useZone } from '@/lib/zone';

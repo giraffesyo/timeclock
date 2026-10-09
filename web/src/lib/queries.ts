@@ -1,5 +1,5 @@
 import { clockFor } from '@giraffesyo/timeclock';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type Schemas, unwrap } from '@/api/client';
 import { basePath } from '@/lib/base';
 import type { Day } from '@/lib/time';
@@ -129,11 +129,13 @@ export function useTimesheet(day?: Day, person?: string) {
   });
 }
 
-export function useTeam(day?: Day, enabled = true) {
+/** With keep, the last period stays while the next one loads; isPlaceholderData says when that's what's shown. */
+export function useTeam(day?: Day, enabled = true, keep = false) {
   return useQuery({
     queryKey: ['team', day ?? ''],
     queryFn: async () => unwrap(await api.GET('/api/v1/team', { params: { query: { day } } })),
     enabled,
+    placeholderData: keep ? keepPreviousData : undefined,
   });
 }
 

@@ -15,7 +15,6 @@
     "openPrevious": "Open it"
   },
   "table": {
-    "title": "Pay period",
     "person": "Person",
     "pendingTimeOff": "Time off pending",
     "status": "Timesheet",
