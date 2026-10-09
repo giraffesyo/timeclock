@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.25.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.24.0...timeclock-v0.25.0) (2026-10-09)
+
+
+### Features
+
+* cancel a timeline drag with Escape ([#117](https://github.com/giraffesyo/timeclock/issues/117)) ([6e8a32e](https://github.com/giraffesyo/timeclock/commit/6e8a32e14abf387b0cb965ce5df487048879038b))
+* let people subscribe a calendar app to holidays, who is out and their tracked time ([#122](https://github.com/giraffesyo/timeclock/issues/122)) ([56281fd](https://github.com/giraffesyo/timeclock/commit/56281fd35828e6c76ab9dba79f552bc726e4ea39))
+* show past time off a calendar year at a time, with its hours by kind ([#118](https://github.com/giraffesyo/timeclock/issues/118)) ([6da98ad](https://github.com/giraffesyo/timeclock/commit/6da98addba2c75c0d189b547e24f11cce376269f))
+
+
+### Bug Fixes
+
+* build with Go 1.27.2 for its net/http security fixes ([#121](https://github.com/giraffesyo/timeclock/issues/121)) ([5e53f96](https://github.com/giraffesyo/timeclock/commit/5e53f96a710e0f55aa7e52e6a3468bd058f60496))
+* keep hold of a block dragged past another entry ([#123](https://github.com/giraffesyo/timeclock/issues/123)) ([d85fb85](https://github.com/giraffesyo/timeclock/commit/d85fb851a3aef7eba505f20222fcba9f9db6033e))
+* let planned time be dragged into another day ([#119](https://github.com/giraffesyo/timeclock/issues/119)) ([adee838](https://github.com/giraffesyo/timeclock/commit/adee83850904a600c45e13ea556b9fc825173c68))
+
 ## [0.24.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.23.2...timeclock-v0.24.0) (2026-10-09)
 
 
