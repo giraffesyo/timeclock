@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/parallelworks/foundation/problem"
 
 	"github.com/giraffesyo/timeclock/host"
@@ -58,13 +59,13 @@ func registerCalendarFeed(a huma.API, d Deps) {
 			return &struct{ Body calendarFeedBody }{calendarFeedBody{CalendarFeedStatus: status}}, nil
 		})
 
-	huma.Register(a, op(http.MethodPost, "/calendar/feed", "create-calendar-feed", "Make the caller a calendar feed of holidays and who is out, replacing any they had", "Calendar"),
-		func(ctx context.Context, _ *struct{}) (*struct{ Body calendarFeedBody }, error) {
+	huma.Register(a, op(http.MethodPost, "/calendar/feed", "create-calendar-feed", "Make the caller a calendar feed listing what they choose, replacing any they had", "Calendar"),
+		func(ctx context.Context, in *struct{ Body clock.FeedContents }) (*struct{ Body calendarFeedBody }, error) {
 			actor, err := d.actor(ctx)
 			if err != nil {
 				return nil, err
 			}
-			token, status, err := d.clock(ctx).NewCalendarFeed(ctx, actor)
+			token, status, err := d.clock(ctx).NewCalendarFeed(ctx, actor, in.Body)
 			if err != nil {
 				return nil, err
 			}
@@ -72,6 +73,19 @@ func registerCalendarFeed(a huma.API, d Deps) {
 				CalendarFeedStatus: status,
 				Path:               strings.TrimRight(d.BasePath, "/") + feedPath + token + ".ics",
 			}}, nil
+		})
+
+	huma.Register(a, op(http.MethodPut, "/calendar/feed", "update-calendar-feed", "Change what the caller's calendar feed lists, at the same address", "Calendar"),
+		func(ctx context.Context, in *struct{ Body clock.FeedContents }) (*struct{ Body calendarFeedBody }, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			status, err := d.clock(ctx).SetCalendarFeed(ctx, actor, in.Body)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body calendarFeedBody }{calendarFeedBody{CalendarFeedStatus: status}}, nil
 		})
 
 	huma.Register(a, op(http.MethodDelete, "/calendar/feed", "stop-calendar-feed", "Turn the caller's calendar feed off", "Calendar"),
@@ -85,7 +99,7 @@ func registerCalendarFeed(a huma.API, d Deps) {
 
 	// A calendar app fetches this signed out: the secret in the address is
 	// who it is for, and which workspace.
-	huma.Register(a, op(http.MethodGet, "/calendar/feeds/{file}", "calendar-feed", "A calendar feed, as iCalendar, of company holidays and who is out", "Calendar"),
+	huma.Register(a, op(http.MethodGet, "/calendar/feeds/{file}", "calendar-feed", "A calendar feed, as iCalendar: company holidays, who is out and the subscriber's tracked time, as they chose", "Calendar"),
 		func(ctx context.Context, in *struct {
 			File string `path:"file" doc:"The feed's secret, then .ics."`
 		}) (*icsResponse, error) {
@@ -120,13 +134,31 @@ func registerCalendarFeed(a huma.API, d Deps) {
 			}
 			today := s.TodayFor(cfg, actor.Person)
 			from, to := today.AddDays(-feedPastDays), today.AddDays(feedFutureDays)
-			holidays, err := s.Holidays(ctx)
-			if err != nil {
-				return nil, err
+			var events []ical.Event
+			if owner.Contents.Holidays {
+				holidays, err := s.Holidays(ctx)
+				if err != nil {
+					return nil, err
+				}
+				events = append(events, holidayEvents(holidays, from, to)...)
 			}
-			absences, err := s.Absences(ctx, from, to)
-			if err != nil {
-				return nil, err
+			if owner.Contents.TimeOff {
+				absences, err := s.Absences(ctx, from, to)
+				if err != nil {
+					return nil, err
+				}
+				events = append(events, absenceEvents(absences, actor.ID)...)
+			}
+			if owner.Contents.TrackedTime {
+				entries, err := s.Entries(ctx, actor, actor.ID, from, to)
+				if err != nil {
+					return nil, err
+				}
+				projects, err := s.Projects(ctx, true)
+				if err != nil {
+					return nil, err
+				}
+				events = append(events, entryEvents(entries, projects, time.Now())...)
 			}
 			workspace := owner.Workspace.Name
 			if workspace == "" {
@@ -136,7 +168,7 @@ func registerCalendarFeed(a huma.API, d Deps) {
 				Name:        messages.T("feed.name", messages.Args{"workspace": workspace}),
 				Description: messages.T("feed.description", nil),
 				Refresh:     feedRefresh,
-				Events:      append(holidayEvents(holidays, from, to), absenceEvents(absences, actor.ID)...),
+				Events:      events,
 			}
 			return &icsResponse{
 				ContentType:  "text/calendar; charset=utf-8",
@@ -144,6 +176,43 @@ func registerCalendarFeed(a huma.API, d Deps) {
 				Body:         ical.Encode(cal, time.Now()),
 			}, nil
 		})
+}
+
+// entryEvents is each stretch of tracked or planned time, named by its
+// project, with its description as the event's. A running clock runs to now.
+func entryEvents(entries []clock.Entry, projects []clock.Project, now time.Time) []ical.Event {
+	names := map[uuid.UUID]string{}
+	for _, p := range projects {
+		names[p.ID] = p.Name
+		if p.CustomerName != "" {
+			names[p.ID] = p.CustomerName + " / " + p.Name
+		}
+	}
+	out := make([]ical.Event, 0, len(entries))
+	for _, e := range entries {
+		var title string
+		if e.ProjectID != nil {
+			title = names[*e.ProjectID]
+		}
+		note := strings.TrimSpace(e.Note)
+		if title == "" {
+			title, note = note, ""
+		}
+		if title == "" {
+			title = messages.T("feed.tracked", nil)
+		}
+		end := now
+		if e.EndedAt != nil {
+			end = *e.EndedAt
+		} else {
+			title = messages.T("feed.running", messages.Args{"title": title})
+		}
+		out = append(out, ical.Event{
+			UID: "entry-" + e.ID.String() + "@timeclock", Summary: title, Description: note,
+			Start: e.StartedAt, End: end, Timed: true,
+		})
+	}
+	return out
 }
 
 // holidayEvents is each holiday's runs of days in from..to.

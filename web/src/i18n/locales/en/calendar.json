@@ -16,9 +16,16 @@
   "denied": "Your calendar wasn’t connected: Google wasn’t given access.",
   "failed": "Your calendar couldn’t be connected. Try again.",
   "feed": {
-    "title": "Subscribe to holidays and time off",
-    "intro": "Add a calendar of the company’s holidays and who’s out to Google Calendar, or any calendar app that subscribes by link. It keeps itself up to date.",
-    "private": "Anyone with the link can see the calendar, so keep it to yourself. It shows that someone is out, never why; your own days say vacation or sick.",
+    "title": "Subscribe in your calendar",
+    "intro": "Add Timeclock to Google Calendar, or any calendar app that subscribes by link, and it keeps itself up to date. Choose what it shows; you can change it later without a new link.",
+    "holidays": "Company holidays",
+    "holidaysHint": "The days the company observes.",
+    "timeOff": "Who’s out",
+    "timeOffHint": "Everyone’s approved time off. Others show only that they’re out; yours says vacation or sick.",
+    "trackedTime": "My tracked time",
+    "trackedTimeHint": "Your entries and planned time, by project, with their descriptions.",
+    "saveFailed": "Couldn’t change what your calendar shows.",
+    "nothing": "Choose at least one.",
     "make": "Get a calendar link",
     "link": "Calendar link",
     "copy": "Copy link",
@@ -33,6 +40,7 @@
     "off": "Turn off",
     "loadFailed": "Couldn’t load your calendar link.",
     "makeFailed": "Couldn’t make a calendar link.",
-    "offFailed": "Couldn’t turn your calendar link off."
+    "offFailed": "Couldn’t turn your calendar link off.",
+    "private": "Anyone with the link can see what it shows, so keep it to yourself."
   }
 }

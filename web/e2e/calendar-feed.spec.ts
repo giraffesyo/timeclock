@@ -7,7 +7,7 @@ test('someone gets a calendar link to subscribe to, makes a new one, and turns i
   const { page } = me;
   await page.goto('/settings?tab=calendar');
   const panel = page.locator('section', {
-    has: page.getByRole('heading', { name: 'Subscribe to holidays and time off' }),
+    has: page.getByRole('heading', { name: 'Subscribe in your calendar' }),
   });
   await panel.getByRole('button', { name: 'Get a calendar link' }).click();
 
@@ -24,8 +24,21 @@ test('someone gets a calendar link to subscribe to, makes a new one, and turns i
   expect(feed.headers.get('content-type')).toMatch(/^text\/calendar/);
   expect(await feed.text()).toContain('BEGIN:VCALENDAR');
 
-  // Back later, the link isn't shown again: a new one retires the old.
+  // What it shows changes at the same link, and is never nothing.
+  const tracked = panel.getByRole('switch', { name: 'My tracked time' });
+  await expect(tracked).toHaveAttribute('aria-checked', 'false');
+  await tracked.click();
+  await expect(tracked).toHaveAttribute('aria-checked', 'true');
+  for (const name of ['Company holidays', 'Who’s out', 'My tracked time']) {
+    await panel.getByRole('switch', { name }).click();
+  }
+  await expect(panel.getByRole('alert')).toHaveText('Choose at least one.');
+  expect((await subscribe(first)).status).toBe(200);
+
+  // Back later, the link isn't shown again, and the choice is kept: a new link retires the old.
   await page.reload();
+  await expect(tracked).toHaveAttribute('aria-checked', 'true');
+  await expect(panel.getByRole('switch', { name: 'Company holidays' })).toHaveAttribute('aria-checked', 'false');
   await expect(panel.getByText(/Your calendar link is on/)).toBeVisible();
   await expect(link).toHaveCount(0);
   await panel.getByRole('button', { name: 'Make a new link' }).click();

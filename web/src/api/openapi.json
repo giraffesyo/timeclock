@@ -169,13 +169,28 @@
             "description": "Whether the caller has a calendar feed.",
             "type": "boolean"
           },
+          "holidays": {
+            "description": "The company's holidays.",
+            "type": "boolean"
+          },
           "path": {
             "description": "The feed's address under the origin, set only when it was just made: it can't be read again.",
             "type": "string"
+          },
+          "timeOff": {
+            "description": "Who is out: everyone's approved time off.",
+            "type": "boolean"
+          },
+          "trackedTime": {
+            "description": "The subscriber's own tracked and planned time.",
+            "type": "boolean"
           }
         },
         "required": [
-          "enabled"
+          "enabled",
+          "holidays",
+          "timeOff",
+          "trackedTime"
         ],
         "type": "object"
       },
@@ -533,6 +548,38 @@
         "required": [
           "period",
           "exceptions"
+        ],
+        "type": "object"
+      },
+      "FeedContents": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/FeedContents.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "holidays": {
+            "description": "The company's holidays.",
+            "type": "boolean"
+          },
+          "timeOff": {
+            "description": "Who is out: everyone's approved time off.",
+            "type": "boolean"
+          },
+          "trackedTime": {
+            "description": "The subscriber's own tracked and planned time.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "holidays",
+          "timeOff",
+          "trackedTime"
         ],
         "type": "object"
       },
@@ -2870,6 +2917,16 @@
       },
       "post": {
         "operationId": "create-calendar-feed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedContents"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -2892,7 +2949,46 @@
             "description": "Error"
           }
         },
-        "summary": "Make the caller a calendar feed of holidays and who is out, replacing any they had",
+        "summary": "Make the caller a calendar feed listing what they choose, replacing any they had",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "put": {
+        "operationId": "update-calendar-feed",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedContents"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Change what the caller's calendar feed lists, at the same address",
         "tags": [
           "Calendar"
         ]
@@ -2948,7 +3044,7 @@
             "description": "Error"
           }
         },
-        "summary": "A calendar feed, as iCalendar, of company holidays and who is out",
+        "summary": "A calendar feed, as iCalendar: company holidays, who is out and the subscriber's tracked time, as they chose",
         "tags": [
           "Calendar"
         ]

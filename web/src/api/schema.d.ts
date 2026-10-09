@@ -47,8 +47,9 @@ export interface paths {
         };
         /** Whether the caller has a calendar feed */
         get: operations["get-calendar-feed"];
-        put?: never;
-        /** Make the caller a calendar feed of holidays and who is out, replacing any they had */
+        /** Change what the caller's calendar feed lists, at the same address */
+        put: operations["update-calendar-feed"];
+        /** Make the caller a calendar feed listing what they choose, replacing any they had */
         post: operations["create-calendar-feed"];
         /** Turn the caller's calendar feed off */
         delete: operations["stop-calendar-feed"];
@@ -64,7 +65,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A calendar feed, as iCalendar, of company holidays and who is out */
+        /** A calendar feed, as iCalendar: company holidays, who is out and the subscriber's tracked time, as they chose */
         get: operations["calendar-feed"];
         put?: never;
         post?: never;
@@ -930,8 +931,14 @@ export interface components {
             createdAt?: string;
             /** @description Whether the caller has a calendar feed. */
             enabled: boolean;
+            /** @description The company's holidays. */
+            holidays: boolean;
             /** @description The feed's address under the origin, set only when it was just made: it can't be read again. */
             path?: string;
+            /** @description Who is out: everyone's approved time off. */
+            timeOff: boolean;
+            /** @description The subscriber's own tracked and planned time. */
+            trackedTime: boolean;
         };
         "Clock-inRequest": {
             /**
@@ -1077,6 +1084,20 @@ export interface components {
             readonly $schema?: string;
             exceptions: components["schemas"]["Exception"][] | null;
             period: components["schemas"]["Period"];
+        };
+        FeedContents: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/FeedContents.json
+             */
+            readonly $schema?: string;
+            /** @description The company's holidays. */
+            holidays: boolean;
+            /** @description Who is out: everyone's approved time off. */
+            timeOff: boolean;
+            /** @description The subscriber's own tracked and planned time. */
+            trackedTime: boolean;
         };
         FieldError: {
             /** @description Stable name of the rule, for clients to show a localized message. New codes can appear: fall back to a generic message for one you don't know. */
@@ -2022,6 +2043,39 @@ export interface operations {
             };
         };
     };
+    "update-calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedContents"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "create-calendar-feed": {
         parameters: {
             query?: never;
@@ -2029,7 +2083,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedContents"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

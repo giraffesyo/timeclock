@@ -13,6 +13,8 @@ func TestEncode(t *testing.T) {
 		Refresh: time.Hour,
 		Events: []Event{
 			{UID: "a@timeclock", Summary: "Thanksgiving; and the day after", Start: day("2026-11-26"), End: day("2026-11-27")},
+			{UID: "b@timeclock", Summary: "Acme / Website", Description: "Fixed the nav\nand the footer", Timed: true,
+				Start: time.Date(2026, 10, 8, 9, 30, 0, 0, time.FixedZone("CDT", -5*3600)), End: time.Date(2026, 10, 8, 16, 0, 0, 0, time.UTC)},
 		},
 	}, time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)))
 	for _, want := range []string{
@@ -23,6 +25,7 @@ func TestEncode(t *testing.T) {
 		"DTSTART;VALUE=DATE:20261126\r\n",
 		"DTEND;VALUE=DATE:20261128\r\n",
 		"SUMMARY:Thanksgiving\\; and the day after\r\n",
+		"DTSTART:20261008T143000Z\r\nDTEND:20261008T160000Z\r\nSUMMARY:Acme / Website\r\nDESCRIPTION:Fixed the nav\\nand the footer\r\n",
 		"END:VCALENDAR\r\n",
 	} {
 		if !strings.Contains(got, want) {

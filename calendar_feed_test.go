@@ -48,13 +48,14 @@ func TestCalendarFeed(t *testing.T) {
 		rec, _ := in("", "", http.MethodGet, path, "")
 		return rec
 	}
+	const both = `{"holidays":true,"timeOff":true,"trackedTime":false}`
 	day := func(n int) string { return time.Now().AddDate(0, 0, n).Format(time.DateOnly) }
 	compact := func(n int) string { return time.Now().AddDate(0, 0, n).Format("20060102") }
 
-	if _, body := in("", "ada", http.MethodGet, api+"/calendar/feed", ""); body["enabled"] != false {
+	if _, body := in("", "ada", http.MethodGet, api+"/calendar/feed", ""); body["enabled"] != false || body["holidays"] != true || body["trackedTime"] != false {
 		t.Fatalf("ada's feed before making one: %v", body)
 	}
-	rec, body := in("", "ada", http.MethodPost, api+"/calendar/feed", "")
+	rec, body := in("", "ada", http.MethodPost, api+"/calendar/feed", both)
 	adaFeed, _ := body["path"].(string)
 	if rec.Code != http.StatusOK || body["enabled"] != true || !strings.HasPrefix(adaFeed, api+"/calendar/feeds/") || !strings.HasSuffix(adaFeed, ".ics") {
 		t.Fatalf("make ada's feed: %d %v", rec.Code, body)
@@ -62,7 +63,7 @@ func TestCalendarFeed(t *testing.T) {
 	if _, body := in("", "ada", http.MethodGet, api+"/calendar/feed", ""); body["enabled"] != true || body["path"] != nil {
 		t.Fatalf("ada's feed after: %v", body)
 	}
-	_, body = in("", "pat", http.MethodPost, api+"/calendar/feed", "")
+	_, body = in("", "pat", http.MethodPost, api+"/calendar/feed", both)
 	patFeed, _ := body["path"].(string)
 
 	// A holiday, Ada's approved vacation, Sam's half day sick and a request
@@ -95,7 +96,7 @@ func TestCalendarFeed(t *testing.T) {
 		t.Fatalf("ada's feed: %d %q %s", rec.Code, rec.Header().Get("Content-Type"), rec.Body)
 	}
 	for _, want := range []string{
-		"X-WR-CALNAME:Timeclock time off\r\n",
+		"X-WR-CALNAME:Timeclock calendar\r\n",
 		"DTSTART;VALUE=DATE:" + compact(30) + "\r\nDTEND;VALUE=DATE:" + compact(32) + "\r\nSUMMARY:Founders\\, Day\r\n",
 		// Her own says what it is, over three days.
 		"DTSTART;VALUE=DATE:" + compact(20) + "\r\nDTEND;VALUE=DATE:" + compact(23) + "\r\nSUMMARY:Vacation\r\n",
@@ -113,8 +114,34 @@ func TestCalendarFeed(t *testing.T) {
 		t.Errorf("pat's feed doesn't show Ada out:\n%s", ics)
 	}
 
+	// Ada adds her own tracked time, at the same address; Pat's doesn't show it.
+	_, customer := in("", "pat", http.MethodPost, api+"/customers", `{"name":"Acme"}`)
+	_, project := in("", "pat", http.MethodPost, api+"/projects", fmt.Sprintf(`{"customerId":%q,"name":"Website","billable":true}`, customer["id"]))
+	start := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Hour)
+	if rec, _ := in("", "ada", http.MethodPost, api+"/entries", fmt.Sprintf(`{"projectId":%q,"startedAt":%q,"endedAt":%q,"note":"Fixed the nav"}`,
+		project["id"], start.Format(time.RFC3339), start.Add(90*time.Minute).Format(time.RFC3339))); rec.Code != http.StatusOK {
+		t.Fatalf("ada tracks time: %d %s", rec.Code, rec.Body)
+	}
+	if rec, _ := in("", "ada", http.MethodPut, api+"/calendar/feed", `{"holidays":false,"timeOff":false,"trackedTime":false}`); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("a feed of nothing: %d", rec.Code)
+	}
+	if rec, body := in("", "ada", http.MethodPut, api+"/calendar/feed", `{"holidays":false,"timeOff":true,"trackedTime":true}`); rec.Code != http.StatusOK || body["trackedTime"] != true {
+		t.Fatalf("ada adds her tracked time: %d %v", rec.Code, body)
+	}
+	ics = strings.ReplaceAll(fetch(adaFeed).Body.String(), "\r\n ", "")
+	if want := "DTSTART:" + start.Format("20060102T150405Z") + "\r\nDTEND:" + start.Add(90*time.Minute).Format("20060102T150405Z") +
+		"\r\nSUMMARY:Acme / Website\r\nDESCRIPTION:Fixed the nav\r\n"; !strings.Contains(ics, want) {
+		t.Errorf("ada's feed is missing her time %q:\n%s", want, ics)
+	}
+	if strings.Contains(ics, "Founders") || !strings.Contains(ics, "Sam Rivera out") {
+		t.Errorf("ada's feed after choosing:\n%s", ics)
+	}
+	if strings.Contains(fetch(patFeed).Body.String(), "Website") {
+		t.Error("pat's feed shows ada's tracked time")
+	}
+
 	// Making a new address retires the old one; turning it off retires both.
-	_, body = in("", "ada", http.MethodPost, api+"/calendar/feed", "")
+	_, body = in("", "ada", http.MethodPost, api+"/calendar/feed", both)
 	newFeed, _ := body["path"].(string)
 	if fetch(adaFeed).Code != http.StatusNotFound || fetch(newFeed).Code != http.StatusOK {
 		t.Fatalf("a new address: old %d, new %d", fetch(adaFeed).Code, fetch(newFeed).Code)
@@ -132,7 +159,7 @@ func TestCalendarFeed(t *testing.T) {
 	}
 
 	// Someone who leaves the host's directory takes their feed with them.
-	_, body = in("", "sam", http.MethodPost, api+"/calendar/feed", "")
+	_, body = in("", "sam", http.MethodPost, api+"/calendar/feed", both)
 	samFeed, _ := body["path"].(string)
 	if fetch(samFeed).Code != http.StatusOK {
 		t.Fatal("sam's feed")
@@ -144,7 +171,7 @@ func TestCalendarFeed(t *testing.T) {
 
 	// A feed lists its own workspace's, though the app fetching it names none.
 	in("north", "pat", http.MethodPost, api+"/holidays", fmt.Sprintf(`{"name":"North Day","days":[{"day":%q}]}`, day(50)))
-	_, body = in("north", "pat", http.MethodPost, api+"/calendar/feed", "")
+	_, body = in("north", "pat", http.MethodPost, api+"/calendar/feed", both)
 	north := fetch(body["path"].(string)).Body.String()
 	if !strings.Contains(north, "SUMMARY:North Day") || strings.Contains(north, "Founders") || strings.Contains(north, "Ada") {
 		t.Errorf("north's feed:\n%s", north)

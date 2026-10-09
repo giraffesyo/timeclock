@@ -13,6 +13,7 @@ export type Entry = Schemas['Entry'];
 export type EntryInput = Schemas['EntryInput'];
 export type TimeOff = Schemas['TimeOff'];
 export type TimeOffInput = Schemas['TimeOffInput'];
+export type FeedContents = Schemas['FeedContents'];
 export type Timesheet = Schemas['Timesheet'];
 export type PeriodSummary = Schemas['PeriodSummary'];
 export type Period = Schemas['Period'];
@@ -269,7 +270,12 @@ export function useDisconnectGoogleCalendar() {
 
 /** Makes the caller a calendar feed, retiring any they had; its address is only in the result. */
 export function useCreateCalendarFeed() {
-  return useWrite(async () => unwrap(await api.POST('/api/v1/calendar/feed')));
+  return useWrite(async (body: FeedContents) => unwrap(await api.POST('/api/v1/calendar/feed', { body })));
+}
+
+/** Changes what the caller's calendar feed lists, at the same address. */
+export function useUpdateCalendarFeed() {
+  return useWrite(async (body: FeedContents) => unwrap(await api.PUT('/api/v1/calendar/feed', { body })));
 }
 
 export function useStopCalendarFeed() {

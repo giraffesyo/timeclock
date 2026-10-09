@@ -22,11 +22,13 @@
     "range": "{start} – {end}"
   },
   "feed": {
-    "name": "{workspace} time off",
-    "description": "Company holidays and who is out, from Timeclock.",
+    "name": "{workspace} calendar",
+    "description": "From Timeclock: what you chose to subscribe to.",
     "out": "{name} out",
     "partial": "{title} ({hours}h)",
     "vacation": "Vacation",
-    "sick": "Sick"
+    "sick": "Sick",
+    "tracked": "Tracked time",
+    "running": "{title} (running)"
   }
 }

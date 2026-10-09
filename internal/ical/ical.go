@@ -1,5 +1,5 @@
-// Package ical writes iCalendar (RFC 5545) feeds of all-day events, which
-// calendar apps such as Google Calendar subscribe to by address.
+// Package ical writes iCalendar (RFC 5545) feeds, which calendar apps such
+// as Google Calendar subscribe to by address.
 package ical
 
 import (
@@ -19,12 +19,14 @@ type Calendar struct {
 }
 
 // Event is an all-day event on the days Start..End, both inclusive, as
-// dates with no time zone.
+// dates with no time zone; or, when Timed, the instants Start to End.
 type Event struct {
-	UID     string
-	Summary string
-	Start   time.Time
-	End     time.Time
+	UID         string
+	Summary     string
+	Description string
+	Start       time.Time
+	End         time.Time
+	Timed       bool
 }
 
 // Encode writes c as an iCalendar document, stamped now.
@@ -52,10 +54,18 @@ func Encode(c Calendar, now time.Time) []byte {
 		line("BEGIN", "VEVENT")
 		line("UID", text(e.UID))
 		line("DTSTAMP", stamp)
-		line("DTSTART;VALUE=DATE", e.Start.Format("20060102"))
-		// DTEND is the day after the last, which isn't in the event.
-		line("DTEND;VALUE=DATE", e.End.AddDate(0, 0, 1).Format("20060102"))
+		if e.Timed {
+			line("DTSTART", e.Start.UTC().Format("20060102T150405Z"))
+			line("DTEND", e.End.UTC().Format("20060102T150405Z"))
+		} else {
+			line("DTSTART;VALUE=DATE", e.Start.Format("20060102"))
+			// DTEND is the day after the last, which isn't in the event.
+			line("DTEND;VALUE=DATE", e.End.AddDate(0, 0, 1).Format("20060102"))
+		}
 		line("SUMMARY", text(e.Summary))
+		if e.Description != "" {
+			line("DESCRIPTION", text(e.Description))
+		}
 		// Free: a day someone else is out doesn't make the subscriber busy.
 		line("TRANSP", "TRANSPARENT")
 		line("END", "VEVENT")

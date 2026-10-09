@@ -24,7 +24,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Audit log.** Every change to payroll data, with who made it.
 - **Workspaces.** A workspace is one organization's Timeclock: its people, time, settings and look. Every table carries its workspace and every query names it, so one deployment can hold many. A host with several organizations says which one a request is in; without that there is one.
 - **Themes.** A look is a few values: for light and for dark, an accent, a background and a contrast, and optionally the same for the sidebar; every other color follows from them. A workspace admin sets the workspace's in Settings, with the page wearing the draft as it changes; a host application can hand Timeclock its own; and each person chooses light, dark or the system's.
-- **Calendar feed.** Anyone can subscribe Google Calendar, or any calendar app, to a calendar of the company's holidays and who is out. Each person makes their own secret link in Settings → Calendar.
+- **Calendar feed.** Anyone can subscribe Google Calendar, or any calendar app, to a calendar of what they choose: the company's holidays, who is out, and their own tracked time. Each person makes their own secret link in Settings → Calendar.
 - **Reminders.** With a host notifier, people are told once about a clock left running and a timesheet that is due.
 
 ## Embedding
@@ -80,7 +80,7 @@ Where the host has no credentials for someone, they can connect their own calend
 
 ### Calendar feed
 
-In Settings → Calendar, each person can make a secret link to an iCalendar feed. The feed lists the company's holidays, and approved time off for everyone active in the workspace, as all-day events. Other people's time off says only that they are out; the subscriber's own says vacation or sick. **Add to Google Calendar** subscribes to it in one click, and any app that subscribes by URL can use it too. Timeclock keeps only a hash of the link, so the link is shown once. Making a new link retires the old one. The feed stops working when the person turns it off, is deactivated, or leaves the host's directory.
+In Settings → Calendar, each person can make a secret link to an iCalendar feed and choose what it shows; changing the choice keeps the link. **Company holidays** and **Who's out** (approved time off for everyone active in the workspace) are all-day events. Other people's time off says only that they are out; the subscriber's own says vacation or sick. **My tracked time**, off by default, adds the subscriber's own entries and planned time as timed events, titled by project, with the description as the event's; a running clock runs to the time of the fetch. **Add to Google Calendar** subscribes to it in one click, and any app that subscribes by URL can use it too. Timeclock keeps only a hash of the link, so the link is shown once. Making a new link retires the old one. The feed stops working when the person turns it off, is deactivated, or leaves the host's directory.
 
 Calendar apps fetch the feed signed out, so a host that refuses signed-out requests should let `<base path>/api/v1/calendar/feeds/` through. The secret in the path tells Timeclock whose feed it is and which workspace it belongs to; the request's own workspace is ignored. To reach Google, the feed has to be on a public HTTPS address.
 
