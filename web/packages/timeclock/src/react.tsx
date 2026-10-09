@@ -766,7 +766,7 @@ export function ClockBar({
     el.showPopover();
     const position = () => {
       const rect = field.getBoundingClientRect();
-      el.style.width = `${Math.max(rect.width, 288)}px`;
+      el.style.width = `${Math.min(Math.max(rect.width, 288), 512)}px`;
       el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8))}px`;
       el.style.top = `${rect.bottom + 4}px`;
     };
