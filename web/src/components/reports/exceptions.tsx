@@ -3,15 +3,15 @@ import { AlertCircleIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { buttonClass } from '@/components/button';
-import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
-import { PeriodNav } from '@/components/period-nav';
+import { Empty, ErrorNote, Loading, Panel, Refreshing } from '@/components/page';
+import { PeriodNav, usePeriod } from '@/components/period-nav';
 import { PersonIdentity } from '@/components/person-identity';
 import { Chip, type Tone } from '@/components/status';
 import { cn } from '@/lib/cn';
 import { type Exception, useExceptions, usePeople } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayToDate } from '@/lib/time';
-import { TimesheetLink, useStickyPeriod } from './shared';
+import { TimesheetLink } from './shared';
 
 type Kind = Exception['kind'];
 type Severity = 'blocking' | 'check';
@@ -67,11 +67,13 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
   const t = useTranslations('reports.exceptions');
   const tr = useTranslations('reports');
   const format = useFormatter();
-  const { today, period: current, admin, manager } = useSession();
+  const { today, admin, manager } = useSession();
   const exceptions = useExceptions(day);
   const people = usePeople(admin || manager);
   const personOf = (id: string) => people.data?.find((p) => p.id === id);
-  const period = useStickyPeriod(exceptions.data?.period ?? (day ? undefined : current));
+  const period = usePeriod(day);
+  // The last period stays, dimmed, while this one loads.
+  const stale = exceptions.isPlaceholderData;
   const [chosen, setChosen] = useState<Kind | 'all'>('all');
 
   const all = exceptions.data?.exceptions ?? [];
@@ -81,7 +83,7 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
   // A kind chosen in one period may not occur in the next.
   const filter = chosen !== 'all' && counts.has(chosen) ? chosen : 'all';
   const groups = byPerson(filter === 'all' ? all : all.filter((e) => e.kind === filter));
-  const linkDay = period?.start ?? day ?? today;
+  const linkDay = period.start;
 
   const sentence = (e: Exception) =>
     t(`sentence.${e.kind}`, {
@@ -92,7 +94,7 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-        {period && <PeriodNav period={period} today={today} onChange={onDay} />}
+        <PeriodNav period={period} today={today} onChange={onDay} />
         <p className="text-sm text-muted-foreground">{admin ? t('scopeAll') : t('scopeReports')}</p>
       </div>
 
@@ -105,7 +107,7 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
           <Empty>{t('empty')}</Empty>
         </Panel>
       ) : (
-        <>
+        <Refreshing stale={stale} className="space-y-4">
           {/* biome-ignore lint/a11y/useSemanticElements: a fieldset's legend can't sit in this wrapping row */}
           <div role="group" aria-label={t('filter.label')} className="flex flex-wrap gap-1.5">
             <FilterChip pressed={filter === 'all'} count={all.length} onClick={() => setChosen('all')}>
@@ -178,7 +180,7 @@ export function ExceptionsReport({ day, onDay }: { day?: Day; onDay: (day: Day |
               </Panel>
             ))}
           </div>
-        </>
+        </Refreshing>
       )}
     </div>
   );

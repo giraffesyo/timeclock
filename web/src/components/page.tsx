@@ -89,3 +89,24 @@ export function Loading({ className }: { className?: string }) {
     </div>
   );
 }
+
+/** What was shown, kept dimmed and out of reach while what replaces it loads. */
+export function Refreshing({
+  stale,
+  className,
+  children,
+}: {
+  stale: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      aria-busy={stale || undefined}
+      inert={stale}
+      className={cn('transition-opacity', stale && 'opacity-50', className)}
+    >
+      {children}
+    </div>
+  );
+}

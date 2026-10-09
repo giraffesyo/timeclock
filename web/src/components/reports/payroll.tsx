@@ -6,14 +6,14 @@ import { useFormatter, useTranslations } from 'use-intl';
 import { apiUrl } from '@/api/client';
 import { Button, buttonClass } from '@/components/button';
 import { Hours } from '@/components/hours';
-import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
-import { PeriodNav } from '@/components/period-nav';
+import { Empty, ErrorNote, Loading, Panel, Refreshing } from '@/components/page';
+import { PeriodNav, usePeriod } from '@/components/period-nav';
 import { PersonIdentity } from '@/components/person-identity';
 import { Chip, SheetStatus } from '@/components/status';
 import { type PayrollRow, usePayroll, usePeople } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import type { Day } from '@/lib/time';
-import { ReportTable, rowLine, TimesheetLink, td, tdNum, textLink, th, thNum, useStickyPeriod } from './shared';
+import { ReportTable, rowLine, TimesheetLink, td, tdNum, textLink, th, thNum } from './shared';
 
 const total = (r: PayrollRow) => r.regular + r.overtime + r.vacation + r.sick + r.holiday;
 
@@ -23,11 +23,13 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
   const tr = useTranslations('reports');
   const tc = useTranslations('common');
   const format = useFormatter();
-  const { today, period: current, settings, admin, manager } = useSession();
+  const { today, settings, admin, manager } = useSession();
   const payroll = usePayroll(day);
   // The people profile cards can name as managers.
   const people = usePeople(admin || manager);
-  const period = useStickyPeriod(payroll.data?.period ?? (day ? undefined : current));
+  const period = usePeriod(day);
+  // The last period stays, dimmed, while this one loads.
+  const stale = payroll.isPlaceholderData;
   const [confirming, setConfirming] = useState(false);
 
   const rows = payroll.data?.rows ?? [];
@@ -41,7 +43,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
 
   return (
     <div className="space-y-4">
-      {period && <PeriodNav period={period} today={today} onChange={onDay} />}
+      <PeriodNav period={period} today={today} onChange={onDay} />
 
       {payroll.isError ? (
         <ErrorNote context={t('loadFailed')} error={payroll.error} />
@@ -52,7 +54,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
           <Empty>{t('empty')}</Empty>
         </Panel>
       ) : (
-        <>
+        <Refreshing stale={stale} className="space-y-4">
           <Panel>
             <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
               <div className="min-w-0 flex-1 basis-80 space-y-1.5 text-sm">
@@ -263,7 +265,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
               </tfoot>
             </ReportTable>
           </Panel>
-        </>
+        </Refreshing>
       )}
 
       <ConfirmModal

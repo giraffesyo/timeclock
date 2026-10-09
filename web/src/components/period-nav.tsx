@@ -2,8 +2,20 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@parallelworks/ui/icons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { cn } from '@/lib/cn';
+import { periodContaining } from '@/lib/periods';
 import type { Period } from '@/lib/queries';
+import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
+
+/**
+ * The pay period a page names by any day in it, absent for today's. It is
+ * worked out here by the server's rule rather than waited for, so the
+ * navigation stays put and steps on from where it is while the period loads.
+ */
+export function usePeriod(day: Day | undefined): Period {
+  const { settings, today } = useSession();
+  return periodContaining(settings.payCycle, settings.cycleAnchor, day ?? today);
+}
 
 /** A pay period's dates, as "Sep 28 – Oct 11, 2026". */
 export function usePeriodLabel() {

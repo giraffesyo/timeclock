@@ -122,10 +122,14 @@ export function usePendingTimeOff(enabled = true) {
 }
 
 /** A person's pay period containing day (today when absent). */
-export function useTimesheet(day?: Day, person?: string) {
+/** With keep, the person's last period stays while the next one loads; another person's never does. */
+export function useTimesheet(day?: Day, person?: string, keep = false) {
   return useQuery({
     queryKey: ['timesheet', person ?? '', day ?? ''],
     queryFn: async () => unwrap(await api.GET('/api/v1/timesheet', { params: { query: { day, person } } })),
+    placeholderData: keep
+      ? (previous, query) => (query?.queryKey[1] === (person ?? '') ? previous : undefined)
+      : undefined,
   });
 }
 
@@ -139,19 +143,23 @@ export function useTeam(day?: Day, enabled = true, keep = false) {
   });
 }
 
+/** The last period stays while the next one loads, as the team's does. */
 export function useExceptions(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['exceptions', day ?? ''],
     queryFn: async () => unwrap(await api.GET('/api/v1/exceptions', { params: { query: { day } } })),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
+/** The last period stays while the next one loads, as the team's does. */
 export function usePayroll(day?: Day, enabled = true) {
   return useQuery({
     queryKey: ['payroll', day ?? ''],
     queryFn: async () => unwrap(await api.GET('/api/v1/reports/payroll', { params: { query: { day } } })),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
