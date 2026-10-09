@@ -4,11 +4,13 @@ import { Page } from '@/components/page';
 import { ExceptionsReport } from '@/components/reports/exceptions';
 import { PayrollReport } from '@/components/reports/payroll';
 import { ProjectsReport } from '@/components/reports/projects';
+import { History } from '@/components/settings/history';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import type { Day } from '@/lib/time';
 
-const tabs = ['payroll', 'exceptions', 'projects'] as const;
+// History is last: a record to look back on now and then, not a report run every period.
+const tabs = ['payroll', 'exceptions', 'projects', 'history'] as const;
 type Tab = (typeof tabs)[number];
 
 interface Search {
@@ -43,7 +45,7 @@ function ReportsPage() {
 
   // The server scopes every report; the tabs only leave out what the caller can't open.
   const allowed: Tab[] = admin
-    ? ['payroll', 'exceptions', 'projects']
+    ? ['payroll', 'exceptions', 'projects', 'history']
     : manager
       ? ['exceptions', 'projects']
       : ['projects'];
@@ -91,6 +93,7 @@ function ReportsPage() {
           }
         />
       )}
+      {tab === 'history' && <History />}
     </Page>
   );
 }

@@ -4,7 +4,8 @@
     "label": "Reports",
     "payroll": "Payroll",
     "exceptions": "Exceptions",
-    "projects": "Projects"
+    "projects": "Projects",
+    "history": "History"
   },
   "openTimesheet": "Open timesheet",
   "openTimesheetFor": "Open the timesheet of {name}",

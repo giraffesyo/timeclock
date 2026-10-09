@@ -105,7 +105,10 @@ for (const mobile of [false, true]) {
       await expect(async () => {
         await target.click(button ? { button } : {});
         await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
-        items = await menu.getByRole('button').allTextContents();
+        // The menu's own items: a submenu the pointer happens to open lists its items inside.
+        items = await menu.locator(':scope > button, :scope > [role=none] > button').allTextContents();
+        // Read while one menu replaces another, it can come back empty: read again.
+        expect(items.length).toBeGreaterThan(0);
       }).toPass();
       return items;
     };
@@ -116,12 +119,6 @@ for (const mobile of [false, true]) {
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     expect(await open(row.getByRole('cell').first(), 'right')).toEqual(fromButton);
-    await page.keyboard.press('Escape');
-    // The manager's name is a person too: a right click there opens their menu, not the row's.
-    expect(await open(row.getByRole('button', { name: 'Grace Hopper', exact: true }), 'right')).toEqual([
-      ...personMenu,
-      'Copy',
-    ]);
     await page.screenshot({ path: `/tmp/timeclock-people-menu-${device}.png` });
     await testInfo.attach(`People menu ${device}`, {
       path: `/tmp/timeclock-people-menu-${device}.png`,
@@ -160,6 +157,14 @@ for (const mobile of [false, true]) {
     expect(body.managerId).toBe('');
     expect(body.payrollId).toBe('PAY-123');
     await expect(dialog).toHaveCount(0);
+
+    // The manager's name is a person too: a right click there opens their menu, not the row's.
+    // Last, as its profile card can linger over what comes after.
+    const managerName = row.getByRole('button', { name: 'Grace Hopper', exact: true });
+    expect(await open(managerName, 'right')).toEqual([...personMenu, 'Copy']);
+    await page.keyboard.press('Escape');
+    await page.mouse.move(0, 0);
+    await managerName.blur();
 
     // The Display menu chooses the columns.
     if (!mobile) {

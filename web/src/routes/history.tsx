@@ -1,15 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useTranslations } from 'use-intl';
-import { AdminPage } from '@/components/admin-page';
-import { History } from '@/components/settings/history';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/history')({ component: HistoryPage });
-
-function HistoryPage() {
-  const t = useTranslations('manage.history');
-  return (
-    <AdminPage title={t('title')} description={t('description')} wide>
-      <History />
-    </AdminPage>
-  );
-}
+/** History became a Reports tab: old links still land on it. */
+export const Route = createFileRoute('/history')({
+  beforeLoad: () => {
+    throw redirect({ to: '/reports', search: { tab: 'history' }, replace: true });
+  },
+});
