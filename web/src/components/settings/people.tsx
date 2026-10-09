@@ -13,21 +13,17 @@ import {
   RowSelectCheckbox,
   useListNavigate,
   useListView,
-  useRowMenu,
 } from '@parallelworks/ui/list';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
-import { controlClass, Field } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { PersonIdentity } from '@/components/person-identity';
-import { PersonSelect, personChoices } from '@/components/person-select';
+import { usePersonMenu } from '@/components/person-menu';
 import { Invites } from '@/components/settings/invites';
-import { SwitchRow } from '@/components/settings/switch';
 import { Chip } from '@/components/status';
-import { ZoneSelect } from '@/components/zone-select';
 import {
   PartialFailure,
   type Person,
@@ -36,7 +32,6 @@ import {
   useSetAdmins,
   useSyncPeople,
   useUpdatePeople,
-  useUpdatePerson,
 } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 
@@ -83,122 +78,6 @@ const toMenuItem = (a: Action): RowMenuItem => ({
   tooltip: a.tooltip,
 });
 
-/** What an update leaves as it is. */
-const current = (p: Person): PersonUpdate => ({
-  timezone: p.timezone,
-  managerId: p.managerOverrideId,
-  overtimeExempt: p.overtimeExempt,
-  payrollId: p.payrollId,
-  active: p.active,
-  submitsTimesheets: p.submitsTimesheetsOverride,
-  holidayPay: p.holidayPayOverride,
-});
-
-/** One person's settings, saved together. */
-function PersonDialog({ person, people, onClose }: { person: Person; people: Person[]; onClose: () => void }) {
-  const t = useTranslations('settings.people');
-  const tc = useTranslations('common');
-  const update = useUpdatePerson();
-  const { settings } = useSession();
-  const [draft, setDraft] = useState(() => current(person));
-  const set = (patch: Partial<PersonUpdate>) => setDraft((d) => ({ ...d, ...patch }));
-
-  // The current manager stays choosable even when inactive or unknown here.
-  const managers = people.filter((p) => p.id !== person.id && (p.active || p.id === draft.managerId));
-  const directoryManager = people.find((p) => p.id === person.directoryManagerId);
-  const managerKnown = !draft.managerId || managers.some((p) => p.id === draft.managerId);
-
-  return (
-    <ConfirmModal
-      open
-      onClose={onClose}
-      title={t('editTitle', { name: person.name })}
-      confirmLabel={tc('save')}
-      closeOnConfirm={false}
-      onConfirm={async () => {
-        try {
-          await update.mutateAsync({ id: person.id, ...draft, payrollId: draft.payrollId.trim() });
-          onClose();
-        } catch {
-          // Shown below from update.error; the dialog stays open to fix it.
-        }
-      }}
-    >
-      <div className="space-y-3">
-        <Field label={t('columns.manager')} hint={t('managerHint')}>
-          <PersonSelect
-            label={t('columns.manager')}
-            value={draft.managerId}
-            onChange={(managerId) => set({ managerId })}
-            choices={[
-              {
-                value: '',
-                label: person.directoryManagerId
-                  ? t('managerDirectory', {
-                      name: directoryManager?.name || directoryManager?.email || person.directoryManagerId,
-                    })
-                  : t('adminApproves'),
-              },
-              ...(managerKnown ? [] : [{ value: draft.managerId, label: draft.managerId }]),
-              ...personChoices(managers),
-            ]}
-          />
-        </Field>
-        <Field label={t('columns.timezone')}>
-          <ZoneSelect
-            value={draft.timezone}
-            onChange={(timezone) => set({ timezone })}
-            defaultLabel={t('timezoneDefault')}
-          />
-        </Field>
-        <Field label={t('columns.timesheets')}>
-          <select
-            className={controlClass}
-            value={draft.submitsTimesheets == null ? '' : String(draft.submitsTimesheets)}
-            onChange={(e) => set({ submitsTimesheets: e.target.value === '' ? null : e.target.value === 'true' })}
-          >
-            <option value="">
-              {t('timesheetsDefault', { value: settings.submitTimesheets ? t('submits') : t('reportsOnly') })}
-            </option>
-            <option value="true">{t('submits')}</option>
-            <option value="false">{t('reportsOnly')}</option>
-          </select>
-        </Field>
-        <Field label={t('columns.holidayPay')}>
-          <select
-            className={controlClass}
-            value={draft.holidayPay == null ? '' : String(draft.holidayPay)}
-            onChange={(e) => set({ holidayPay: e.target.value === '' ? null : e.target.value === 'true' })}
-          >
-            <option value="">
-              {t('holidayPayDefault', { value: settings.holidayPay ? t('paid') : t('notPaid') })}
-            </option>
-            <option value="true">{t('paid')}</option>
-            <option value="false">{t('notPaid')}</option>
-          </select>
-        </Field>
-        <Field label={t('columns.payrollId')} hint={t('payrollIdHint')}>
-          <input
-            className={`${controlClass} font-mono`}
-            value={draft.payrollId}
-            maxLength={64}
-            onChange={(e) => set({ payrollId: e.target.value })}
-          />
-        </Field>
-        <SwitchRow
-          label={t('columns.exempt')}
-          hint={draft.overtimeExempt ? t('exemptOn') : t('exemptOff')}
-          value={draft.overtimeExempt}
-          onChange={(v) => set({ overtimeExempt: v })}
-        />
-      </div>
-      {update.isError && (
-        <ErrorNote className="mt-3" context={t('saveFailed', { name: person.name })} error={update.error} />
-      )}
-    </ConfirmModal>
-  );
-}
-
 /** One person, on the UI package's list row: ⋯ and a right click open the people menu. */
 function PersonRow({
   person,
@@ -233,7 +112,7 @@ function PersonRow({
   const cells: Record<string, ReactNode> = {
     name: (
       <span className="flex items-center gap-2">
-        <PersonIdentity person={person} people={people} />
+        <PersonIdentity person={person} people={people} menu={false} />
         {person.admin && (
           <Chip
             tone="info"
@@ -319,6 +198,7 @@ function PersonRow({
 /** Everyone who tracks time: who approves it, and how payroll treats them. */
 export function People() {
   const t = useTranslations('settings.people');
+  const tp = useTranslations('common.person');
   const navigate = useNavigate();
   const errorMessage = useErrorMessage();
   const people = usePeople();
@@ -326,7 +206,7 @@ export function People() {
   const bulk = useUpdatePeople();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [last, setLast] = useState<string | null>(null);
-  const { openMenu, contextMenu } = useRowMenu();
+  const personMenu = usePersonMenu();
   const view = useListView<Person>({
     storageKey: 'timeclock.settings.people',
     columns: [
@@ -349,8 +229,6 @@ export function People() {
   const me = useSession();
   // The action waiting to be confirmed.
   const [pending, setPending] = useState<Pending | null>(null);
-  // The person whose settings are open.
-  const [editing, setEditing] = useState<Person | null>(null);
 
   const list = people.data ?? [];
   // People who left the list (a sync, another admin) drop out of the selection.
@@ -379,12 +257,7 @@ export function People() {
         setLast(person.id);
         group = [person];
       }
-      // The keyboard's menu key reports no pointer: open beside what has focus instead.
-      if (!x && !y && document.activeElement) {
-        const box = document.activeElement.getBoundingClientRect();
-        [x, y] = [box.left + 24, box.bottom];
-      }
-      openMenu(x, y, actionsFor(group).map(toMenuItem), onClose);
+      personMenu.open(x, y, menuFor(group), onClose);
     };
 
   /** Applies the patch to those in the group it would change. */
@@ -463,7 +336,7 @@ export function People() {
   // One item per setting, saying what it would do: a mixed group is brought
   // into line, everyone already alike is switched over. Deactivating, the
   // destructive one, comes last.
-  const actionsFor = (group: Person[]): Action[] => {
+  const settingsFor = (group: Person[]): Action[] => {
     const exempt = group.filter((p) => p.overtimeExempt);
     const submitting = group.filter((p) => p.submitsTimesheets);
     const overridden = group.filter((p) => p.submitsTimesheetsOverride != null);
@@ -474,18 +347,7 @@ export function People() {
     // Only grants made here can be taken back here, and never your own.
     const revocable = admin.filter((p) => !p.hostAdmin && p.id !== me.person.id);
     const others = (part: Person[]) => group.filter((p) => !part.includes(p));
-    const [only] = group;
     return [
-      ...(only && group.length === 1
-        ? [
-            { label: t('edit'), onSelect: () => setEditing(only) },
-            {
-              label: t('openSheet'),
-              onSelect: () => void navigate({ to: '/timesheet', search: { person: only.id } }),
-            },
-            { label: t('openTimer'), onSelect: () => void navigate({ to: '/', search: { person: only.id } }) },
-          ]
-        : []),
       exempt.length === group.length
         ? confirmed('notExempt', group, () =>
             apply(
@@ -595,6 +457,29 @@ export function People() {
           ),
     ];
   };
+  // One person's menu is everyone's person menu, with the settings in the middle.
+  const menuFor = (group: Person[]): RowMenuItem[] => {
+    const settings = settingsFor(group).map(toMenuItem);
+    const [only] = group;
+    return only && group.length === 1 ? personMenu.items(only, { actions: settings }) : settings;
+  };
+  // The selection bar: for one person, their settings and pages first.
+  const actionsFor = (group: Person[]): Action[] => {
+    const [only] = group;
+    return [
+      ...(only && group.length === 1
+        ? [
+            { label: tp('edit'), onSelect: () => personMenu.edit(only) },
+            {
+              label: tp('openSheet'),
+              onSelect: () => void navigate({ to: '/timesheet', search: { person: only.id } }),
+            },
+            { label: tp('openTimer'), onSelect: () => void navigate({ to: '/', search: { person: only.id } }) },
+          ]
+        : []),
+      ...settingsFor(group),
+    ];
+  };
   const busy = bulk.isPending || admins.isPending;
 
   return (
@@ -683,12 +568,12 @@ export function People() {
                     person={p}
                     people={people.data}
                     view={view}
-                    items={actionsFor([p]).map(toMenuItem)}
+                    items={menuFor([p])}
                     openMenu={openRowMenu(p)}
                     selected={selected.has(p.id)}
                     selectionActive={chosen.length > 0}
                     onSelect={(range) => select(p.id, range)}
-                    onEdit={() => setEditing(p)}
+                    onEdit={() => personMenu.edit(p)}
                   />
                 ))}
               </Table>
@@ -696,14 +581,6 @@ export function People() {
           </div>
         )}
       </Panel>
-      {contextMenu}
-      {editing && (
-        <PersonDialog
-          person={list.find((p) => p.id === editing.id) ?? editing}
-          people={list}
-          onClose={() => setEditing(null)}
-        />
-      )}
       {pending && (
         <ConfirmModal
           open

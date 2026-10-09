@@ -63,5 +63,10 @@
   "search": {
     "placeholder": "Search",
     "empty": "Nothing matches “{query}”."
+  },
+  "person": {
+    "openSheet": "Open timesheet",
+    "openTimer": "Open timer",
+    "edit": "Edit settings…"
   }
 }

@@ -26,9 +26,7 @@
     "sendBack": "Send back",
     "own": "Yours: your manager or an admin decides it.",
     "sentBackNote": "Sent back: {note}",
-    "openSheet": "Open {name}’s timesheet",
-    "noMatch": "No one in this pay period matches the filter.",
-    "openTimer": "Open {name}’s timer"
+    "noMatch": "No one in this pay period matches the filter."
   },
   "sheet": {
     "approveTitle": "Approve {name}’s timesheet?",

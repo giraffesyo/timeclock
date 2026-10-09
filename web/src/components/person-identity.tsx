@@ -2,22 +2,30 @@ import { Avatar, type AvatarStatus } from '@parallelworks/ui';
 import { HoverCardRow, HoverCardTrigger, UserHoverCard } from '@parallelworks/ui/list';
 import { useTranslations } from 'use-intl';
 import { BrandIcon, TeamIcon } from '@/components/nav-icons';
+import { usePersonMenu } from '@/components/person-menu';
 import type { Person } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 
-/** Foundation's shared identity and profile card, for people and their managers. */
+/**
+ * Foundation's shared identity and profile card, for people and their
+ * managers. A right click opens the person's menu, the same everywhere.
+ */
 export function PersonIdentity({
   person,
   people,
   status,
+  menu = true,
 }: {
   person: Person;
   people: Person[];
   /** A dot on the picture, as for a running clock. */
   status?: AvatarStatus;
+  /** False in a row whose own menu leads with the person's: the row opens it. */
+  menu?: boolean;
 }) {
   const t = useTranslations('settings.people');
   const { settings } = useSession();
+  const personMenu = usePersonMenu();
   const name = person.name || person.email || person.id;
   const manager = people.find((p) => p.id === person.managerId);
   return (
@@ -58,6 +66,15 @@ export function PersonIdentity({
       <button
         type="button"
         aria-label={name}
+        onContextMenu={
+          menu
+            ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                personMenu.open(e.clientX, e.clientY, personMenu.items(person));
+              }
+            : undefined
+        }
         className="flex min-h-9 items-center gap-2 rounded-md text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <Avatar src={person.avatarUrl} name={name} size="sm" status={status} className="shrink-0" />

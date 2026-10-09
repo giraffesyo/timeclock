@@ -26,7 +26,7 @@ for (const mobile of [false, true]) {
 
     await page.goto(`/team?day=${week.day(1)}`);
     const row = page.getByRole('row').filter({ hasText: me.name });
-    await choose(page, row.getByRole('button', { name: 'More actions' }), `Open ${me.name}’s timer`);
+    await choose(page, row.getByRole('button', { name: 'More actions' }), 'Open timer');
     await expect(page).toHaveURL(new RegExp(`[?&]person=${me.id}`));
     await expect(page.getByRole('heading', { name: `Timer · ${me.name}` })).toBeVisible();
     // The clock above stays the manager's own, and says so.

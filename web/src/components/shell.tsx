@@ -26,6 +26,7 @@ import {
   TimerIcon,
   TimesheetIcon,
 } from '@/components/nav-icons';
+import { PersonMenuProvider } from '@/components/person-menu';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { ZoneDialog, zoneCity } from '@/components/zone';
 import { useSession } from '@/lib/session';
@@ -254,7 +255,9 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <div className="shell-sheet">
         {onTimer && <ClockBar />}
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="min-h-0 flex-1">
+          <PersonMenuProvider>{children}</PersonMenuProvider>
+        </div>
       </div>
     </div>
   );
