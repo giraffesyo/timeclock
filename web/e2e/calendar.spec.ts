@@ -163,6 +163,55 @@ test('dragging a block moves it and keeps its length', async ({ me }) => {
     .toEqual([instant(week.at(0, '13:00')), instant(week.at(0, '14:00'))]);
 });
 
+test('Escape puts back a block in hand, and its release changes nothing', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:00'));
+  await page.goto(`/?day=${week.day(0)}`);
+  const block = column(page, 0).locator('[data-entry]');
+  await expect(block).toBeVisible();
+  const before = await block.boundingBox();
+
+  const from = await at(page, 0, 9.5);
+  const to = await at(page, 0, 13.5);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+  await expect(page.locator('.tl-held')).not.toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.tl-held')).toHaveCount(0);
+  await page.mouse.up();
+
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await block.boundingBox()).toEqual(before);
+  const e = (await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`)).entries[0];
+  expect([instant(e.startedAt), instant(e.endedAt)]).toEqual([
+    instant(week.at(0, '09:00')),
+    instant(week.at(0, '10:00')),
+  ]);
+});
+
+test('Escape drops a stretch being drawn without offering it', async ({ me }) => {
+  const { page } = me;
+  const week = lastWeek();
+  await page.goto(`/?day=${week.day(2)}`);
+  await expect(column(page, 2)).toBeVisible();
+
+  const from = await at(page, 2, 9);
+  const to = await at(page, 2, 11.5);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 8 });
+  await expect(column(page, 2).locator('[data-draft]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(column(page, 2).locator('[data-draft]')).toHaveCount(0);
+  await page.mouse.up();
+
+  await page.waitForTimeout(300);
+  await expect(dialog(page, 'Add time')).toHaveCount(0);
+});
+
 test('an edge moves with the arrow keys, and saves once the keys rest', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();
