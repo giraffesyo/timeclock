@@ -61,6 +61,13 @@ test('people show their pictures wherever they are listed', async ({ me, someone
   await admin.page.goto(`/reports?tab=exceptions&day=${week.day(0)}`);
   const group = admin.page.locator('section').filter({ has: admin.page.getByRole('heading', { name: ada.name }) });
   await expect(picture(group, ada.name)).toBeVisible();
+  // The project report, under each project and as the head of each person's group.
+  const range = `from=${week.day(0)}&to=${week.day(4)}`;
+  await admin.page.goto(`/reports?tab=projects&${range}`);
+  await expect(picture(admin.page.getByRole('row').filter({ hasText: ada.name }), ada.name)).toBeVisible();
+  await admin.page.goto(`/reports?tab=projects&${range}&by=person`);
+  const own = admin.page.locator('tbody').filter({ hasText: ada.name });
+  await expect(picture(own.getByRole('row').first(), ada.name)).toBeVisible();
   // Choosing a person shows their picture too.
   await admin.page.goto('/history');
   const filter = admin.page.getByRole('button', { name: 'Show changes to one person’s time' });

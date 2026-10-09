@@ -1,3 +1,4 @@
+import { Avatar } from '@parallelworks/ui';
 import { DownloadIcon } from '@parallelworks/ui/icons';
 import { Fragment } from 'react';
 import { useTranslations } from 'use-intl';
@@ -6,8 +7,9 @@ import { Button, buttonClass } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { Hours } from '@/components/hours';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
+import { PersonIdentity } from '@/components/person-identity';
 import { Segmented } from '@/components/segmented';
-import { type ProjectHours, useProjectReport } from '@/lib/queries';
+import { type ProjectHours, usePeople, useProjectReport } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, daysBetween } from '@/lib/time';
 import { ReportTable, rowLine, td, tdNum, th, thNum } from './shared';
@@ -95,6 +97,19 @@ export function ProjectsReport({
   const tc = useTranslations('common');
   const { today, period, admin, manager } = useSession();
   const report = useProjectReport(from, to);
+  const people = usePeople(admin || manager);
+  // The profile card where the directory has them; their name and initials otherwise.
+  const who = (id: string, name: string) => {
+    const person = people.data?.find((p) => p.id === id);
+    return person ? (
+      <PersonIdentity person={person} people={people.data ?? []} />
+    ) : (
+      <span className="flex items-center gap-2">
+        <Avatar name={name} size="sm" className="shrink-0" />
+        {name}
+      </span>
+    );
+  };
 
   const length = daysBetween(period.start, period.end).length;
   const thisMonth = monthStart(today);
@@ -203,9 +218,10 @@ export function ProjectsReport({
             {byPerson
               ? groupByPerson(rows).map((p) => (
                   <tbody key={p.id}>
-                    <tr className="border-t border-border bg-muted/50">
+                    {/* Centered: the name's profile button is taller than a line of text. */}
+                    <tr className="border-t border-border bg-muted/50 [&>*]:align-middle">
                       <th scope="rowgroup" colSpan={2} className={`${td} text-left font-semibold`}>
-                        {p.name}
+                        {who(p.id, p.name)}
                       </th>
                       <td className={tdNum}>
                         <Hours value={p.hours} strong />
@@ -267,8 +283,10 @@ export function ProjectsReport({
                           </tr>
                         )}
                         {p.people.map((r) => (
-                          <tr key={r.personId} className={rowLine}>
-                            <td className={`${td} ${c.noProject ? 'pl-8' : 'pl-12'}`}>{r.personName}</td>
+                          <tr key={r.personId} className={`${rowLine} [&>*]:align-middle`}>
+                            <td className={`${td} ${c.noProject ? 'pl-8' : 'pl-12'}`}>
+                              {who(r.personId, r.personName)}
+                            </td>
                             <td className={`${td} whitespace-nowrap text-muted-foreground`}>
                               {c.noProject ? t('notBillable') : null}
                             </td>
