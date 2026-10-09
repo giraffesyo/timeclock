@@ -1,6 +1,7 @@
 import { type Browser, expect, type Page, test } from '@playwright/test';
 import { DateTime } from 'luxon';
 import { workspaceKey } from './accounts';
+import { column, drag, hourPoint } from './fixtures';
 
 // Planned time is a workspace setting, and every other test relies on the
 // future being closed, so this runs in a host organization of its own.
@@ -84,4 +85,40 @@ test('planned time is closed until an admin allows it, then shows as planned and
   // The timesheet can look ahead too, where the shift's period is.
   await ada.goto('/timeclock/timesheet');
   await expect(ada.getByRole('button', { name: 'Next pay period' })).toBeEnabled();
+});
+
+test('planned time drags into another day ahead and keeps its length', async ({ browser }) => {
+  const org = workspaceKey('planned-drag');
+  const admin = await as(browser, 'admin@host.test', org);
+  const project = await api(admin, 'post', '/projects', { name: 'Fieldwork', billable: false });
+  const { settings } = await api(admin, 'get', '/me');
+  await api(admin, 'put', '/settings', { ...settings, allowPlannedTime: true });
+  const ada = await as(browser, 'ada@host.test', org);
+  const zone: string = (await api(ada, 'get', '/me')).settings.timezone;
+  // Next week's Monday: wholly ahead, whatever the time now.
+  const monday = DateTime.now().setZone(zone).startOf('week').plus({ weeks: 1 });
+  const shift = await api(ada, 'post', '/entries', {
+    projectId: project.id,
+    note: 'Planned shift',
+    startedAt: monday.set({ hour: 10 }).toUTC().toISO(),
+    endedAt: monday.set({ hour: 12 }).toUTC().toISO(),
+  });
+
+  await ada.goto(`/timeclock/?day=${monday.toISODate()}`);
+  await expect(column(ada, 0).locator('.tl-planned')).toHaveCount(1);
+  // The whole day is drawn; grab the middle of the shift and drop it on Wednesday afternoon.
+  await drag(ada, await hourPoint(ada, 0, 11, 0, 24), await hourPoint(ada, 2, 15, 0, 24));
+  await expect(column(ada, 0).locator('[data-entry]')).toHaveCount(0);
+  await expect(column(ada, 2).locator('.tl-planned')).toHaveCount(1);
+  const wednesday = monday.plus({ days: 2 });
+  await expect
+    .poll(async () => {
+      const { entries } = await api(ada, 'get', `/entries?from=${monday.toISODate()}&to=${wednesday.toISODate()}`);
+      return entries.map((e: { id: string; startedAt: string; endedAt: string }) => [
+        e.id,
+        Date.parse(e.startedAt),
+        Date.parse(e.endedAt),
+      ]);
+    })
+    .toEqual([[shift.id, wednesday.set({ hour: 14 }).toMillis(), wednesday.set({ hour: 16 }).toMillis()]]);
 });

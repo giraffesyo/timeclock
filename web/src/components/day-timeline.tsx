@@ -371,7 +371,7 @@ export function DayTimeline({
           ? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('.tl-column .tl-track'))
           : null;
         const targetDay = target instanceof HTMLElement ? target.dataset['day'] : undefined;
-        // Locked/future days and entries crossing midnight cannot be moved into another column.
+        // Locked days, future days without planned time, and entries crossing midnight cannot be moved into another column.
         if (target && (targetDay !== day || drag.destination)) {
           const b = blocks.find((x) => x.entry.id === drag.id);
           if (
@@ -385,7 +385,9 @@ export function DayTimeline({
           )
             return;
           const targetBounds = dayBounds(targetDay, zone);
-          const targetCap = Math.min(targetBounds.end, Math.floor(now / SNAP) * SNAP);
+          const targetCap = planning
+            ? targetBounds.end
+            : clamp(Math.floor(now / SNAP) * SNAP, targetBounds.start, targetBounds.end);
           if (targetCap - targetBounds.start < size) return;
           const r = target.getBoundingClientRect();
           const targetInstant =
