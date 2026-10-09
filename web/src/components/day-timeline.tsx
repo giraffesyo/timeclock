@@ -410,6 +410,27 @@ export function DayTimeline({
     }
   };
 
+  // Escape puts back whatever is in hand: nothing is saved, and the release
+  // that follows neither opens the entry nor offers new time.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (gesture.current) {
+        gesture.current = null;
+        suppressClick.current = true;
+      } else if (!keyTimer.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.clearTimeout(keyTimer.current);
+      keyTimer.current = 0;
+      pendingNew.current = null;
+      setDrag(null);
+      onMovePreview?.(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onMovePreview]);
+
   const onPointerUp = (e: PointerEvent) => {
     if (touchTap.current) {
       const tap = touchTap.current;
@@ -460,6 +481,7 @@ export function DayTimeline({
     // Saved once the keys rest, so a held arrow is one change.
     window.clearTimeout(keyTimer.current);
     keyTimer.current = window.setTimeout(() => {
+      keyTimer.current = 0;
       setDrag(null);
       save(b, next);
     }, 500);
