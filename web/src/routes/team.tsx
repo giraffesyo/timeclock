@@ -3,12 +3,10 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
-import { Empty, ErrorNote, Loading, Page, Panel } from '@/components/page';
-import { PeriodNav, usePeriodLabel } from '@/components/period-nav';
+import { Empty, ErrorNote, Loading, Page, Panel, Refreshing } from '@/components/page';
+import { PeriodNav, usePeriod, usePeriodLabel } from '@/components/period-nav';
 import { PendingTimeOff, pendingRuns } from '@/components/team/pending-time-off';
 import { TeamTable, useTeamView } from '@/components/team/team-table';
-import { cn } from '@/lib/cn';
-import { periodContaining } from '@/lib/periods';
 import { type PeriodSummary, type Person, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
@@ -60,7 +58,7 @@ function Approvals() {
   const t = useTranslations('team');
   const format = useFormatter();
   const periodLabel = usePeriodLabel();
-  const { person: me, admin, today, settings } = useSession();
+  const { person: me, admin, today } = useSession();
   const { day } = Route.useSearch();
   const navigate = Route.useNavigate();
   const team = useTeam(day, true, true);
@@ -70,8 +68,7 @@ function Approvals() {
 
   const show = (next: Day | undefined) => navigate({ search: (prev) => ({ ...prev, day: next }), replace: true });
 
-  // Known before the team loads, so the navigation stays put and steps on from where it is.
-  const period = periodContaining(settings.payCycle, settings.cycleAnchor, day ?? today);
+  const period = usePeriod(day);
   // The last period's team stays, dimmed, while this one loads.
   const stale = team.isPlaceholderData;
   const shown = stale ? undefined : team.data;
@@ -169,9 +166,9 @@ function Approvals() {
           ) : members.length === 0 ? (
             <Empty>{t('table.empty')}</Empty>
           ) : (
-            <div aria-busy={stale || undefined} className={cn('transition-opacity', stale && 'opacity-50')}>
+            <Refreshing stale={stale}>
               <TeamTable members={members} people={everyone} view={view} />
-            </div>
+            </Refreshing>
           )}
         </Panel>
       </div>

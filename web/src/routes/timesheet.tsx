@@ -1,10 +1,9 @@
 import { CalendarOffIcon, ClockIcon } from '@parallelworks/ui/icons';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
 import { useTranslations } from 'use-intl';
-import { ErrorNote, Loading, Page } from '@/components/page';
-import { PeriodNav } from '@/components/period-nav';
+import { ErrorNote, Loading, Page, Refreshing } from '@/components/page';
+import { PeriodNav, usePeriod } from '@/components/period-nav';
 import { DayTable } from '@/components/timesheet/day-table';
 import { standing } from '@/components/timesheet/sheet';
 import { SheetPanel } from '@/components/timesheet/sheet-panel';
@@ -53,15 +52,11 @@ function TimesheetPage() {
   const navigate = Route.useNavigate();
 
   const personId = search.person && search.person !== me.person.id ? search.person : undefined;
-  const sheet = useTimesheet(search.day, personId);
+  const sheet = useTimesheet(search.day, personId, true);
   const summary = sheet.data;
-
-  // The period last shown stays in the header while the next one loads, so
-  // the navigation doesn't jump.
-  const [period, setPeriod] = useState(search.day ? null : me.period);
-  if (summary && (summary.period.start !== period?.start || summary.period.end !== period?.end)) {
-    setPeriod(summary.period);
-  }
+  const period = usePeriod(search.day);
+  // The last period's sheet stays, dimmed, while this one loads.
+  const stale = sheet.isPlaceholderData;
 
   const s = summary ? standing(summary, me) : null;
 
@@ -86,14 +81,12 @@ function TimesheetPage() {
         </span>
       }
       actions={
-        period && (
-          <PeriodNav
-            period={period}
-            today={me.today}
-            ahead={me.settings.allowPlannedTime}
-            onChange={(day) => navigate({ search: (prev) => ({ ...prev, day }), replace: true })}
-          />
-        )
+        <PeriodNav
+          period={period}
+          today={me.today}
+          ahead={me.settings.allowPlannedTime}
+          onChange={(day) => navigate({ search: (prev) => ({ ...prev, day }), replace: true })}
+        />
       }
     >
       {sheet.isError ? (
@@ -101,7 +94,7 @@ function TimesheetPage() {
       ) : !summary || !s ? (
         <Loading />
       ) : (
-        <div className="space-y-4">
+        <Refreshing stale={stale} className="space-y-4">
           <SheetPanel summary={summary} standing={s} />
 
           {(summary.running || summary.pendingTimeOff > 0) && (
@@ -130,7 +123,7 @@ function TimesheetPage() {
             personId={personId}
             readOnly={s.locked || !s.writer}
           />
-        </div>
+        </Refreshing>
       )}
     </Page>
   );

@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
-import type { Period } from '@/lib/queries';
+import type { ReactNode } from 'react';
 import type { Day } from '@/lib/time';
 
 /** A report's table: dense, and scrolling sideways inside its panel on a narrow screen. */
@@ -39,17 +38,4 @@ export function TimesheetLink({
       {children}
     </Link>
   );
-}
-
-/**
- * The period to show while the next one loads: the last one known, so the
- * period navigation stays in place as the reader steps through periods.
- */
-export function useStickyPeriod(period: Period | undefined): Period | undefined {
-  const [shown, setShown] = useState(period);
-  if (period && (period.start !== shown?.start || period.end !== shown?.end)) {
-    setShown(period);
-    return period;
-  }
-  return shown;
 }
