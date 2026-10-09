@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.26.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.25.0...timeclock-v0.26.0) (2026-10-09)
+
+
+### Features
+
+* group the project report by person, with each person's hours by project ([#126](https://github.com/giraffesyo/timeclock/issues/126)) ([4dc9b02](https://github.com/giraffesyo/timeclock/commit/4dc9b02e28ad2d4a53cfcf06aeeb2f748382454a))
+
+
+### Bug Fixes
+
+* keep every pay period page in place while the next period loads ([#127](https://github.com/giraffesyo/timeclock/issues/127)) ([6209334](https://github.com/giraffesyo/timeclock/commit/6209334953c6dce628403beccdd69243bfd71a61))
+* keep the team's period navigation and table in place while the next period loads ([#124](https://github.com/giraffesyo/timeclock/issues/124)) ([c5cc680](https://github.com/giraffesyo/timeclock/commit/c5cc680bf8b104407a62a9a945a192ef330ae86c))
+
 ## [0.25.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.24.0...timeclock-v0.25.0) (2026-10-09)
 
 

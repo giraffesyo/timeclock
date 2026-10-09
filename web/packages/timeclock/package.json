@@ -1,6 +1,6 @@
 {
   "name": "@giraffesyo/timeclock",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "The Timeclock clock for a host application: a headless store and React hook, a ready-made bar, and a header button.",
   "license": "Apache-2.0",
   "repository": {
