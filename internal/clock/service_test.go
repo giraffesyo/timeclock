@@ -1112,3 +1112,57 @@ func TestOvertimeIsNotAnException(t *testing.T) {
 		}
 	}
 }
+
+func TestRecentWork(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+	portal, err := f.SaveProject(ctx, f.admin, [16]byte{}, ProjectInput{Name: "Portal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := func(who Actor, start, end string, project *Project, note string) {
+		t.Helper()
+		e := f.time(end)
+		in := EntryInput{StartedAt: f.time(start), EndedAt: &e, Note: note}
+		if project != nil {
+			in.ProjectID = &project.ID
+		}
+		if _, err := f.CreateEntry(ctx, who, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record(f.ada, "2026-09-28 09:00", "2026-09-28 10:00", &portal, "code review")
+	record(f.ada, "2026-09-29 09:00", "2026-09-29 10:00", nil, "standup")
+	record(f.ada, "2026-09-30 09:00", "2026-09-30 10:00", nil, "")
+	record(f.ada, "2026-09-30 11:00", "2026-09-30 12:00", nil, "code review")
+	record(f.ada, "2026-10-01 09:00", "2026-10-01 10:00", &portal, "code review")
+	record(f.bob, "2026-10-01 11:00", "2026-10-01 12:00", nil, "bob's own")
+
+	recent, err := f.RecentWork(ctx, f.ada, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type work struct {
+		note    string
+		project bool
+	}
+	var got []work
+	for _, r := range recent {
+		got = append(got, work{r.Note, r.ProjectID != nil})
+	}
+	// Each note and project once, as last worked; no empty notes, nobody else's.
+	want := []work{{"code review", true}, {"code review", false}, {"standup", false}}
+	if len(got) != len(want) {
+		t.Fatalf("recent work = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("recent work = %+v, want %+v", got, want)
+		}
+	}
+
+	if short, err := f.RecentWork(ctx, f.ada, 1); err != nil || len(short) != 1 {
+		t.Errorf("recent work limited to 1 = %+v, %v", short, err)
+	}
+}

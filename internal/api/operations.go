@@ -393,6 +393,12 @@ func (q rangeQuery) dates() (from, to clock.Date, err error) {
 
 type entryBody struct{ Body clock.Entry }
 
+type recentWorkBody struct {
+	Body struct {
+		Recent []clock.RecentWork `json:"recent" doc:"Each note with the project it was on, once."`
+	}
+}
+
 func registerEntries(a huma.API, d Deps) {
 	huma.Register(a, op(http.MethodPost, "/clock/in", "clock-in", "Start the caller's clock", "Clock"),
 		func(ctx context.Context, in *struct {
@@ -467,6 +473,21 @@ func registerEntries(a huma.API, d Deps) {
 				}
 			}{}
 			out.Body.Entries = orEmpty(list)
+			return out, nil
+		})
+
+	huma.Register(a, op(http.MethodGet, "/entries/recent", "list-recent-work", "What the caller has tracked before, most recent first", "Entries"),
+		func(ctx context.Context, _ *struct{}) (*recentWorkBody, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			list, err := d.clock(ctx).RecentWork(ctx, actor, 200)
+			if err != nil {
+				return nil, err
+			}
+			out := &recentWorkBody{}
+			out.Body.Recent = orEmpty(list)
 			return out, nil
 		})
 

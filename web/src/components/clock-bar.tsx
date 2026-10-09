@@ -50,6 +50,7 @@ export function ClockBar() {
             clock: t('label'),
             notePlaceholder: t('notePlaceholder'),
             noteLabel: t('noteLabel'),
+            suggestions: t('suggestions'),
             start: t('in'),
             stop: t('out'),
             switchProject: t('switchLabel'),

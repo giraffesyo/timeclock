@@ -19,6 +19,12 @@ export interface Project {
   customerName: string;
 }
 
+/** Something the person has tracked before: a note and the project it was on. */
+export interface RecentWork {
+  note: string;
+  projectId?: string;
+}
+
 export interface ClockState {
   /**
    * `loading` until the first answer; `signed-out` when Timeclock doesn't
@@ -29,6 +35,8 @@ export interface ClockState {
   running: Entry | null;
   /** The projects that take new time, internal ones first, then by customer. */
   projects: Project[];
+  /** What the person has tracked before, each note and project once, the latest first. */
+  recent: RecentWork[];
   /** Whether the organization requires a project on every entry. */
   requireProject: boolean;
   requireDescription: boolean;
@@ -84,6 +92,8 @@ export interface ClockStore {
   switchTo(input: ClockInput): Promise<Entry>;
   /** Sets the running stretch's note. */
   saveNote(note: string): Promise<Entry>;
+  /** Sets the running stretch's note and project, in place: the time so far goes with them. */
+  describe(input: ClockInput): Promise<Entry>;
   /**
    * Moves when the running stretch started. With `endedAt` it stops there
    * instead of now. `note` defaults to the stretch's own.
@@ -97,6 +107,7 @@ const initial: ClockState = {
   status: 'loading',
   running: null,
   projects: [],
+  recent: [],
   requireProject: false,
   requireDescription: false,
   locked: false,
@@ -144,7 +155,7 @@ export function createClock(options: ClockOptions = {}): ClockStore {
 
   const refresh = async () => {
     try {
-      const [me, projects, sheet] = await Promise.all([
+      const [me, projects, sheet, recent] = await Promise.all([
         call<{
           person: { timezone: string };
           settings: { timezone: string; requireProject: boolean; requireDescription: boolean };
@@ -152,12 +163,15 @@ export function createClock(options: ClockOptions = {}): ClockStore {
         }>('GET', '/me'),
         call<{ projects: Project[] | null }>('GET', '/projects'),
         call<{ timesheet?: { status: string } }>('GET', '/timesheet'),
+        // Suggestions are a nicety: a Timeclock without them still has a clock.
+        call<{ recent: RecentWork[] | null }>('GET', '/entries/recent').catch(() => ({ recent: [] })),
       ]);
       const status = sheet.timesheet?.status;
       set({
         status: 'ready',
         running: me.running ?? null,
         projects: projects.projects ?? [],
+        recent: recent.recent ?? [],
         requireProject: me.settings.requireProject,
         requireDescription: me.settings.requireDescription ?? false,
         locked: status === 'submitted' || status === 'approved',
@@ -214,6 +228,18 @@ export function createClock(options: ClockOptions = {}): ClockStore {
         return Promise.reject(new ClockError(409, 'clock_not_running', 'the clock is not running', undefined));
       return change(() =>
         call('PUT', `/entries/${running.id}`, { projectId: running.projectId, startedAt: running.startedAt, note }),
+      );
+    },
+    describe: ({ projectId, note }) => {
+      const running = state.running;
+      if (!running)
+        return Promise.reject(new ClockError(409, 'clock_not_running', 'the clock is not running', undefined));
+      return change(() =>
+        call('PUT', `/entries/${running.id}`, {
+          projectId: projectId || undefined,
+          startedAt: running.startedAt,
+          note: note ?? '',
+        }),
       );
     },
     saveTimes: ({ startedAt, endedAt, note }) => {

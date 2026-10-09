@@ -20,6 +20,7 @@ import {
   type Project,
   projectHue,
   projectLabel,
+  type RecentWork,
   stopwatch,
 } from './index.js';
 
@@ -50,6 +51,17 @@ export interface Clock extends ClockState {
   stop: () => Promise<Entry>;
   /** Starts the clock on what an entry was about; a running clock moves to it. */
   resume: (entry: Pick<Entry, 'projectId' | 'note'>) => Promise<Entry>;
+  /**
+   * What the person tracked before that fits the note so far, the latest
+   * first: only work on projects that still take time, and not what the
+   * note and project already are.
+   */
+  suggestions: RecentWork[];
+  /**
+   * Takes a suggestion's note and project. While the clock runs they become
+   * the running stretch's, in place, and this answers with it.
+   */
+  suggest: (work: RecentWork) => Promise<Entry | null>;
   /** The store underneath, for anything else. */
   store: ClockStore;
 }
@@ -71,13 +83,25 @@ export function useClock(options: UseClockOptions = {}): Clock {
   const saveNote = async () => {
     if (running && noteEdited) await store.saveNote(note);
   };
+  const projectId = running ? (running.projectId ?? '') : current.projectId;
+  const words = note.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const open = new Map(state.projects.map((p) => [p.id, p]));
+  const suggestions = state.recent
+    .filter((w) => !w.projectId || open.has(w.projectId))
+    .filter((w) => !(w.note === note.trim() && (w.projectId ?? '') === projectId))
+    .filter((w) => {
+      const project = w.projectId ? open.get(w.projectId) : undefined;
+      const text = `${w.note} ${project ? projectLabel(project) : ''}`.toLowerCase();
+      return words.every((word) => text.includes(word));
+    })
+    .slice(0, 8);
   return {
     ...state,
     store,
     note,
     setNote: (next) => setDraft({ ...current, note: next }),
     noteEdited,
-    projectId: running ? (running.projectId ?? '') : current.projectId,
+    projectId,
     chooseProject: async (projectId) => {
       if (!running) {
         setDraft({ ...current, projectId });
@@ -98,6 +122,11 @@ export function useClock(options: UseClockOptions = {}): Clock {
       return store.stop();
     },
     resume: (entry) => store.resume(entry),
+    suggestions,
+    suggest: async (work) => {
+      setDraft({ ...current, note: work.note, projectId: work.projectId ?? '' });
+      return running ? store.describe(work) : null;
+    },
   };
 }
 
@@ -606,6 +635,8 @@ export interface ClockBarLabels extends ProjectPickerLabels {
   clock: string;
   notePlaceholder: string;
   noteLabel: string;
+  /** The list of earlier work that opens under the note. */
+  suggestions: string;
   start: string;
   stop: string;
   /** What the picker is for while the clock runs. */
@@ -635,6 +666,7 @@ const barLabels: ClockBarLabels = {
   clock: 'Clock',
   notePlaceholder: 'What are you working on?',
   noteLabel: 'What you are working on',
+  suggestions: 'Previously tracked',
   start: 'Start the clock',
   stop: 'Stop the clock',
   switchProject: 'Project the clock is running on',
@@ -697,6 +729,13 @@ export function ClockBar({
   const [times, setTimes] = useState<TimesDraft | null>(null);
   // Escape leaves the panel without saving.
   const cancelTimes = useRef(false);
+  const noteField = useRef<HTMLInputElement>(null);
+  const suggestionsList = useRef<HTMLDivElement>(null);
+  const suggestionsId = useId();
+  // Earlier work opens under the note while it is being written; the cursor
+  // is on none of it until the arrow keys move it.
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState(-1);
 
   // The running time is the panel's invoker, so the browser opens and closes
   // it, and a press on the time doesn't count as one outside.
@@ -718,6 +757,30 @@ export function ClockBar({
     window.addEventListener('resize', position);
     return () => window.removeEventListener('resize', position);
   }, [timesOpen]);
+
+  const suggestionsShown = suggesting && clock.status === 'ready' && clock.suggestions.length > 0;
+  useLayoutEffect(() => {
+    const el = suggestionsList.current;
+    const field = noteField.current;
+    if (!suggestionsShown || !el || !field) return;
+    el.showPopover();
+    const position = () => {
+      const rect = field.getBoundingClientRect();
+      el.style.width = `${Math.max(rect.width, 288)}px`;
+      el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8))}px`;
+      el.style.top = `${rect.bottom + 4}px`;
+    };
+    position();
+    const follow = (e: Event) => {
+      if (e.target instanceof Node && !el.contains(e.target)) position();
+    };
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', follow, true);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', follow, true);
+    };
+  }, [suggestionsShown]);
 
   if (clock.status !== 'ready') return null;
 
@@ -748,9 +811,23 @@ export function ClockBar({
   const leaveNote = (e: FocusEvent) => {
     // Moving on to the project picker isn't done with the note yet. Safari
     // doesn't focus a button that is clicked, so the press is noted as well.
-    if (pressed.current || bar.current?.contains(e.relatedTarget)) return;
+    // While a suggestion is being saved, the note is already on its way.
+    if (pressed.current || clock.busy || bar.current?.contains(e.relatedTarget)) return;
     clock.saveNote().then(onChanged, failed('note'));
   };
+  const closeSuggestions = () => {
+    setSuggesting(false);
+    setSuggestion(-1);
+  };
+  const takeSuggestion = (work: RecentWork) => {
+    closeSuggestions();
+    clock.suggest(work).then((next) => {
+      if (next) onChanged?.();
+    }, failed('note'));
+  };
+  const shownSuggestions = suggestionsShown ? clock.suggestions : [];
+  const activeSuggestion = shownSuggestions[suggestion];
+  const projectOf = (id?: string) => (id ? clock.projects.find((p) => p.id === id) : undefined);
   const startWall = running ? wallClock(Date.parse(running.startedAt), clock.timeZone) : null;
   const saveTimes = (draft: TimesDraft) => {
     if (!running || !startWall) return;
@@ -807,8 +884,15 @@ export function ClockBar({
       }}
     >
       <input
+        ref={noteField}
         className="tc-note"
         value={clock.note}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={suggestionsShown}
+        aria-controls={suggestionsShown ? suggestionsId : undefined}
+        aria-activedescendant={activeSuggestion ? `${suggestionsId}-${suggestion}` : undefined}
+        autoComplete="off"
         placeholder={clock.locked ? labels.locked : labels.notePlaceholder}
         aria-label={labels.noteLabel}
         disabled={clock.locked}
@@ -816,9 +900,45 @@ export function ClockBar({
         aria-invalid={!!stopError && missingDescription}
         aria-describedby={stopError && missingDescription ? errorId : undefined}
         maxLength={2000}
-        onChange={(e) => clock.setNote(e.target.value)}
-        onBlur={running ? leaveNote : undefined}
+        onChange={(e) => {
+          clock.setNote(e.target.value);
+          setSuggesting(true);
+          setSuggestion(-1);
+        }}
+        // A stopped clock offers what was tracked before as soon as the note
+        // is chosen; a running one waits until its note is changed.
+        onFocus={running ? undefined : () => setSuggesting(true)}
+        onBlur={(e) => {
+          closeSuggestions();
+          if (running) leaveNote(e);
+        }}
         onKeyDown={(e) => {
+          const count = shownSuggestions.length;
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!suggestionsShown) {
+              setSuggesting(true);
+              return;
+            }
+            // Past either end is back on the note itself.
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            setSuggestion((at) => ((at + 1 + step + count + 1) % (count + 1)) - 1);
+            return;
+          }
+          if (e.key === 'Escape' && suggestionsShown) {
+            // The list closes; a panel around the bar stays.
+            e.preventDefault();
+            e.stopPropagation();
+            e.nativeEvent.stopImmediatePropagation();
+            closeSuggestions();
+            return;
+          }
+          if (e.key === 'Enter' && activeSuggestion) {
+            e.preventDefault();
+            takeSuggestion(activeSuggestion);
+            return;
+          }
+          if (e.key === 'Tab') closeSuggestions();
           // While the clock runs, Enter is done with the note; it doesn't stop the clock.
           if (running && e.key === 'Enter') {
             e.preventDefault();
@@ -826,6 +946,46 @@ export function ClockBar({
           }
         }}
       />
+      {suggestionsShown && (
+        <div
+          ref={suggestionsList}
+          popover="manual"
+          className="tc-popover tc-suggestions"
+          // The note keeps focus while a suggestion is pressed.
+          onPointerDown={(e) => e.preventDefault()}
+        >
+          <div id={suggestionsId} role="listbox" aria-label={labels.suggestions} className="tc-options">
+            <div aria-hidden className="tc-group">
+              {labels.suggestions}
+            </div>
+            {shownSuggestions.map((work, i) => {
+              const project = projectOf(work.projectId);
+              return (
+                // biome-ignore lint/a11y/useKeyWithClickEvents: the note keeps focus and drives the list with the arrow keys
+                <div
+                  key={`${work.projectId ?? ''}:${work.note}`}
+                  id={`${suggestionsId}-${i}`}
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={i === suggestion}
+                  className={cx('tc-option', 'tc-suggestion', i === suggestion && 'tc-option-active')}
+                  onPointerMove={() => setSuggestion(i)}
+                  onClick={() => takeSuggestion(work)}
+                >
+                  <span className="tc-suggestion-note">{work.note}</span>
+                  {project && (
+                    <span className="tc-suggestion-project">
+                      <ProjectDot projectId={project.id} />
+                      <span className="tc-suggestion-project-name">{project.name}</span>
+                      {project.customerName && <span className="tc-muted">· {project.customerName}</span>}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <ProjectPicker
         className="tc-bar-picker"
         projects={clock.projects}

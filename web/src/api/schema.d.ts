@@ -229,6 +229,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/entries/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the caller has tracked before, most recent first */
+        get: operations["list-recent-work"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/entries/{id}": {
         parameters: {
             query?: never;
@@ -1454,6 +1471,20 @@ export interface components {
             readonly $schema?: string;
             rows: components["schemas"]["ProjectHours"][] | null;
         };
+        RecentWork: {
+            note: string;
+            projectId?: string;
+        };
+        RecentWorkBodyBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/RecentWorkBodyBody.json
+             */
+            readonly $schema?: string;
+            /** @description Each note with the project it was on, once. */
+            recent: components["schemas"]["RecentWork"][] | null;
+        };
         "Remember-calendar-meetingRequest": {
             /**
              * Format: uri
@@ -2367,6 +2398,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Entry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-recent-work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecentWorkBodyBody"];
                 };
             };
             /** @description Error */

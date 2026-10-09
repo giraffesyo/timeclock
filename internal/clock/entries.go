@@ -71,6 +71,30 @@ func (s *Service) Running(ctx context.Context, actor Actor) (*Entry, error) {
 	return &e, nil
 }
 
+// RecentWork is something a person has tracked before: a note and its project.
+type RecentWork struct {
+	Note      string     `json:"note"`
+	ProjectID *uuid.UUID `json:"projectId,omitempty"`
+}
+
+// RecentWork lists the notes the caller has tracked, each with the project it
+// was on, the most recently worked first, so the clock can suggest them again.
+func (s *Service) RecentWork(ctx context.Context, actor Actor, limit int) ([]RecentWork, error) {
+	rows, err := s.pool.Query(ctx, `SELECT note, project_id FROM (
+			SELECT DISTINCT ON (note, project_id) note, project_id, started_at FROM time_entries
+			WHERE workspace_id = $W AND person_id = $1 AND note <> ''
+			ORDER BY note, project_id, started_at DESC
+		) work ORDER BY started_at DESC LIMIT $2`, actor.ID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent work: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByPos[RecentWork])
+	if err != nil {
+		return nil, fmt.Errorf("list recent work: %w", err)
+	}
+	return out, nil
+}
+
 // writable returns the person whose time actor is changing: their own, or a
 // report's for a manager, or anyone's for an admin.
 func (s *Service) writable(ctx context.Context, q querier, actor Actor, personID string) (Person, error) {

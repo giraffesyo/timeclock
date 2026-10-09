@@ -1639,6 +1639,49 @@
         ],
         "type": "object"
       },
+      "RecentWork": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "type": "object"
+      },
+      "RecentWorkBodyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/RecentWorkBodyBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "recent": {
+            "description": "Each note with the project it was on, once.",
+            "items": {
+              "$ref": "#/components/schemas/RecentWork"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "recent"
+        ],
+        "type": "object"
+      },
       "Remember-calendar-meetingRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3337,6 +3380,37 @@
           }
         },
         "summary": "Record finished time by hand",
+        "tags": [
+          "Entries"
+        ]
+      }
+    },
+    "/api/v1/entries/recent": {
+      "get": {
+        "operationId": "list-recent-work",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentWorkBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What the caller has tracked before, most recent first",
         "tags": [
           "Entries"
         ]
