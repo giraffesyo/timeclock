@@ -1,6 +1,6 @@
 module github.com/giraffesyo/timeclock/tools
 
-go 1.27.0
+go 1.27.2
 
 tool github.com/parallelworks/foundation/dev/cmd/dev
 
