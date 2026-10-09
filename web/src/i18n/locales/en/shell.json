@@ -17,8 +17,7 @@
     },
     "people": "People",
     "projects": "Projects",
-    "integrations": "Integrations",
-    "history": "History"
+    "integrations": "Integrations"
   },
   "home": "Back to {name}",
   "signOut": "Sign out",

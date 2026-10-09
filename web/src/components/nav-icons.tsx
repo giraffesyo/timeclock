@@ -120,8 +120,3 @@ export const ProjectsIcon = (p: Props) => (
     <path d="M2 4.500A1.500 1.500 0 0 1 3.500 3h2.600L7.500 4.500h5A1.500 1.500 0 0 1 14 6v5.500a1.500 1.500 0 0 1-1.500 1.500h-9A1.500 1.500 0 0 1 2 11.500Z" />
   </Icon>
 );
-export const HistoryIcon = (p: Props) => (
-  <Icon {...p}>
-    <path d="M2.500 8a5.500 5.500 0 1 0 1.600-3.900M2.500 2.500V5H5M8 5v3l2 1.500" />
-  </Icon>
-);

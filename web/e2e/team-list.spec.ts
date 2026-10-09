@@ -9,7 +9,12 @@ async function menuItems(page: Page, target: Locator, button?: 'right') {
   await expect(async () => {
     await target.click(button ? { button } : {});
     await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
-    items = (await menu.getByRole('button').allTextContents()).map((s) => s.trim());
+    // The menu's own items: a submenu the pointer happens to open lists its items inside.
+    items = (await menu.locator(':scope > button, :scope > [role=none] > button').allTextContents()).map((s) =>
+      s.trim(),
+    );
+    // Read while one menu replaces another, it can come back empty: read again.
+    expect(items.length).toBeGreaterThan(0);
   }).toPass();
   return items;
 }

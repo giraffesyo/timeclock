@@ -9,7 +9,6 @@ import { ClockBar } from '@/components/clock-bar';
 import {
   BackIcon,
   BrandIcon,
-  HistoryIcon,
   IntegrationsIcon,
   KeyIcon,
   MoonIcon,
@@ -178,7 +177,6 @@ export function Shell({ children }: { children: ReactNode }) {
       links: [
         ...(me.admin || me.manager ? [{ to: '/team', label: t('nav.team'), icon: <TeamIcon /> }] : []),
         { to: '/reports', label: t('nav.reports'), icon: <ReportsIcon /> },
-        ...(me.admin ? [{ to: '/history', label: t('nav.history'), icon: <HistoryIcon /> }] : []),
       ],
     },
     // What an admin changes week to week; Settings holds what is set once.
