@@ -18,6 +18,8 @@ interface Search {
   /** The project report's range. */
   from?: Day;
   to?: Day;
+  /** The project report shows people first instead of projects. */
+  by?: 'person';
 }
 
 const day = (v: unknown): Day | undefined => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
@@ -29,6 +31,7 @@ export const Route = createFileRoute('/reports')({
     day: day(s.day),
     from: day(s.from),
     to: day(s.to),
+    by: s.by === 'person' ? 'person' : undefined,
   }),
 });
 
@@ -81,7 +84,11 @@ function ReportsPage() {
         <ProjectsReport
           from={search.from ?? period.start}
           to={search.to ?? period.end}
+          byPerson={search.by === 'person'}
           onRange={(from, to) => navigate({ search: (prev) => ({ ...prev, from, to }), replace: true })}
+          onByPerson={(on) =>
+            navigate({ search: (prev) => ({ ...prev, by: on ? 'person' : undefined }), replace: true })
+          }
         />
       )}
     </Page>

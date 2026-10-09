@@ -6,6 +6,7 @@ import { Button, buttonClass } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { Hours } from '@/components/hours';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
+import { Segmented } from '@/components/segmented';
 import { type ProjectHours, useProjectReport } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, daysBetween } from '@/lib/time';
@@ -51,10 +52,45 @@ function group(rows: ProjectHours[]): CustomerGroup[] {
   return [...customers.values()].sort((a, b) => Number(a.noProject) - Number(b.noProject));
 }
 
+interface PersonGroup {
+  id: string;
+  name: string;
+  hours: number;
+  projects: ProjectHours[];
+}
+
+/** Person, then their projects in the order the API sends; time with no project goes last. */
+function groupByPerson(rows: ProjectHours[]): PersonGroup[] {
+  const people = new Map<string, PersonGroup>();
+  for (const r of rows) {
+    let p = people.get(r.personId);
+    if (!p) {
+      p = { id: r.personId, name: r.personName, hours: 0, projects: [] };
+      people.set(r.personId, p);
+    }
+    p.projects.push(r);
+    p.hours += r.hours;
+  }
+  for (const p of people.values()) p.projects.sort((a, b) => Number(a.projectId === '') - Number(b.projectId === ''));
+  return [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const monthStart = (day: Day): Day => `${day.slice(0, 7)}-01`;
 
-/** Hours by customer, project and person over a range of days. */
-export function ProjectsReport({ from, to, onRange }: { from: Day; to: Day; onRange: (from: Day, to: Day) => void }) {
+/** Hours by customer, project and person over a range of days, or by person and then project. */
+export function ProjectsReport({
+  from,
+  to,
+  byPerson,
+  onRange,
+  onByPerson,
+}: {
+  from: Day;
+  to: Day;
+  byPerson: boolean;
+  onRange: (from: Day, to: Day) => void;
+  onByPerson: (on: boolean) => void;
+}) {
   const t = useTranslations('reports.projects');
   const tc = useTranslations('common');
   const { today, period, admin, manager } = useSession();
@@ -138,12 +174,23 @@ export function ProjectsReport({ from, to, onRange }: { from: Day; to: Day; onRa
             <Stat label={t('total')} value={total} />
             <Stat label={t('billable')} value={billable} />
             <Stat label={t('notBillable')} value={total - billable} />
+            <div className="ml-auto self-center">
+              <Segmented<'project' | 'person'>
+                label={t('groupBy.label')}
+                value={byPerson ? 'person' : 'project'}
+                onChange={(v) => onByPerson(v === 'person')}
+                options={[
+                  { value: 'project', label: t('groupBy.project') },
+                  { value: 'person', label: t('groupBy.person') },
+                ]}
+              />
+            </div>
           </div>
           <ReportTable>
             <thead>
               <tr>
                 <th scope="col" className={th}>
-                  {t('columns.name')}
+                  {byPerson ? t('columns.personName') : t('columns.name')}
                 </th>
                 <th scope="col" className={th}>
                   {t('columns.billable')}
@@ -153,47 +200,87 @@ export function ProjectsReport({ from, to, onRange }: { from: Day; to: Day; onRa
                 </th>
               </tr>
             </thead>
-            {groups.map((c) => (
-              <tbody key={c.noProject ? '' : `c:${c.name}`}>
-                <tr className="border-t border-border bg-muted/50">
-                  <th scope="rowgroup" colSpan={2} className={`${td} text-left font-semibold`}>
-                    {c.noProject ? tc('project.none') : c.name || t('noCustomer')}
-                  </th>
-                  <td className={tdNum}>
-                    <Hours value={c.hours} strong />
-                  </td>
-                </tr>
-                {c.projects.map((p) => (
-                  <Fragment key={p.id}>
-                    {!c.noProject && (
-                      <tr className={rowLine}>
-                        <th scope="row" className={`${td} pl-8 text-left font-medium`}>
-                          {p.name}
-                          {p.code && <span className="ml-2 text-xs font-normal text-muted-foreground">{p.code}</span>}
+            {byPerson
+              ? groupByPerson(rows).map((p) => (
+                  <tbody key={p.id}>
+                    <tr className="border-t border-border bg-muted/50">
+                      <th scope="rowgroup" colSpan={2} className={`${td} text-left font-semibold`}>
+                        {p.name}
+                      </th>
+                      <td className={tdNum}>
+                        <Hours value={p.hours} strong />
+                      </td>
+                    </tr>
+                    {p.projects.map((r) => (
+                      <tr key={r.projectId} className={rowLine}>
+                        <th scope="row" className={`${td} pl-8 text-left font-normal`}>
+                          {r.projectId === '' ? (
+                            tc('project.none')
+                          ) : (
+                            <>
+                              <span className="font-medium">{r.projectName}</span>
+                              {r.projectCode && (
+                                <span className="ml-2 text-xs text-muted-foreground">{r.projectCode}</span>
+                              )}
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                {r.customerName || t('noCustomer')}
+                              </span>
+                            </>
+                          )}
                         </th>
                         <td className={`${td} whitespace-nowrap text-muted-foreground`}>
-                          {p.billable ? t('billable') : t('notBillable')}
-                        </td>
-                        <td className={tdNum}>
-                          <Hours value={p.hours} strong />
-                        </td>
-                      </tr>
-                    )}
-                    {p.people.map((r) => (
-                      <tr key={r.personId} className={rowLine}>
-                        <td className={`${td} ${c.noProject ? 'pl-8' : 'pl-12'}`}>{r.personName}</td>
-                        <td className={`${td} whitespace-nowrap text-muted-foreground`}>
-                          {c.noProject ? t('notBillable') : null}
+                          {r.billable ? t('billable') : t('notBillable')}
                         </td>
                         <td className={tdNum}>
                           <Hours value={r.hours} />
                         </td>
                       </tr>
                     ))}
-                  </Fragment>
+                  </tbody>
+                ))
+              : groups.map((c) => (
+                  <tbody key={c.noProject ? '' : `c:${c.name}`}>
+                    <tr className="border-t border-border bg-muted/50">
+                      <th scope="rowgroup" colSpan={2} className={`${td} text-left font-semibold`}>
+                        {c.noProject ? tc('project.none') : c.name || t('noCustomer')}
+                      </th>
+                      <td className={tdNum}>
+                        <Hours value={c.hours} strong />
+                      </td>
+                    </tr>
+                    {c.projects.map((p) => (
+                      <Fragment key={p.id}>
+                        {!c.noProject && (
+                          <tr className={rowLine}>
+                            <th scope="row" className={`${td} pl-8 text-left font-medium`}>
+                              {p.name}
+                              {p.code && (
+                                <span className="ml-2 text-xs font-normal text-muted-foreground">{p.code}</span>
+                              )}
+                            </th>
+                            <td className={`${td} whitespace-nowrap text-muted-foreground`}>
+                              {p.billable ? t('billable') : t('notBillable')}
+                            </td>
+                            <td className={tdNum}>
+                              <Hours value={p.hours} strong />
+                            </td>
+                          </tr>
+                        )}
+                        {p.people.map((r) => (
+                          <tr key={r.personId} className={rowLine}>
+                            <td className={`${td} ${c.noProject ? 'pl-8' : 'pl-12'}`}>{r.personName}</td>
+                            <td className={`${td} whitespace-nowrap text-muted-foreground`}>
+                              {c.noProject ? t('notBillable') : null}
+                            </td>
+                            <td className={tdNum}>
+                              <Hours value={r.hours} />
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </tbody>
                 ))}
-              </tbody>
-            ))}
             <tfoot>
               <tr className="border-t border-border font-medium">
                 <th scope="row" colSpan={2} className={`${td} text-left font-semibold`}>

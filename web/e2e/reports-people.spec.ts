@@ -82,3 +82,37 @@ test('people in payroll and exceptions open their profile, and the sheet opens f
   await group.getByRole('button', { name: ada.name }).hover();
   await expect(page.getByText(ada.email)).toBeVisible();
 });
+
+test("the project report groups by person, with each person's hours by project", async ({ someone, adminPerson }) => {
+  const week = lastWeek();
+  const wren = await someone('wren');
+  await wren.api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '17:00'));
+  await wren.api.entry('Meetings', week.at(1, '09:00'), week.at(1, '11:00'));
+  const otis = await someone('otis');
+  await otis.api.entry('Acme / Support', week.at(2, '09:00'), week.at(2, '13:00'));
+  const { page } = await adminPerson();
+
+  await page.goto(`/reports?tab=projects&from=${week.day(0)}&to=${week.day(4)}`);
+  await page.getByRole('group', { name: 'Group by' }).getByRole('button', { name: 'Person' }).click();
+  await expect(page).toHaveURL(/by=person/);
+  await expect(page.getByRole('columnheader', { name: 'Person, project' })).toBeVisible();
+
+  // Each person heads their own group, with their total, and their projects under them.
+  const group = page.locator('tbody').filter({ has: page.getByRole('rowheader', { name: wren.name, exact: true }) });
+  await expect(group.getByRole('row').first()).toContainText('10.00');
+  const platform = group.getByRole('row').filter({ hasText: 'Platform' });
+  await expect(platform).toContainText('Acme');
+  await expect(platform).toContainText('Billable');
+  await expect(platform).toContainText('8.00');
+  await expect(group.getByRole('row').filter({ hasText: 'Meetings' })).toContainText('2.00');
+  await expect(group).not.toContainText('Support');
+  const other = page.locator('tbody').filter({ has: page.getByRole('rowheader', { name: otis.name, exact: true }) });
+  await expect(other.getByRole('row').filter({ hasText: 'Support' })).toContainText('4.00');
+
+  // The choice is kept in the address, and Project puts the report back.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Person' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Project' }).click();
+  await expect(page).not.toHaveURL(/by=person/);
+  await expect(page.getByRole('columnheader', { name: 'Customer, project, person' })).toBeVisible();
+});
