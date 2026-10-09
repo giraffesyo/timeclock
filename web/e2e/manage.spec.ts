@@ -13,7 +13,7 @@ test('an admin manages people, projects, integrations and settings from the side
   }
   // Settings keeps only what is set once.
   const tabs = page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link');
-  await expect(tabs).toHaveText(['Payroll', 'Sign-in', 'Appearance']);
+  await expect(tabs).toHaveText(['Payroll', 'Sign-in', 'Appearance', 'Calendar']);
   // The page is People; its table doesn't repeat that.
   await sections(page).getByRole('link', { name: 'People', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'People', exact: true })).toHaveCount(1);

@@ -20,5 +20,15 @@
   },
   "period": {
     "range": "{start} – {end}"
+  },
+  "feed": {
+    "name": "{workspace} calendar",
+    "description": "From Timeclock: what you chose to subscribe to.",
+    "out": "{name} out",
+    "partial": "{title} ({hours}h)",
+    "vacation": "Vacation",
+    "sick": "Sick",
+    "tracked": "Tracked time",
+    "running": "{title} (running)"
   }
 }

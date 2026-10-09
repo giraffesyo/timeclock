@@ -24,6 +24,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Audit log.** Every change to payroll data, with who made it.
 - **Workspaces.** A workspace is one organization's Timeclock: its people, time, settings and look. Every table carries its workspace and every query names it, so one deployment can hold many. A host with several organizations says which one a request is in; without that there is one.
 - **Themes.** A look is a few values: for light and for dark, an accent, a background and a contrast, and optionally the same for the sidebar; every other color follows from them. A workspace admin sets the workspace's in Settings, with the page wearing the draft as it changes; a host application can hand Timeclock its own; and each person chooses light, dark or the system's.
+- **Calendar feed.** Anyone can subscribe Google Calendar, or any calendar app, to a calendar of what they choose: the company's holidays, who is out, and their own tracked time. Each person makes their own secret link in Settings → Calendar.
 - **Reminders.** With a host notifier, people are told once about a clock left running and a timesheet that is due.
 
 ## Embedding
@@ -76,6 +77,12 @@ The option returns credentials for a person, allowed `timeclock.GoogleCalendarSc
 It is called whenever a week is read, so reuse token sources rather than minting a token per call.
 
 Where the host has no credentials for someone, they can connect their own calendar: set `Options.GoogleOAuth` to a Google Cloud OAuth client (a web application) and `Options.IntegrationSecretKey`. Each person then has Settings → Calendar, and their week offers to connect until they do or dismiss it. Connecting sends them to Google's consent screen (offline access, PKCE, the person's email as the login hint) and back to where they started. Timeclock keeps the refresh token sealed with the integration key, bound to the workspace and person, and never returns it. **Disconnect** deletes it and revokes it at Google; one revoked at Google is forgotten on the next read, and the week offers to connect again. Register `<origin><base path>/api/v1/calendar/google/callback` as the client's authorized redirect URI and pass it as `RedirectURL`. An app used only inside its own Google Workspace needs no Google review; one open to other accounts needs Google's verification for the calendar scope. The standalone server reads `TIMECLOCK_GOOGLE_CLIENT_ID` and `TIMECLOCK_GOOGLE_CLIENT_SECRET`, with the redirect URI `<public URL>/api/v1/calendar/google/callback`.
+
+### Calendar feed
+
+In Settings → Calendar, each person can make a secret link to an iCalendar feed and choose what it shows; changing the choice keeps the link. **Company holidays** and **Who's out** (approved time off for everyone active in the workspace) are all-day events. Other people's time off says only that they are out; the subscriber's own says vacation or sick. **My tracked time**, off by default, adds the subscriber's own entries and planned time as timed events, titled by project, with the description as the event's; a running clock runs to the time of the fetch. **Add to Google Calendar** subscribes to it in one click, and any app that subscribes by URL can use it too. Timeclock keeps only a hash of the link, so the link is shown once. Making a new link retires the old one. The feed stops working when the person turns it off, is deactivated, or leaves the host's directory.
+
+Calendar apps fetch the feed signed out, so a host that refuses signed-out requests should let `<base path>/api/v1/calendar/feeds/` through. The secret in the path tells Timeclock whose feed it is and which workspace it belongs to; the request's own workspace is ignored. To reach Google, the feed has to be on a public HTTPS address.
 
 ### The clock in the host's own pages
 

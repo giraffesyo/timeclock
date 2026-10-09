@@ -32,7 +32,10 @@ for (const mobile of [false, true]) {
     const html = page.locator('html');
     const preference = page.getByRole('group', { name: 'Color theme' });
     await expect(page.getByRole('heading', { name: 'Workspace colors' })).toHaveCount(0);
-    await expect(page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link')).toHaveCount(1);
+    await expect(page.getByRole('navigation', { name: 'Settings', exact: true }).getByRole('link')).toHaveText([
+      'Appearance',
+      'Calendar',
+    ]);
     await preference.getByRole('button', { name: 'Dark', exact: true }).click();
     await expect(html).toHaveClass(/dark/);
     expect(await sheet(page)).toBe('rgb(23, 24, 29)');

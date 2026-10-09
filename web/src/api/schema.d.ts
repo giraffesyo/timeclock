@@ -38,6 +38,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calendar/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the caller has a calendar feed */
+        get: operations["get-calendar-feed"];
+        /** Change what the caller's calendar feed lists, at the same address */
+        put: operations["update-calendar-feed"];
+        /** Make the caller a calendar feed listing what they choose, replacing any they had */
+        post: operations["create-calendar-feed"];
+        /** Turn the caller's calendar feed off */
+        delete: operations["stop-calendar-feed"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/feeds/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A calendar feed, as iCalendar: company holidays, who is out and the subscriber's tracked time, as they chose */
+        get: operations["calendar-feed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendar/google": {
         parameters: {
             query?: never;
@@ -880,6 +917,29 @@ export interface components {
             /** @description Empty for an event without one. */
             title: string;
         };
+        CalendarFeedBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/CalendarFeedBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description When its address was made.
+             */
+            createdAt?: string;
+            /** @description Whether the caller has a calendar feed. */
+            enabled: boolean;
+            /** @description The company's holidays. */
+            holidays: boolean;
+            /** @description The feed's address under the origin, set only when it was just made: it can't be read again. */
+            path?: string;
+            /** @description Who is out: everyone's approved time off. */
+            timeOff: boolean;
+            /** @description The subscriber's own tracked and planned time. */
+            trackedTime: boolean;
+        };
         "Clock-inRequest": {
             /**
              * Format: uri
@@ -1024,6 +1084,20 @@ export interface components {
             readonly $schema?: string;
             exceptions: components["schemas"]["Exception"][] | null;
             period: components["schemas"]["Period"];
+        };
+        FeedContents: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/FeedContents.json
+             */
+            readonly $schema?: string;
+            /** @description The company's holidays. */
+            holidays: boolean;
+            /** @description Who is out: everyone's approved time off. */
+            timeOff: boolean;
+            /** @description The subscriber's own tracked and planned time. */
+            trackedTime: boolean;
         };
         FieldError: {
             /** @description Stable name of the rule, for clients to show a localized message. New codes can appear: fall back to a generic message for one you don't know. */
@@ -1927,6 +2001,162 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CalendarBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedContents"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedContents"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarFeedBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "stop-calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "calendar-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The feed's secret, then .ics. */
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "Content-Type"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
                 };
             };
             /** @description Error */

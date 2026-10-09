@@ -13,6 +13,7 @@ export type Entry = Schemas['Entry'];
 export type EntryInput = Schemas['EntryInput'];
 export type TimeOff = Schemas['TimeOff'];
 export type TimeOffInput = Schemas['TimeOffInput'];
+export type FeedContents = Schemas['FeedContents'];
 export type Timesheet = Schemas['Timesheet'];
 export type PeriodSummary = Schemas['PeriodSummary'];
 export type Period = Schemas['Period'];
@@ -93,6 +94,13 @@ export function useGoogleCalendar(enabled = true) {
     queryKey: ['google-calendar'],
     queryFn: async () => unwrap(await api.GET('/api/v1/calendar/google')),
     enabled,
+  });
+}
+
+export function useCalendarFeed() {
+  return useQuery({
+    queryKey: ['calendar-feed'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/calendar/feed')),
   });
 }
 
@@ -258,6 +266,20 @@ export function useRememberMeeting() {
 /** Disconnects the caller's own Google Calendar, and revokes Timeclock's access to it. */
 export function useDisconnectGoogleCalendar() {
   return useWrite(async () => unwrap(await api.DELETE('/api/v1/calendar/google')));
+}
+
+/** Makes the caller a calendar feed, retiring any they had; its address is only in the result. */
+export function useCreateCalendarFeed() {
+  return useWrite(async (body: FeedContents) => unwrap(await api.POST('/api/v1/calendar/feed', { body })));
+}
+
+/** Changes what the caller's calendar feed lists, at the same address. */
+export function useUpdateCalendarFeed() {
+  return useWrite(async (body: FeedContents) => unwrap(await api.PUT('/api/v1/calendar/feed', { body })));
+}
+
+export function useStopCalendarFeed() {
+  return useWrite(async () => unwrap(await api.DELETE('/api/v1/calendar/feed')));
 }
 
 export function useRequestTimeOff() {

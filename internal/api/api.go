@@ -160,6 +160,7 @@ func New(mux *http.ServeMux, deps Deps) huma.API {
 	registerCatalog(a, deps)
 	registerEntries(a, deps)
 	registerCalendar(a, deps)
+	registerCalendarFeed(a, deps)
 	registerTimeOff(a, deps)
 	registerTimesheets(a, deps)
 	registerReports(a, deps)
