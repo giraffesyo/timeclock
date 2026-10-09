@@ -103,9 +103,15 @@
       "lastMonth": "Last month"
     },
     "export": "Export CSV",
+    "groupBy": {
+      "label": "Group by",
+      "project": "Project",
+      "person": "Person"
+    },
     "empty": "No time was recorded in this range. Choose a wider range.",
     "columns": {
       "name": "Customer, project, person",
+      "personName": "Person, project",
       "billable": "Billing",
       "hours": "Hours"
     },
