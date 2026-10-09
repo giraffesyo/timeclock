@@ -47,7 +47,7 @@ test('it runs under the host’s path, as the host’s person', async ({ browser
   await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 
   // The clock works, against the API under the same path.
-  await page.getByRole('textbox', { name: 'What you are working on' }).fill('Site visit');
+  await page.getByRole('combobox', { name: 'What you are working on' }).fill('Site visit');
   await page
     .getByRole('form', { name: 'Clock' })
     .getByRole('button', { name: /^Project: / })

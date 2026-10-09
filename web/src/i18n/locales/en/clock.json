@@ -3,6 +3,7 @@
   "out": "Stop the clock",
   "notePlaceholder": "What are you working on?",
   "noteLabel": "What you are working on",
+  "suggestions": "Previously tracked",
   "since": "Running since {time}",
   "switchLabel": "Project the clock is running on",
   "switched": "Now on {project}, from {time}.",

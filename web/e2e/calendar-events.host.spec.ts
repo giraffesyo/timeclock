@@ -103,7 +103,7 @@ test('calendar events sit beside the week’s time, and copy onto it or start th
   await event('Design review').click();
   await popover.getByRole('button', { name: 'Start the clock on this' }).click();
   await expect(ada.getByRole('form', { name: 'Clock' }).getByRole('timer')).toBeVisible();
-  await expect(ada.getByRole('textbox', { name: 'What you are working on' })).toHaveValue('Design review');
+  await expect(ada.getByRole('combobox', { name: 'What you are working on' })).toHaveValue('Design review');
 });
 
 test('a week someone else opens shows none of their calendar', async ({ browser }) => {

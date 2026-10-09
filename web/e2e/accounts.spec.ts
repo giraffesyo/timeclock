@@ -322,7 +322,7 @@ test('workspace project and description requirements control clocks and manual e
 
   await page.getByRole('link', { name: 'Timer', exact: true }).click();
   const clock = page.getByRole('form', { name: 'Clock' });
-  const note = clock.getByRole('textbox', { name: 'What you are working on' });
+  const note = clock.getByRole('combobox', { name: 'What you are working on' });
   await expect(note).not.toHaveAttribute('required');
   await clock.getByRole('button', { name: 'Start the clock', exact: true }).click();
   await expect(clock.getByRole('timer')).toBeVisible();

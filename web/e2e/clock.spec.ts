@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { ZONE } from '../playwright.config';
 import { expect, lastWeek, RECENT, test } from './fixtures';
 
-const note = (page: import('@playwright/test').Page) => page.getByRole('textbox', { name: 'What you are working on' });
+const note = (page: import('@playwright/test').Page) => page.getByRole('combobox', { name: 'What you are working on' });
 const picker = (page: import('@playwright/test').Page, label = 'Project') =>
   page.getByRole('form', { name: 'Clock' }).getByRole('button', { name: new RegExp(`^${label}: `) });
 const pick = async (page: import('@playwright/test').Page, project: string) => {
@@ -119,6 +119,52 @@ test('an earlier entry starts the clock on the same work again', async ({ me }) 
   await expect(note(page)).toHaveValue('Ticket 42');
   await expect(picker(page, 'Project the clock is running on')).toContainText('Acme / Support');
   expect((await api.get('/me')).running.note).toBe('Ticket 42');
+});
+
+test('typing a note suggests earlier work, and taking one fills in its project', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Support', week.at(1, '09:00'), week.at(1, '10:00'), 'Ticket 42');
+  await api.entry('Acme / Platform', week.at(2, '09:00'), week.at(2, '10:00'), 'Code review');
+  await api.entry('Acme / Support', week.at(3, '09:00'), week.at(3, '10:00'), 'Code review');
+  await page.goto('/');
+
+  // Choosing the empty note offers the latest work first.
+  await note(page).click();
+  const list = page.getByRole('listbox', { name: 'Previously tracked' });
+  await expect(list.getByRole('option')).toHaveText([/^Code review.*Support/, /^Code review.*Platform/, /^Ticket 42/]);
+
+  // Typing narrows it, and the arrow keys and Enter take one.
+  await note(page).fill('revi');
+  await expect(list.getByRole('option')).toHaveCount(2);
+  await note(page).press('ArrowDown');
+  await note(page).press('ArrowDown');
+  await note(page).press('Enter');
+  await expect(list).toHaveCount(0);
+  await expect(note(page)).toHaveValue('Code review');
+  await expect(picker(page)).toContainText('Acme / Platform');
+  expect((await api.get('/me')).running).toBeUndefined();
+
+  await page.getByRole('button', { name: 'Start the clock', exact: true }).click();
+  await expect
+    .poll(async () => (await api.get('/me')).running)
+    .toMatchObject({ note: 'Code review', projectId: await api.project('Acme / Platform') });
+});
+
+test('taking a suggestion while the clock runs changes the running entry in place', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Support', week.at(1, '09:00'), week.at(1, '10:00'), 'Ticket 42');
+  const started = await api.clockInAgo('Acme / Platform', 20);
+  await page.goto('/');
+
+  await note(page).fill('ticket');
+  await page.getByRole('option', { name: /Ticket 42/ }).click();
+  await expect(note(page)).toBeFocused();
+  await expect(picker(page, 'Project the clock is running on')).toContainText('Acme / Support');
+  await expect
+    .poll(async () => (await api.get('/me')).running)
+    .toMatchObject({ id: started.id, note: 'Ticket 42', projectId: await api.project('Acme / Support') });
 });
 
 test('a note still unsaved when the clock stops is kept', async ({ me }) => {
