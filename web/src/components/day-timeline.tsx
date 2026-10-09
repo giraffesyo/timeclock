@@ -55,6 +55,9 @@ type Block = Span & {
   /** The entry reaches past this day's midnight on that side. */
   clippedStart: boolean;
   clippedEnd: boolean;
+  /** Its place among the blocks it overlaps. */
+  lane: number;
+  lanes: number;
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -147,7 +150,7 @@ export function DayTimeline({
   const cap = planning ? bounds.end : clamp(Math.floor(now / SNAP) * SNAP, bounds.start, bounds.end);
   const editable = !readOnly && (planning || day <= today);
 
-  const blocks: Block[] = entries
+  const laidOut = entries
     .map((entry) => {
       const start = Date.parse(entry.startedAt);
       const end = entry.endedAt ? Date.parse(entry.endedAt) : Math.max(now, start);
@@ -165,7 +168,14 @@ export function DayTimeline({
     })
     .filter((b) => b.end > b.start)
     .sort((a, b) => a.start - b.start);
-  const side = lanes(blocks);
+  const side = lanes(laidOut);
+  // Lanes follow the block in hand, but the page keeps blocks in the order
+  // they're stored: moving its element would let go of the pointer mid-drag.
+  const blocks: Block[] = laidOut
+    .map((b, i) => ({ ...b, lane: side[i]?.lane ?? 0, lanes: side[i]?.of ?? 1 }))
+    .sort(
+      (a, b) => Date.parse(a.entry.startedAt) - Date.parse(b.entry.startedAt) || (a.entry.id < b.entry.id ? -1 : 1),
+    );
   const suggestions = (column ? (events ?? []) : [])
     .map((event) => ({
       event,
@@ -546,7 +556,7 @@ export function DayTimeline({
             <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': at(h) } as CSSProperties} />
           ))}
 
-          {blocks.map((b, i) => {
+          {blocks.map((b) => {
             const name = projectName(b.entry.projectId);
             const title = b.entry.note || name;
             const described = t('block', {
@@ -599,8 +609,8 @@ export function DayTimeline({
                 style={
                   {
                     ...place(b),
-                    '--lane': side[i]?.lane ?? 0,
-                    '--lanes': side[i]?.of ?? 1,
+                    '--lane': b.lane,
+                    '--lanes': b.lanes,
                     '--hue': b.entry.projectId ? projectHue(b.entry.projectId) : 0,
                   } as CSSProperties
                 }

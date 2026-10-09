@@ -412,6 +412,47 @@ test('dragging time into another day preserves its duration and details', async 
   await expect(dialog(page, 'Edit time')).toHaveCount(0);
 });
 
+test('a duplicate drags into another day, from either side of its original', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:30'), 'Build');
+  await page.goto(`/?day=${week.day(0)}`);
+  await column(page, 0).locator('[data-entry] .tl-body').click();
+  await dialog(page, 'Edit time').getByRole('button', { name: 'Duplicate' }).click();
+  await expect(column(page, 0).locator('[data-entry]')).toHaveCount(2);
+  // The two sit side by side; take the left one, then the right, each to a day of its own.
+  await drag(page, await at(page, 0, 9.5, 0.25), await at(page, 1, 13.5));
+  await expect(column(page, 1).locator('[data-entry]')).toHaveCount(1);
+  await drag(page, await at(page, 0, 9.5, 0.5), await at(page, 2, 13.5));
+  await expect(column(page, 2).locator('[data-entry]')).toHaveCount(1);
+  await expect(column(page, 0).locator('[data-entry]')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(2)}`);
+      return entries.map((e: { startedAt: string; note: string }) => [instant(e.startedAt), e.note]).sort();
+    })
+    .toEqual([
+      [instant(week.at(1, '13:00')), 'Build'],
+      [instant(week.at(2, '13:00')), 'Build'],
+    ]);
+});
+
+test('dragging a block past a later one in its day still moves it', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  const early = await api.entry('Acme / Platform', week.at(0, '09:00'), week.at(0, '10:00'), 'Early');
+  await api.entry('Meetings', week.at(0, '12:00'), week.at(0, '13:00'), 'Late');
+  await page.goto(`/?day=${week.day(0)}`);
+  await expect(column(page, 0).locator('[data-entry]')).toHaveCount(2);
+  await drag(page, await at(page, 0, 9.5), await at(page, 0, 15.5));
+  await expect
+    .poll(async () => {
+      const { entries } = await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`);
+      return instant(entries.find((e: { id: string }) => e.id === early.id).startedAt);
+    })
+    .toBe(instant(week.at(0, '15:00')));
+});
+
 test('overlapping entries sit side by side and count once', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();
