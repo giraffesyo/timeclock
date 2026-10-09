@@ -14,5 +14,25 @@
   "unavailable": "Your server administrator hasn’t set up connecting Google Calendars.",
   "loadFailed": "Couldn’t load your calendar.",
   "denied": "Your calendar wasn’t connected: Google wasn’t given access.",
-  "failed": "Your calendar couldn’t be connected. Try again."
+  "failed": "Your calendar couldn’t be connected. Try again.",
+  "feed": {
+    "title": "Subscribe to holidays and time off",
+    "intro": "Add a calendar of the company’s holidays and who’s out to Google Calendar, or any calendar app that subscribes by link. It keeps itself up to date.",
+    "private": "Anyone with the link can see the calendar, so keep it to yourself. It shows that someone is out, never why; your own days say vacation or sick.",
+    "make": "Get a calendar link",
+    "link": "Calendar link",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "copyFailed": "Couldn’t copy the link.",
+    "google": "Add to Google Calendar",
+    "once": "This link is shown only now. Copy it, or add it to Google Calendar, before you leave this page.",
+    "googleDelay": "Google Calendar can take several hours to show a change.",
+    "on": "Your calendar link is on, made {date}.",
+    "lost": "Lost the link, or shared it by mistake? Make a new one: the old one stops working.",
+    "remake": "Make a new link",
+    "off": "Turn off",
+    "loadFailed": "Couldn’t load your calendar link.",
+    "makeFailed": "Couldn’t make a calendar link.",
+    "offFailed": "Couldn’t turn your calendar link off."
+  }
 }

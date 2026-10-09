@@ -148,6 +148,37 @@
         ],
         "type": "object"
       },
+      "CalendarFeedBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/CalendarFeedBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "When its address was made.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the caller has a calendar feed.",
+            "type": "boolean"
+          },
+          "path": {
+            "description": "The feed's address under the origin, set only when it was just made: it can't be read again.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
       "Clock-inRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2780,6 +2811,144 @@
           }
         },
         "summary": "The caller's Google Calendar events on a range of days",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/feed": {
+      "delete": {
+        "operationId": "stop-calendar-feed",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Turn the caller's calendar feed off",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "get": {
+        "operationId": "get-calendar-feed",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Whether the caller has a calendar feed",
+        "tags": [
+          "Calendar"
+        ]
+      },
+      "post": {
+        "operationId": "create-calendar-feed",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarFeedBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Make the caller a calendar feed of holidays and who is out, replacing any they had",
+        "tags": [
+          "Calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/feeds/{file}": {
+      "get": {
+        "operationId": "calendar-feed",
+        "parameters": [
+          {
+            "description": "The feed's secret, then .ics.",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "The feed's secret, then .ics.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "contentEncoding": "base64",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "A calendar feed, as iCalendar, of company holidays and who is out",
         "tags": [
           "Calendar"
         ]

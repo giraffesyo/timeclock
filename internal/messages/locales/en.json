@@ -20,5 +20,13 @@
   },
   "period": {
     "range": "{start} – {end}"
+  },
+  "feed": {
+    "name": "{workspace} time off",
+    "description": "Company holidays and who is out, from Timeclock.",
+    "out": "{name} out",
+    "partial": "{title} ({hours}h)",
+    "vacation": "Vacation",
+    "sick": "Sick"
   }
 }

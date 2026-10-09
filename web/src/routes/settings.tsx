@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { CalendarSettings } from '@/components/calendar-connect';
+import { CalendarFeedSettings } from '@/components/calendar-feed';
 import { Page } from '@/components/page';
 import { Appearance } from '@/components/settings/appearance';
 import { PayrollSettings } from '@/components/settings/payroll';
@@ -37,8 +38,7 @@ function SettingsPage() {
   const t = useTranslations('settings');
   const { admin, info } = useSession();
   const { tab: requestedTab, calendar } = Route.useSearch();
-  // The calendar tab is there where a calendar can be read at all.
-  const shown = TABS.filter((name) => (admin || PERSONAL.includes(name)) && (name !== 'calendar' || info.calendar));
+  const shown = TABS.filter((name) => admin || PERSONAL.includes(name));
   const tab = (isTab(requestedTab) ? requestedTab : undefined) ?? (admin ? 'payroll' : 'appearance');
 
   if (!shown.includes(tab)) {
@@ -72,7 +72,13 @@ function SettingsPage() {
       {tab === 'payroll' && <PayrollSettings />}
       {tab === 'appearance' && <Appearance />}
       {tab === 'signin' && <SignIn />}
-      {tab === 'calendar' && <CalendarSettings outcome={calendar} />}
+      {tab === 'calendar' && (
+        <div className="space-y-4">
+          {/* Reading a Google Calendar is there where the server can. */}
+          {info.calendar && <CalendarSettings outcome={calendar} />}
+          <CalendarFeedSettings />
+        </div>
+      )}
     </Page>
   );
 }
