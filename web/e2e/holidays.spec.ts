@@ -95,7 +95,7 @@ for (const mobile of [false, true]) {
     // Holiday pay is set per person in People: not paid, the day is still named.
     await page.goto('/people');
     const row = page.getByRole('row').filter({ has: page.getByRole('checkbox', { name: `Select ${me.name}` }) });
-    await choose(page, row, 'Edit…');
+    await choose(page, row, 'Edit settings…');
     const edit = page.getByRole('dialog', { name: `Edit ${me.name}` });
     await edit.getByRole('combobox', { name: 'Holiday pay' }).selectOption({ label: 'Not paid' });
     await page.screenshot({ path: `/tmp/timeclock-holidays-people-${device}.png` });

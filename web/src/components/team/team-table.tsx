@@ -1,17 +1,15 @@
 import { Table, TOOLTIP_ID } from '@parallelworks/ui';
-import { CheckIcon, ClockIcon, FileTextIcon, RollbackIcon } from '@parallelworks/ui/icons';
+import { CheckIcon, ClockIcon, RollbackIcon } from '@parallelworks/ui/icons';
 import {
   ListColumns,
   ListRow,
   ListRowActionsProvider,
   type ListView,
   listTableProps,
-  type OpenMenu,
   type PinnedRowAction,
   type RowMenuItem,
   useListNavigate,
   useListView,
-  useRowMenu,
 } from '@parallelworks/ui/list';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
@@ -20,6 +18,7 @@ import { Hours } from '@/components/hours';
 import { Empty } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { PersonIdentity } from '@/components/person-identity';
+import { usePersonMenu } from '@/components/person-menu';
 import { SheetStatus } from '@/components/status';
 import { useHoursText } from '@/components/time-off/runs';
 import { type PeriodSummary, type Person, useDecideTimesheet } from '@/lib/queries';
@@ -94,26 +93,24 @@ function TeamRow({
   member: m,
   people,
   view,
-  openMenu,
   onDecide,
 }: {
   member: PeriodSummary;
   /** Everyone the profile cards can name, such as a person's manager. */
   people: Person[];
   view: ListView<PeriodSummary>;
-  openMenu: OpenMenu;
   onDecide: (approve: boolean) => void;
 }) {
   const t = useTranslations('team.table');
   const { person: me, admin } = useSession();
   const goTo = useListNavigate();
   const navigate = useNavigate();
+  const personMenu = usePersonMenu();
   const own = m.person.id === me.id;
   const waiting = m.timesheet?.status === 'submitted';
   // Your own timesheet is your manager's or an admin's to decide.
   const decidable = waiting && (!own || admin);
   const open = () => navigate({ to: '/timesheet', search: { person: m.person.id, day: m.period.start } });
-  const openTimer = () => navigate({ to: '/', search: { person: m.person.id, day: m.period.start } });
 
   const decisions: PinnedRowAction[] = decidable
     ? [
@@ -121,11 +118,12 @@ function TeamRow({
         { key: 'sendBack', label: t('sendBack'), icon: <RollbackIcon />, onSelect: () => onDecide(false) },
       ]
     : [];
-  const items: RowMenuItem[] = [
-    { kind: 'action', label: t('openSheet', { name: m.person.name }), icon: <FileTextIcon />, onSelect: open },
-    { kind: 'action', label: t('openTimer', { name: m.person.name }), icon: <ClockIcon />, onSelect: openTimer },
-    ...decisions.map((d): RowMenuItem => ({ kind: 'action', label: d.label, icon: d.icon, onSelect: d.onSelect })),
-  ];
+  const items = personMenu.items(m.person, {
+    day: m.period.start,
+    actions: decisions.map(
+      (d): RowMenuItem => ({ kind: 'action', label: d.label, icon: d.icon, onSelect: d.onSelect }),
+    ),
+  });
 
   const status = (
     <>
@@ -142,7 +140,7 @@ function TeamRow({
   const cells: Record<string, ReactNode> = {
     person: (
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-        <PersonIdentity person={m.person} people={people} />
+        <PersonIdentity person={m.person} people={people} menu={false} />
         {own && <span className="text-xs text-muted-foreground">{t('you')}</span>}
         {m.running && (
           <span
@@ -172,7 +170,7 @@ function TeamRow({
       onActivate={open}
       items={items}
       goTo={goTo}
-      openMenu={openMenu}
+      openMenu={personMenu.open}
       pinnedActions={decisions.filter((d) => view.isPinned(d.key))}
     >
       {view.visibleColumns.map((col) => (
@@ -210,21 +208,12 @@ export function TeamTable({
   const periodLabel = usePeriodLabel();
   const hoursText = useHoursText();
   const decide = useDecideTimesheet();
-  const { openMenu, contextMenu } = useRowMenu();
   const [target, setTarget] = useState<{ member: PeriodSummary; approve: boolean } | null>(null);
   const [open, setOpen] = useState(false);
 
   const ask = (member: PeriodSummary, approve: boolean) => {
     setTarget({ member, approve });
     setOpen(true);
-  };
-  // The keyboard's menu key reports no pointer: open beside what has focus instead.
-  const openRowMenu: OpenMenu = (x, y, items, onClose) => {
-    if (!x && !y && document.activeElement) {
-      const box = document.activeElement.getBoundingClientRect();
-      [x, y] = [box.left + 24, box.bottom];
-    }
-    openMenu(x, y, items, onClose);
   };
 
   const shown = view.applyOrder(view.applyFilters(members));
@@ -255,7 +244,6 @@ export function TeamTable({
                   member={m}
                   people={people}
                   view={view}
-                  openMenu={openRowMenu}
                   onDecide={(approve) => ask(m, approve)}
                 />
               ))}
@@ -263,7 +251,6 @@ export function TeamTable({
           </ListRowActionsProvider>
         </div>
       )}
-      {contextMenu}
       <DecisionDialog
         open={open}
         onClose={() => setOpen(false)}

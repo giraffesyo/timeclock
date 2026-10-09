@@ -79,7 +79,7 @@ for (const mobile of [false, true]) {
 
     // A waiting timesheet's menu decides it, from ⋯ or a right click alike; the other only opens.
     const fromButton = await menuItems(page, row(me).getByRole('button', { name: 'More actions' }));
-    expect(fromButton).toEqual([`Open ${me.name}’s timesheet`, `Open ${me.name}’s timer`, 'Approve', 'Send back']);
+    expect(fromButton).toEqual(['Open timesheet', 'Open timer', 'Approve', 'Send back', 'Copy']);
     await page.keyboard.press('Escape');
     expect(await menuItems(page, away(me), 'right')).toEqual(fromButton);
     await page.screenshot({ path: `/tmp/timeclock-team-menu-${device}.png` });
@@ -88,10 +88,7 @@ for (const mobile of [false, true]) {
       contentType: 'image/png',
     });
     await page.keyboard.press('Escape');
-    expect(await menuItems(page, away(other), 'right')).toEqual([
-      `Open ${other.name}’s timesheet`,
-      `Open ${other.name}’s timer`,
-    ]);
+    expect(await menuItems(page, away(other), 'right')).toEqual(['Open timesheet', 'Open timer', 'Copy']);
     await page.keyboard.press('Escape');
 
     // The keyboard's menu key opens it too.
@@ -121,10 +118,7 @@ for (const mobile of [false, true]) {
     }
     await page.getByRole('dialog').getByRole('button', { name: 'Approve' }).click();
     await expect(row(me)).toContainText('Approved');
-    expect(await menuItems(page, away(me), 'right')).toEqual([
-      `Open ${me.name}’s timesheet`,
-      `Open ${me.name}’s timer`,
-    ]);
+    expect(await menuItems(page, away(me), 'right')).toEqual(['Open timesheet', 'Open timer', 'Copy']);
     await page.keyboard.press('Escape');
 
     // The status filter. Away from the names first: a focused or hovered name keeps its profile card open.

@@ -96,7 +96,7 @@ for (const mobile of [false, true]) {
     await expect(page.getByText('Manager: Admin approves')).toBeVisible();
     await row.getByRole('button', { name: 'Grace Hopper', exact: true }).blur();
     await expect(page.getByText('Manager: Admin approves')).toHaveCount(0);
-    // The ⋯ button and a right click open the same menu, with Edit… first.
+    // The ⋯ button and a right click open the same menu, led by the person menu every name has.
     const menu = page.getByRole('menu');
     // The menu closes on any scroll, and bringing the row into view may scroll: retry.
     const open = async (target: typeof row, button?: 'right') => {
@@ -110,10 +110,18 @@ for (const mobile of [false, true]) {
       return items;
     };
     const fromButton = await open(row.getByRole('button', { name: 'More actions' }));
-    expect(fromButton[0]).toBe('Edit…');
+    const personMenu = ['Open timesheet', 'Open timer', 'Edit settings…'];
+    expect(fromButton.slice(0, 3)).toEqual(personMenu);
+    expect(fromButton).toContain('Copy');
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     expect(await open(row.getByRole('cell').first(), 'right')).toEqual(fromButton);
+    await page.keyboard.press('Escape');
+    // The manager's name is a person too: a right click there opens their menu, not the row's.
+    expect(await open(row.getByRole('button', { name: 'Grace Hopper', exact: true }), 'right')).toEqual([
+      ...personMenu,
+      'Copy',
+    ]);
     await page.screenshot({ path: `/tmp/timeclock-people-menu-${device}.png` });
     await testInfo.attach(`People menu ${device}`, {
       path: `/tmp/timeclock-people-menu-${device}.png`,
@@ -122,7 +130,7 @@ for (const mobile of [false, true]) {
     await page.keyboard.press('Escape');
     await expect(async () => {
       await row.getByRole('cell').first().click({ button: 'right' });
-      await menu.getByRole('button', { name: 'Edit…' }).click({ timeout: 1000 });
+      await menu.getByRole('button', { name: 'Edit settings…' }).click({ timeout: 1000 });
     }).toPass();
     const dialog = page.getByRole('dialog', { name: 'Edit Ada Lovelace' });
     const managerPicker = dialog.getByRole('button', { name: 'Manager' });
