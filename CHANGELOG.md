@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.26.0...timeclock-v0.27.0) (2026-10-10)
+
+
+### Features
+
+* move History from the sidebar to a Reports tab ([#130](https://github.com/giraffesyo/timeclock/issues/130)) ([8fbb557](https://github.com/giraffesyo/timeclock/commit/8fbb55748d77d395697710d51fb3f5b668666865))
+* show History only to the host's auditors, and let them page through it ([#131](https://github.com/giraffesyo/timeclock/issues/131)) ([d8465b3](https://github.com/giraffesyo/timeclock/commit/d8465b36cfc480666d5819fe8845b612c378ce79))
+
+
+### Bug Fixes
+
+* give a person the same right-click menu wherever they appear ([#128](https://github.com/giraffesyo/timeclock/issues/128)) ([bcdf5ac](https://github.com/giraffesyo/timeclock/commit/bcdf5accd996c7a047323d76cbbef62f0083e900))
+
 ## [0.26.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.25.0...timeclock-v0.26.0) (2026-10-09)
 
 
