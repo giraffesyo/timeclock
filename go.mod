@@ -5,13 +5,13 @@ go 1.27.2
 require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/gofrs/flock v0.13.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/parallelworks/foundation v0.11.0
-	github.com/parallelworks/hopper v0.3.1
+	github.com/parallelworks/foundation v0.14.0
+	github.com/parallelworks/hopper v0.5.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.8
