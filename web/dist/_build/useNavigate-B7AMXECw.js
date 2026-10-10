@@ -1,0 +1,1 @@
+import{n as e,o as t}from"./clsx-vqjabRLh.js";import{t as n}from"./useRouter-BSsPydMA.js";var r=t(e(),1);function i(e){let t=n();return r.useCallback(n=>t.navigate({...n,from:n.from??e?.from}),[e?.from,t])}export{i as t};
