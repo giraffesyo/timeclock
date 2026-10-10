@@ -59,6 +59,8 @@ mux.Handle("/timeclock/", tc)   // requests arrive with the base path still on t
 
 `host.Directory` is two methods: `Person(ctx, id)` and `People(ctx)`. A `host.Person` has an id, a name, an email, whether they are an admin (run payroll), and optionally their manager's id; an admin can set managers in Timeclock too, which takes precedence.
 
+Set `host.Person.Auditor` for the people who may read History, the record of every change to payroll data and who made it, under Reports. Only the host grants it, and it is apart from admin: an admin who isn't an auditor doesn't see History, and an auditor needn't be an admin.
+
 Set `host.Person.AvatarURL` to the user's profile image to show it beside their name. The caller's current image comes from the directory on each session fetch; absent or unavailable images fall back to initials. Use a same-origin image path, or list the images' origin in `Options.ImageSources` (for example `https://*.googleusercontent.com` for Google Workspace photos) so Timeclock's content security policy allows it.
 
 Timeclock keeps its tables, and [hopper](https://github.com/parallelworks/hopper)'s job tables, in its own schema (`timeclock` by default) and migrates it at startup under an advisory lock, so replicas can start together and it can share the host's database. `Options.SkipMigrations` leaves migrating to the host.
@@ -103,6 +105,7 @@ import '@giraffesyo/timeclock/styles.css';
 TIMECLOCK_DATABASE_URL=postgres://... \
 TIMECLOCK_PUBLIC_URL=https://time.example.com \
 TIMECLOCK_ADMIN_EMAILS=payroll@example.com \
+TIMECLOCK_AUDITOR_EMAILS=audit@example.com \
 TIMECLOCK_SECRET_KEY=<32+ random characters, kept out of the database's backups> \
 TIMECLOCK_SMTP_HOST=smtp.example.com TIMECLOCK_SMTP_FROM='Timeclock <time@example.com>' \
 TIMECLOCK_SMTP_USERNAME=... TIMECLOCK_SMTP_PASSWORD=... \
@@ -110,6 +113,7 @@ timeclock-server
 ```
 
 - **Getting in.** Each address in `TIMECLOCK_ADMIN_EMAILS` is invited when the server first starts. After that, a workspace's admins invite people from Settings → People, and whoever runs the server can too: `timeclock-server invite KEY EMAIL [--admin]`. There is no open sign-up.
+- **History.** Only the addresses in `TIMECLOCK_AUDITOR_EMAILS` read History, every change to payroll data; being an admin doesn't make someone one.
 - **Workspaces.** `timeclock-server workspace KEY "Name" --admin EMAIL` makes another organization on the same server and invites its first admin. Someone in more than one switches between them from the top of the sidebar.
 - **Passwords.** At least 10 characters, with no rules about what they contain; ones known from a data breach are refused (the check sends five characters of a hash, never the password; `TIMECLOCK_BREACH_CHECK=off` turns it off). They are stored as Argon2id hashes. Repeated wrong guesses pause sign-in for the account and for the address they come from; behind a reverse proxy, set `TIMECLOCK_TRUST_PROXY=1` so that address is the client's (from `X-Forwarded-For`) and not the proxy's.
 - **Sessions.** A random token in an `HttpOnly`, `SameSite=Lax` cookie, kept only as a hash. Signing out, resetting or changing a password ends sessions at the server.

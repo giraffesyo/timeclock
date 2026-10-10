@@ -2,6 +2,7 @@ package clock
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -462,7 +463,7 @@ func TestWorkspacesAreApart(t *testing.T) {
 	if list, err := g.PendingTimeOff(ctx, admin2); err != nil || len(list) != 0 {
 		t.Errorf("the other workspace's pending time off = %v, %v", list, err)
 	}
-	if list, err := g.Audit(ctx, admin2, "", 100); err != nil || len(list) != 0 {
+	if list, _, err := g.Audit(ctx, asAuditor(admin2), AuditQuery{Limit: 100}); err != nil || len(list) != 0 {
 		t.Errorf("the other workspace's audit log = %v, %v", list, err)
 	}
 	if rows, err := g.HoursByDayAndProject(ctx, admin2, from, to, false); err != nil || len(rows) != 0 {
@@ -914,16 +915,58 @@ func TestManagersAndTheAuditLog(t *testing.T) {
 	if _, err := f.CreateEntry(ctx, f.admin, EntryInput{PersonID: "ada", StartedAt: f.time("2026-10-01 11:00"), EndedAt: &end}); err != nil {
 		t.Fatal(err)
 	}
-	log, err := f.Audit(ctx, f.admin, "ada", 10)
+	log, _, err := f.Audit(ctx, asAuditor(f.admin), AuditQuery{PersonID: "ada", Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(log) != 2 || log[0].Action != "entry.create" || log[0].Actor != "admin" || log[1].Action != "person.update" {
 		t.Errorf("ada's audit log = %+v", log)
 	}
-	if _, err := f.Audit(ctx, f.boss, "ada", 10); !problem.Denied(err) {
-		t.Errorf("a non-admin reading the audit log: %v", err)
+	if _, _, err := f.Audit(ctx, f.boss, AuditQuery{PersonID: "ada", Limit: 10}); !problem.Denied(err) {
+		t.Errorf("a manager reading the audit log: %v", err)
 	}
+	// Only the host makes someone an auditor, and an admin isn't one by being an admin.
+	if _, _, err := f.Audit(ctx, f.admin, AuditQuery{PersonID: "ada", Limit: 10}); !problem.Denied(err) {
+		t.Errorf("an admin who isn't an auditor reading the audit log: %v", err)
+	}
+	auditor, err := f.Sync(ctx, host.Person{ID: "sam", Name: "Sam Auditor", Email: "sam@example.com", Auditor: true})
+	if err != nil || !auditor.Auditor || auditor.Admin {
+		t.Fatalf("the host's auditor = %+v, %v", auditor, err)
+	}
+	if log, _, err := f.Audit(ctx, auditor, AuditQuery{PersonID: "ada", Limit: 10}); err != nil || len(log) != 2 {
+		t.Errorf("an auditor reading the audit log = %+v, %v", log, err)
+	}
+	// A page at a time, going back from the last entry of the one before.
+	first, more, err := f.Audit(ctx, auditor, AuditQuery{PersonID: "ada", Limit: 1})
+	if err != nil || len(first) != 1 || first[0].Action != "entry.create" || !more {
+		t.Fatalf("the first page = %+v, more %v, %v", first, more, err)
+	}
+	second, more, err := f.Audit(ctx, auditor, AuditQuery{PersonID: "ada", Before: &first[0].ID, Limit: 1})
+	if err != nil || len(second) != 1 || second[0].Action != "person.update" || more {
+		t.Errorf("the page after it = %+v, more %v, %v", second, more, err)
+	}
+	// Or from the end of a day: the log has nothing from before 2000, and everything is before 2999.
+	for until, want := range map[string]int{"2000-01-01": 0, "2999-01-01": 2} {
+		d := day(t, until)
+		if log, _, err := f.Audit(ctx, auditor, AuditQuery{PersonID: "ada", Until: &d, Limit: 10}); err != nil || len(log) != want {
+			t.Errorf("the log until %s = %d entries, %v; want %d", until, len(log), err, want)
+		}
+	}
+	// They aren't an admin, so the log names everyone itself: who they are, no more.
+	if people, err := f.AuditPeople(ctx, auditor); err != nil || !slices.ContainsFunc(people, func(p AuditPerson) bool {
+		return p.ID == "ada" && p.Name == "Ada King"
+	}) {
+		t.Errorf("the people an auditor's log names = %+v, %v", people, err)
+	}
+	if _, err := f.AuditPeople(ctx, f.admin); !problem.Denied(err) {
+		t.Errorf("an admin who isn't an auditor listing the log's people: %v", err)
+	}
+}
+
+// asAuditor is the actor as the host would send them with Auditor set.
+func asAuditor(a Actor) Actor {
+	a.Auditor = true
+	return a
 }
 
 func TestRemindersGoOutOnce(t *testing.T) {

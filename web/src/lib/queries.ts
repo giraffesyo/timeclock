@@ -197,10 +197,17 @@ export function useHolidays() {
   });
 }
 
-export function useAudit(person?: string, enabled = true) {
+/** A page of the audit log: from the end of `until`, or going on from the entry `before`. */
+export function useAudit(
+  { person, before, until }: { person?: string; before?: string; until?: Day } = {},
+  enabled = true,
+) {
   return useQuery({
-    queryKey: ['audit', person ?? ''],
-    queryFn: async () => unwrap(await api.GET('/api/v1/audit', { params: { query: { person } } })).entries ?? [],
+    queryKey: ['audit', person ?? '', before ?? '', until ?? ''],
+    queryFn: async () => {
+      const out = unwrap(await api.GET('/api/v1/audit', { params: { query: { person, before, until } } }));
+      return { entries: out.entries ?? [], more: out.more, people: out.people ?? [] };
+    },
     enabled,
   });
 }

@@ -39,16 +39,18 @@ export const Route = createFileRoute('/reports')({
 
 function ReportsPage() {
   const t = useTranslations('reports');
-  const { admin, manager, period } = useSession();
+  const { admin, auditor, manager, period } = useSession();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
   // The server scopes every report; the tabs only leave out what the caller can't open.
-  const allowed: Tab[] = admin
-    ? ['payroll', 'exceptions', 'projects', 'history']
+  const reports: Tab[] = admin
+    ? ['payroll', 'exceptions', 'projects']
     : manager
       ? ['exceptions', 'projects']
       : ['projects'];
+  // History is for whoever the host makes an auditor, admin or not.
+  const allowed: Tab[] = auditor ? [...reports, 'history'] : reports;
   const tab = search.tab && allowed.includes(search.tab) ? search.tab : (allowed[0] ?? 'projects');
 
   const setDay = (next: Day | undefined) => navigate({ search: (prev) => ({ ...prev, day: next }), replace: true });

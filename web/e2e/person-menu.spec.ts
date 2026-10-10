@@ -41,7 +41,7 @@ test('a person has the same right-click menu wherever they appear', async ({
   await page.goto(`/team?day=${week.day(1)}`);
   const teamRow = page.getByRole('row').filter({ hasText: me.name }).getByRole('cell').last();
   expect((await rightClickMenu(page, teamRow)).slice(0, 3)).toEqual(everywhere);
-  await page.goto('/settings?tab=people');
+  await page.goto('/people');
   const peopleRow = page
     .getByRole('row')
     .filter({ has: page.getByRole('checkbox', { name: `Select ${me.name}` }) })

@@ -387,7 +387,7 @@ for (const mobile of [false, true]) {
       issues: [],
     } as Record<string, unknown>;
     await page.route('**/api/v1/integrations/toggl', (route) => route.fulfill({ json: status }));
-    await page.goto('/settings?tab=integrations');
+    await page.goto('/integrations');
     const syncNow = page.getByRole('button', { name: 'Sync now' });
     // Any other failure can be retried at once.
     await expect(syncNow).toBeEnabled();

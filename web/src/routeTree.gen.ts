@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CliRouteImport } from './routes/cli'
 import { Route as ForgotRouteImport } from './routes/forgot'
-import { Route as HistoryRouteImport } from './routes/history'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
@@ -45,11 +44,6 @@ const CliRoute = CliRouteImport.update({
 const ForgotRoute = ForgotRouteImport.update({
   id: '/forgot',
   path: '/forgot',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HistoryRoute = HistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IntegrationsRoute = IntegrationsRouteImport.update({
@@ -118,7 +112,6 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
-  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
@@ -137,7 +130,6 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
-  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
@@ -157,7 +149,6 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/cli': typeof CliRoute
   '/forgot': typeof ForgotRoute
-  '/history': typeof HistoryRoute
   '/integrations': typeof IntegrationsRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
@@ -178,7 +169,6 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
-    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
@@ -197,7 +187,6 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
-    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
@@ -216,7 +205,6 @@ export interface FileRouteTypes {
     | '/account'
     | '/cli'
     | '/forgot'
-    | '/history'
     | '/integrations'
     | '/invite'
     | '/login'
@@ -236,7 +224,6 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CliRoute: typeof CliRoute
   ForgotRoute: typeof ForgotRoute
-  HistoryRoute: typeof HistoryRoute
   IntegrationsRoute: typeof IntegrationsRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
@@ -279,13 +266,6 @@ declare module '@tanstack/react-router' {
       path: '/forgot'
       fullPath: '/forgot'
       preLoaderRoute: typeof ForgotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/integrations': {
@@ -380,7 +360,6 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   CliRoute: CliRoute,
   ForgotRoute: ForgotRoute,
-  HistoryRoute: HistoryRoute,
   IntegrationsRoute: IntegrationsRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,

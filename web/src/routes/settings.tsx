@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslations } from 'use-intl';
 import { CalendarSettings } from '@/components/calendar-connect';
 import { CalendarFeedSettings } from '@/components/calendar-feed';
@@ -16,22 +16,14 @@ type Tab = (typeof TABS)[number];
 
 const isTab = (value: unknown): value is Tab => TABS.includes(value as Tab);
 
-/** Tabs that became pages of their own: old links still land on them. */
-const MOVED = { people: '/people', projects: '/projects', integrations: '/integrations', history: '/history' } as const;
-type Moved = keyof typeof MOVED;
-const isMoved = (value: unknown): value is Moved => typeof value === 'string' && Object.hasOwn(MOVED, value);
-
 export const Route = createFileRoute('/settings')({
   component: SettingsPage,
   // Payroll is the default, so it stays out of the URL.
-  validateSearch: (search: Record<string, unknown>): { tab?: Tab | Moved; calendar?: 'denied' | 'failed' } => ({
-    ...((isTab(search['tab']) && search['tab'] !== 'payroll') || isMoved(search['tab']) ? { tab: search['tab'] } : {}),
+  validateSearch: (search: Record<string, unknown>): { tab?: Tab; calendar?: 'denied' | 'failed' } => ({
+    ...(isTab(search['tab']) && search['tab'] !== 'payroll' ? { tab: search['tab'] } : {}),
     // How connecting a calendar went, when it didn't.
     ...(search['calendar'] === 'denied' || search['calendar'] === 'failed' ? { calendar: search['calendar'] } : {}),
   }),
-  beforeLoad: ({ search }) => {
-    if (isMoved(search.tab)) throw redirect({ to: MOVED[search.tab], replace: true });
-  },
 });
 
 function SettingsPage() {
@@ -39,7 +31,7 @@ function SettingsPage() {
   const { admin, info } = useSession();
   const { tab: requestedTab, calendar } = Route.useSearch();
   const shown = TABS.filter((name) => admin || PERSONAL.includes(name));
-  const tab = (isTab(requestedTab) ? requestedTab : undefined) ?? (admin ? 'payroll' : 'appearance');
+  const tab = requestedTab ?? (admin ? 'payroll' : 'appearance');
 
   if (!shown.includes(tab)) {
     return (

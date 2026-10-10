@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
+import { Button } from '@/components/button';
+import { controlClass } from '@/components/field';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { PersonSelect, personChoices } from '@/components/person-select';
 import { isDay } from '@/lib/periods';
-import { type AuditEntry, useAudit, usePeople } from '@/lib/queries';
-import { dayToDate } from '@/lib/time';
+import { type AuditEntry, useAudit } from '@/lib/queries';
+import { type Day, dayToDate } from '@/lib/time';
 import { useZone } from '@/lib/zone';
 
 /** The audit actions the catalog has words for, keyed as the catalog spells them. */
@@ -54,10 +56,26 @@ export function History() {
   const periodLabel = usePeriodLabel();
   const zone = useZone();
   const [personId, setPersonId] = useState('');
-  const people = usePeople();
-  const audit = useAudit(personId || undefined);
+  // Where the log starts: the end of this day, or now.
+  const [until, setUntil] = useState<Day | ''>('');
+  // The last entry of each page read so far: the way back to newer ones.
+  const [pages, setPages] = useState<string[]>([]);
+  const audit = useAudit({ person: personId || undefined, before: pages.at(-1), until: until || undefined });
+  // Who everyone is comes with the log, as an auditor need not be an admin who sees everyone;
+  // from the newest page, so the filter keeps its choices while another page loads.
+  const people = useAudit().data?.people ?? [];
+  // A new filter or day starts over at its newest page.
+  const choosePerson = (id: string) => {
+    setPersonId(id);
+    setPages([]);
+  };
+  const chooseUntil = (day: string) => {
+    setUntil(isDay(day) ? day : '');
+    setPages([]);
+  };
+  const last = audit.data?.entries.at(-1);
 
-  const names = new Map((people.data ?? []).map((p) => [p.id, p.name || p.id]));
+  const names = new Map(people.map((p) => [p.id, p.name || p.id]));
   const name = (id: string) => names.get(id) ?? id;
 
   /** What the change was about, when the log says: the time, the day off, the period, the name. */
@@ -101,21 +119,43 @@ export function History() {
       flush
       title={t('title')}
       actions={
-        <PersonSelect
-          className="w-52"
-          label={t('filter')}
-          value={personId}
-          onChange={setPersonId}
-          choices={[{ value: '', label: t('everyone') }, ...personChoices(people.data ?? [])]}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The day and the person are full width, so each takes its width from a box around it. */}
+          <div className="w-40">
+            <input
+              type="date"
+              className={controlClass}
+              aria-label={t('until')}
+              title={t('until')}
+              value={until}
+              onChange={(e) => chooseUntil(e.target.value)}
+            />
+          </div>
+          <div className="w-52">
+            <PersonSelect
+              label={t('filter')}
+              value={personId}
+              onChange={choosePerson}
+              choices={[{ value: '', label: t('everyone') }, ...personChoices(people)]}
+            />
+          </div>
+        </div>
       }
     >
       {audit.isError ? (
         <ErrorNote className="m-4" context={t('loadFailed')} error={audit.error} />
       ) : audit.isPending ? (
         <Loading />
-      ) : audit.data.length === 0 ? (
-        <Empty>{personId ? t('emptyPerson', { name: name(personId) }) : t('empty')}</Empty>
+      ) : audit.data.entries.length === 0 ? (
+        <Empty>
+          {until
+            ? t('emptyUntil', {
+                day: format.dateTime(dayToDate(until), { month: 'short', day: 'numeric', year: 'numeric' }),
+              })
+            : personId
+              ? t('emptyPerson', { name: name(personId) })
+              : t('empty')}
+        </Empty>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -136,7 +176,7 @@ export function History() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {audit.data.map((entry, i) => {
+              {audit.data.entries.map((entry, i) => {
                 const detail = about(entry);
                 return (
                   // The log has no ids and can repeat an instant; its order is stable.
@@ -179,10 +219,33 @@ export function History() {
           </table>
         </div>
       )}
-      {audit.data && audit.data.length > 0 && (
-        <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          {t('footer', { count: audit.data.length, zone })}
-        </p>
+      {audit.data && (audit.data.entries.length > 0 || pages.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2">
+          <p className="mr-auto text-xs text-muted-foreground">
+            {t('footer', { page: pages.length + 1, count: audit.data.entries.length, zone })}
+          </p>
+          {(pages.length > 0 || until) && (
+            <Button size="sm" variant="ghost" onClick={() => chooseUntil('')}>
+              {t('newest')}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pages.length === 0}
+            onClick={() => setPages(pages.slice(0, -1))}
+          >
+            {t('newer')}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!audit.data.more || !last}
+            onClick={() => last && setPages([...pages, last.id])}
+          >
+            {t('older')}
+          </Button>
+        </div>
       )}
     </Panel>
   );

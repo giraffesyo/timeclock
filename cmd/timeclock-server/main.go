@@ -15,6 +15,8 @@
 //	                          database; at least 32 characters, and required
 //	TIMECLOCK_ADMIN_EMAILS    comma-separated emails of the people who run payroll; each is
 //	                          invited to the default workspace when the server first starts
+//	TIMECLOCK_AUDITOR_EMAILS  comma-separated emails of the people who read History, every change
+//	                          to payroll data; being an admin doesn't make someone one
 //	TIMECLOCK_SMTP_HOST, TIMECLOCK_SMTP_PORT (default 587), TIMECLOCK_SMTP_USERNAME,
 //	TIMECLOCK_SMTP_PASSWORD, TIMECLOCK_SMTP_FROM
 //	                          the mail server for invitations and password resets; without one
@@ -120,6 +122,7 @@ func open(ctx context.Context, logger *slog.Logger) (*pgxpool.Pool, *standalone.
 		Mailer:        mailer,
 		SecretKey:     os.Getenv("TIMECLOCK_SECRET_KEY"),
 		AdminEmails:   strings.Split(os.Getenv("TIMECLOCK_ADMIN_EMAILS"), ","),
+		AuditorEmails: strings.Split(os.Getenv("TIMECLOCK_AUDITOR_EMAILS"), ","),
 		BreachCheck:   os.Getenv("TIMECLOCK_BREACH_CHECK") != "off",
 		BreachURL:     os.Getenv("TIMECLOCK_BREACH_URL"),
 		TrustProxy:    os.Getenv("TIMECLOCK_TRUST_PROXY") != "",

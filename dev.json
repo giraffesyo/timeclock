@@ -8,6 +8,7 @@
     "TIMECLOCK_TEST_DATABASE_URL": "{postgres_test}",
     "TIMECLOCK_DEV_USER": "dev@example.com",
     "TIMECLOCK_ADMIN_EMAILS": "dev@example.com",
+    "TIMECLOCK_AUDITOR_EMAILS": "dev@example.com",
     "TIMECLOCK_VITE_URL": "http://localhost:{port.web}"
   },
   "before": [["sh", "-c", "find web/dist -mindepth 1 ! -name .gitkeep -delete"]],

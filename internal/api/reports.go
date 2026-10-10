@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
+	"github.com/parallelworks/foundation/problem"
 
 	"github.com/giraffesyo/timeclock/internal/clock"
 )
@@ -248,26 +250,43 @@ func registerReports(a huma.API, d Deps) {
 	huma.Register(a, op(http.MethodGet, "/audit", "list-audit", "Recent changes to payroll data", "Reports"),
 		func(ctx context.Context, in *struct {
 			Person string `query:"person" doc:"Only changes to this person's time."`
+			Before string `query:"before" format:"uuid" doc:"The last entry of the page before: the page goes on from it, to older changes."`
+			Until  string `query:"until" format:"date" doc:"Start at the end of this day, in the organization's time zone."`
 			Limit  int    `query:"limit" minimum:"1" maximum:"500" default:"100"`
-		}) (*struct {
-			Body struct {
-				Entries []clock.AuditEntry `json:"entries"`
-			}
-		}, error) {
+		}) (*struct{ Body auditBody }, error) {
 			actor, err := d.actor(ctx)
 			if err != nil {
 				return nil, err
 			}
-			list, err := d.clock(ctx).Audit(ctx, actor, in.Person, in.Limit)
+			q := clock.AuditQuery{PersonID: in.Person, Limit: in.Limit}
+			if in.Before != "" {
+				id, err := uuid.Parse(in.Before)
+				if err != nil {
+					return nil, problem.ValidationFailed(problem.InvalidFormat.AtParameter("query", "before", "must be an entry's id"))
+				}
+				q.Before = &id
+			}
+			if in.Until != "" {
+				until, err := d.day(ctx, actor.Person, "until", in.Until)
+				if err != nil {
+					return nil, err
+				}
+				q.Until = &until
+			}
+			list, more, err := d.clock(ctx).Audit(ctx, actor, q)
 			if err != nil {
 				return nil, err
 			}
-			out := &struct {
-				Body struct {
-					Entries []clock.AuditEntry `json:"entries"`
-				}
-			}{}
-			out.Body.Entries = orEmpty(list)
-			return out, nil
+			people, err := d.clock(ctx).AuditPeople(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			return &struct{ Body auditBody }{auditBody{Entries: orEmpty(list), More: more, People: orEmpty(people)}}, nil
 		})
+}
+
+type auditBody struct {
+	Entries []clock.AuditEntry  `json:"entries"`
+	More    bool                `json:"more" doc:"Older changes follow: ask again with before set to the last entry's id."`
+	People  []clock.AuditPerson `json:"people" doc:"Everyone the entries can name, to show who each is."`
 }
