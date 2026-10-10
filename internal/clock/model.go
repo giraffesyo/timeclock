@@ -87,6 +87,8 @@ type Actor struct {
 	Person
 	// Admin runs payroll.
 	Admin bool
+	// Auditor reads the audit log, as the host says; apart from Admin.
+	Auditor bool
 }
 
 // Customer is who work is done for.

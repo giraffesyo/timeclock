@@ -17,6 +17,7 @@ type meBody struct {
 	Person    clock.Person   `json:"person"`
 	AvatarURL string         `json:"avatarUrl,omitempty" doc:"The caller's profile image from the host directory; absent uses initials."`
 	Admin     bool           `json:"admin" doc:"Runs payroll: sees everyone, approves anything, changes settings, exports reports."`
+	Auditor   bool           `json:"auditor" doc:"Reads History, every change to payroll data. The host grants it, apart from admin."`
 	Manager   bool           `json:"manager" doc:"Has people whose time they approve."`
 	Settings  clock.Settings `json:"settings"`
 	Today     clock.Date     `json:"today" format:"date" doc:"Today in the organization's time zone."`
@@ -50,7 +51,7 @@ func registerMe(a huma.API, d Deps) {
 			}
 			today := d.clock(ctx).TodayFor(cfg, actor.Person)
 			out := meBody{
-				Person: actor.Person, AvatarURL: actor.AvatarURL, Admin: actor.Admin, Settings: cfg, Today: today,
+				Person: actor.Person, AvatarURL: actor.AvatarURL, Admin: actor.Admin, Auditor: actor.Auditor, Settings: cfg, Today: today,
 				Period: cfg.PeriodOf(today), Running: running, Info: info,
 			}
 			for _, p := range people {

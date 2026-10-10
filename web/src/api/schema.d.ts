@@ -871,6 +871,19 @@ export interface components {
              */
             week: number;
         };
+        AuditBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/AuditBody.json
+             */
+            readonly $schema?: string;
+            entries: components["schemas"]["AuditEntry"][] | null;
+            /** @description Older changes follow: ask again with before set to the last entry's id. */
+            more: boolean;
+            /** @description Everyone the entries can name, to show who each is. */
+            people: components["schemas"]["AuditPerson"][] | null;
+        };
         AuditEntry: {
             action: string;
             actor: string;
@@ -881,6 +894,12 @@ export interface components {
             };
             id: string;
             personId?: string;
+        };
+        AuditPerson: {
+            avatarUrl: string;
+            email: string;
+            id: string;
+            name: string;
         };
         CalendarBody: {
             /**
@@ -1209,15 +1228,6 @@ export interface components {
             themeStorageKey?: string;
             workspaceTheme: components["schemas"]["Theme"];
         };
-        "List-auditResponse": {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/List-auditResponse.json
-             */
-            readonly $schema?: string;
-            entries: components["schemas"]["AuditEntry"][] | null;
-        };
         "List-clocked-inResponse": {
             /**
              * Format: uri
@@ -1272,6 +1282,8 @@ export interface components {
             readonly $schema?: string;
             /** @description Runs payroll: sees everyone, approves anything, changes settings, exports reports. */
             admin: boolean;
+            /** @description Reads History, every change to payroll data. The host grants it, apart from admin. */
+            auditor: boolean;
             /** @description The caller's profile image from the host directory; absent uses initials. */
             avatarUrl?: string;
             info: components["schemas"]["Info"];
@@ -1954,6 +1966,10 @@ export interface operations {
             query?: {
                 /** @description Only changes to this person's time. */
                 person?: string;
+                /** @description The last entry of the page before: the page goes on from it, to older changes. */
+                before?: string;
+                /** @description Start at the end of this day, in the organization's time zone. */
+                until?: string;
                 limit?: number;
             };
             header?: never;
@@ -1968,7 +1984,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["List-auditResponse"];
+                    "application/json": components["schemas"]["AuditBody"];
                 };
             };
             /** @description Error */

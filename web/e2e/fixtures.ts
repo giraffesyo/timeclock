@@ -7,7 +7,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { DateTime } from 'luxon';
-import { ADMIN, ZONE } from '../playwright.config';
+import { ADMIN, AUDITOR, ZONE } from '../playwright.config';
 
 const HEADER = 'X-Timeclock-Dev-User';
 
@@ -100,9 +100,11 @@ async function join(
   name: string,
   options: BrowserContextOptions = {},
 ): Promise<Person> {
-  // Everyone is new, so tests don't see each other's time; the admin is the one person who isn't.
+  // Everyone is new, so tests don't see each other's time; the admin and the auditor are the ones who aren't.
   const email =
-    name === ADMIN ? ADMIN : `${name}-${Date.now().toString(36)}${process.pid}${serial++}@e2e.test`.toLowerCase();
+    name === ADMIN || name === AUDITOR
+      ? name
+      : `${name}-${Date.now().toString(36)}${process.pid}${serial++}@e2e.test`.toLowerCase();
   const context = await browser.newContext({ ...options, baseURL, extraHTTPHeaders: { [HEADER]: email } });
   const page = await context.newPage();
   const problems: string[] = [];
@@ -129,6 +131,8 @@ interface Fixtures {
   admin: Api;
   /** The payroll admin, signed in on a page. */
   adminPerson: () => Promise<Person>;
+  /** The auditor, who reads History and is no admin, signed in on a page. */
+  auditorPerson: () => Promise<Person>;
   /** Makes `manager` the one who approves each of `reports`' time. */
   manages: (manager: Person, ...reports: Person[]) => Promise<void>;
 }
@@ -150,6 +154,7 @@ export const test = base.extend<Fixtures>({
   },
   me: async ({ someone }, use) => use(await someone('ada')),
   adminPerson: async ({ someone }, use) => use(() => someone(ADMIN)),
+  auditorPerson: async ({ someone }, use) => use(() => someone(AUDITOR)),
   manages: async ({ admin }, use) =>
     use(async (manager, ...reports) => {
       for (const r of reports) {

@@ -40,6 +40,9 @@ type Config struct {
 	// AdminEmails run payroll in every workspace they belong to, and are
 	// invited to the default workspace when the server first starts.
 	AdminEmails []string
+	// AuditorEmails read History, every change to payroll data, in every
+	// workspace they belong to. Being an admin doesn't make someone one.
+	AuditorEmails []string
 	// SecretKey seals what the server must read back but shouldn't sit in
 	// the database in the clear: authenticator secrets and providers' client
 	// secrets. At least 32 characters; keep it out of the database's backups.
@@ -85,6 +88,7 @@ type Auth struct {
 	pool     *pgxpool.Pool
 	cfg      Config
 	admins   map[string]bool
+	auditors map[string]bool
 	mailer   host.Mailer
 	breaches breaches
 	box      *box
@@ -104,7 +108,7 @@ func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	a := &Auth{pool: pool, cfg: cfg, admins: map[string]bool{}, mailer: cfg.Mailer, now: time.Now}
+	a := &Auth{pool: pool, cfg: cfg, admins: map[string]bool{}, auditors: map[string]bool{}, mailer: cfg.Mailer, now: time.Now}
 	if a.mailer == nil {
 		a.mailer = logMailer{cfg.Logger}
 	}
@@ -114,6 +118,11 @@ func New(ctx context.Context, pool *pgxpool.Pool, cfg Config) (*Auth, error) {
 	for _, e := range cfg.AdminEmails {
 		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
 			a.admins[e] = true
+		}
+	}
+	for _, e := range cfg.AuditorEmails {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			a.auditors[e] = true
 		}
 	}
 	if cfg.DevUser == "" || cfg.SecretKey != "" {
@@ -236,19 +245,27 @@ func (a *Auth) devAccount(ctx context.Context, email string) (string, bool) {
 		return id.(string), true
 	}
 	var id uuid.UUID
-	err := pgx.BeginFunc(ctx, a.pool, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `INSERT INTO accounts (id, issuer, subject, email, name) VALUES ($1, 'dev', $2, $2, $3)
-			ON CONFLICT (lower(email)) DO UPDATE SET name = accounts.name RETURNING id`,
-			uuid.Must(uuid.NewV7()), email, strings.Split(email, "@")[0]).Scan(&id)
-		if err != nil {
-			return err
-		}
-		var ws uuid.UUID
-		if err := tx.QueryRow(ctx, `SELECT id FROM workspaces WHERE key = $1`, clock.DefaultWorkspace).Scan(&ws); err != nil {
-			return err
-		}
-		return join(ctx, tx, ws, id, false)
-	})
+	create := func() error {
+		return pgx.BeginFunc(ctx, a.pool, func(tx pgx.Tx) error {
+			err := tx.QueryRow(ctx, `INSERT INTO accounts (id, issuer, subject, email, name) VALUES ($1, 'dev', $2, $2, $3)
+				ON CONFLICT (lower(email)) DO UPDATE SET name = accounts.name RETURNING id`,
+				uuid.Must(uuid.NewV7()), email, strings.Split(email, "@")[0]).Scan(&id)
+			if err != nil {
+				return err
+			}
+			var ws uuid.UUID
+			if err := tx.QueryRow(ctx, `SELECT id FROM workspaces WHERE key = $1`, clock.DefaultWorkspace).Scan(&ws); err != nil {
+				return err
+			}
+			return join(ctx, tx, ws, id, false)
+		})
+	}
+	err := create()
+	// Two first requests at once both insert, and the one that waits trips over the
+	// issuer and subject, which the upsert doesn't cover: by now the account is there.
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+		err = create()
+	}
 	if err != nil {
 		a.cfg.Logger.ErrorContext(ctx, "make development account", "email", email, "error", err)
 		return "", false
@@ -311,7 +328,11 @@ func (a *Auth) person(id uuid.UUID, email, name string, admin bool) host.Person 
 	if name == "" {
 		name = email
 	}
-	return host.Person{ID: id.String(), Name: name, Email: email, Admin: admin || a.admins[strings.ToLower(email)]}
+	return host.Person{
+		ID: id.String(), Name: name, Email: email,
+		Admin:   admin || a.admins[strings.ToLower(email)],
+		Auditor: a.auditors[strings.ToLower(email)],
+	}
 }
 
 // --- Sessions ---

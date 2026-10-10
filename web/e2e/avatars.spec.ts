@@ -21,7 +21,13 @@ async function withAvatars(page: Page) {
   await page.route('**/test-avatar/*.svg', (route) => route.fulfill({ contentType: 'image/svg+xml', body: SVG }));
 }
 
-test('people show their pictures wherever they are listed', async ({ me, someone, manages, adminPerson }) => {
+test('people show their pictures wherever they are listed', async ({
+  me,
+  someone,
+  manages,
+  adminPerson,
+  auditorPerson,
+}) => {
   const ada = await someone('ada');
   const bob = await someone('bob');
   await manages(me, ada, bob);
@@ -68,12 +74,14 @@ test('people show their pictures wherever they are listed', async ({ me, someone
   await admin.page.goto(`/reports?tab=projects&${range}&by=person`);
   const own = admin.page.locator('tbody').filter({ hasText: ada.name });
   await expect(picture(own.getByRole('row').first(), ada.name)).toBeVisible();
-  // Choosing a person shows their picture too.
-  await admin.page.goto('/history');
-  const filter = admin.page.getByRole('button', { name: 'Show changes to one person’s time' });
+  // Choosing a person in History shows their picture too.
+  const auditor = await auditorPerson();
+  await withAvatars(auditor.page);
+  await auditor.page.goto('/reports?tab=history');
+  const filter = auditor.page.getByRole('button', { name: 'Show changes to one person’s time' });
   await filter.click();
-  await picture(admin.page.getByRole('option', { name: ada.name }), ada.name).click();
+  await picture(auditor.page.getByRole('option', { name: ada.name }), ada.name).click();
   await expect(picture(filter, ada.name)).toBeVisible();
   await expect(filter).toHaveText(ada.name);
-  for (const p of [page, admin.page]) await p.unrouteAll({ behavior: 'ignoreErrors' });
+  for (const p of [page, admin.page, auditor.page]) await p.unrouteAll({ behavior: 'ignoreErrors' });
 });

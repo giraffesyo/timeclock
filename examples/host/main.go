@@ -27,7 +27,8 @@ import (
 )
 
 // directory answers Timeclock's questions about people from their email:
-// anyone the host let in is a person, and "admin@..." runs payroll.
+// anyone the host let in is a person, "admin@..." runs payroll, and
+// "auditor@..." reads History.
 type directory struct{}
 
 func (directory) Person(_ context.Context, id string) (host.Person, error) {
@@ -35,7 +36,11 @@ func (directory) Person(_ context.Context, id string) (host.Person, error) {
 		return host.Person{}, host.ErrNotFound
 	}
 	name := strings.Split(id, "@")[0]
-	return host.Person{ID: id, Name: name, Email: id, Admin: strings.HasPrefix(id, "admin")}, nil
+	return host.Person{
+		ID: id, Name: name, Email: id,
+		Admin:   strings.HasPrefix(id, "admin"),
+		Auditor: strings.HasPrefix(id, "auditor"),
+	}, nil
 }
 
 func (directory) People(context.Context) ([]host.Person, error) { return nil, nil }

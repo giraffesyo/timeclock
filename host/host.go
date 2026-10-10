@@ -23,6 +23,10 @@ type Person struct {
 	// Admin runs payroll: they see everyone's time, approve anything, change
 	// settings and export reports.
 	Admin bool
+	// Auditor reads History: every change to payroll data, and who made it.
+	// It is the host's to grant, and apart from Admin: an admin is not an
+	// auditor unless the host says so.
+	Auditor bool
 	// ManagerID is the person who approves this person's timesheets and time
 	// off, when the platform knows. An admin can set it in Timeclock instead,
 	// which takes precedence.

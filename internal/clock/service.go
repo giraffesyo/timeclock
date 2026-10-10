@@ -162,7 +162,7 @@ func (s *Service) Sync(ctx context.Context, hp host.Person) (Actor, error) {
 	if err != nil {
 		return Actor{}, fmt.Errorf("sync person: %w", err)
 	}
-	return Actor{Person: p, Admin: p.Admin}, nil
+	return Actor{Person: p, Admin: p.Admin, Auditor: hp.Auditor}, nil
 }
 
 // SetAdmin grants a person admin in Timeclock, or takes the grant back.

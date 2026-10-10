@@ -69,7 +69,7 @@ test("an admin opens someone's timer from People", async ({ me, adminPerson }) =
   const week = lastWeek();
   await me.api.entry('Acme / Platform', week.at(2, '13:00'), week.at(2, '15:00'), 'Review the plan');
   const admin = await adminPerson();
-  await admin.page.goto('/settings?tab=people');
+  await admin.page.goto('/people');
   const row = admin.page
     .getByRole('row')
     .filter({ has: admin.page.getByRole('checkbox', { name: `Select ${me.name}` }) });

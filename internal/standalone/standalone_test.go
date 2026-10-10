@@ -80,7 +80,8 @@ func newFixture(t *testing.T) *fixture {
 	mail := &outbox{}
 	auth, err := New(t.Context(), pool, Config{
 		PublicURL: "https://time.example.com", Mailer: mail, AdminEmails: []string{"Pat@Example.com"},
-		SecretKey: "a key for tests that is long enough to use",
+		AuditorEmails: []string{"Quinn@Example.com"},
+		SecretKey:     "a key for tests that is long enough to use",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -186,14 +187,18 @@ func TestTheFirstAdminIsInvitedAndSetsAPassword(t *testing.T) {
 		t.Errorf("an invitation used twice: %d %v", rec.Code, out)
 	}
 
-	// Timeclock sees the account as a person of the workspace, and an admin.
+	// Timeclock sees the account as a person of the workspace, and an admin:
+	// not an auditor, which is a list of its own.
 	id, ok := f.auth.Caller(withCookie(t, b.cookie))
 	if !ok {
 		t.Fatal("the session is not a caller")
 	}
 	p, err := f.auth.Person(host.WithWorkspace(t.Context(), clock.DefaultWorkspace), id)
-	if err != nil || !p.Admin || p.Name != "Pat" {
+	if err != nil || !p.Admin || p.Auditor || p.Name != "Pat" {
 		t.Errorf("person = %+v, %v", p, err)
+	}
+	if q := f.auth.person(uuid.New(), "quinn@example.com", "Quinn", false); !q.Auditor || q.Admin {
+		t.Errorf("someone on the auditor list = %+v", q)
 	}
 	if _, err := f.auth.Person(host.WithWorkspace(t.Context(), "elsewhere"), id); err == nil {
 		t.Error("the account is a person of a workspace it isn't in")

@@ -29,6 +29,49 @@
         ],
         "type": "object"
       },
+      "AuditBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/AuditBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "more": {
+            "description": "Older changes follow: ask again with before set to the last entry's id.",
+            "type": "boolean"
+          },
+          "people": {
+            "description": "Everyone the entries can name, to show who each is.",
+            "items": {
+              "$ref": "#/components/schemas/AuditPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries",
+          "more",
+          "people"
+        ],
+        "type": "object"
+      },
       "AuditEntry": {
         "additionalProperties": false,
         "properties": {
@@ -59,6 +102,30 @@
           "actor",
           "action",
           "detail"
+        ],
+        "type": "object"
+      },
+      "AuditPerson": {
+        "additionalProperties": false,
+        "properties": {
+          "avatarUrl": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "avatarUrl"
         ],
         "type": "object"
       },
@@ -858,33 +925,6 @@
         ],
         "type": "object"
       },
-      "List-auditResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/schemas/List-auditResponse.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "entries": {
-            "items": {
-              "$ref": "#/components/schemas/AuditEntry"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "entries"
-        ],
-        "type": "object"
-      },
       "List-clocked-inResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1036,6 +1076,10 @@
             "description": "Runs payroll: sees everyone, approves anything, changes settings, exports reports.",
             "type": "boolean"
           },
+          "auditor": {
+            "description": "Reads History, every change to payroll data. The host grants it, apart from admin.",
+            "type": "boolean"
+          },
           "avatarUrl": {
             "description": "The caller's profile image from the host directory; absent uses initials.",
             "type": "string"
@@ -1070,6 +1114,7 @@
         "required": [
           "person",
           "admin",
+          "auditor",
           "manager",
           "settings",
           "today",
@@ -2770,6 +2815,28 @@
             }
           },
           {
+            "description": "The last entry of the page before: the page goes on from it, to older changes.",
+            "explode": false,
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "description": "The last entry of the page before: the page goes on from it, to older changes.",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Start at the end of this day, in the organization's time zone.",
+            "explode": false,
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "description": "Start at the end of this day, in the organization's time zone.",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
             "explode": false,
             "in": "query",
             "name": "limit",
@@ -2787,7 +2854,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/List-auditResponse"
+                  "$ref": "#/components/schemas/AuditBody"
                 }
               }
             },

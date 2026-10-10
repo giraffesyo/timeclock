@@ -167,16 +167,41 @@ type AuditEntry struct {
 	Detail   map[string]any `json:"detail"`
 }
 
-// Audit lists the most recent changes to a person's time, or to anything
-// when personID is empty, newest first.
-func (s *Service) Audit(ctx context.Context, actor Actor, personID string, limit int) ([]AuditEntry, error) {
-	if !actor.Admin {
-		return nil, forbidden("only an admin reads the audit log")
+// AuditQuery picks a page of the audit log, newest first.
+type AuditQuery struct {
+	// PersonID keeps only changes to this person's time; empty keeps everything.
+	PersonID string
+	// Before is the last entry of the page before: this page goes on from it.
+	Before *uuid.UUID
+	// Until starts the log at the end of this day, in the organization's time zone.
+	Until *Date
+	Limit int
+}
+
+// Audit lists a page of changes, newest first, and whether older ones
+// follow. Only an auditor reads it: the host decides who, and being an
+// admin is not enough.
+func (s *Service) Audit(ctx context.Context, actor Actor, q AuditQuery) ([]AuditEntry, bool, error) {
+	if !actor.Auditor {
+		return nil, false, forbidden("only an auditor reads the audit log")
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, at, actor, action, person_id, detail FROM audit_log
-		WHERE workspace_id = $W AND ($1 = '' OR person_id = $1) ORDER BY at DESC, id DESC LIMIT $2`, personID, limit)
+	cfg, err := s.Settings(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read audit log: %w", err)
+		return nil, false, err
+	}
+	var until *time.Time
+	if q.Until != nil {
+		end := q.Until.AddDays(1).Time()
+		until = &end
+	}
+	// One more than the page, to know whether there are older ones.
+	rows, err := s.pool.Query(ctx, `SELECT id, at, actor, action, person_id, detail FROM audit_log
+		WHERE workspace_id = $W AND ($1 = '' OR person_id = $1)
+		AND ($2::uuid IS NULL OR (at, id) < (SELECT at, id FROM audit_log WHERE workspace_id = $W AND id = $2))
+		AND ($3::timestamp IS NULL OR at < ($3::timestamp AT TIME ZONE $4))
+		ORDER BY at DESC, id DESC LIMIT $5`, q.PersonID, q.Before, until, cfg.Timezone, q.Limit+1)
+	if err != nil {
+		return nil, false, fmt.Errorf("read audit log: %w", err)
 	}
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (AuditEntry, error) {
 		var a AuditEntry
@@ -191,7 +216,36 @@ func (s *Service) Audit(ctx context.Context, actor Actor, personID string, limit
 		return a, err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("read audit log: %w", err)
+		return nil, false, fmt.Errorf("read audit log: %w", err)
+	}
+	if len(out) > q.Limit {
+		return out[:q.Limit], true, nil
+	}
+	return out, false, nil
+}
+
+// AuditPerson is who someone the audit log mentions is: no more than that.
+type AuditPerson struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatarUrl"`
+}
+
+// AuditPeople names everyone in the workspace, for an auditor reading the
+// log. An auditor need not be an admin, and People shows them only their own
+// and their reports'.
+func (s *Service) AuditPeople(ctx context.Context, actor Actor) ([]AuditPerson, error) {
+	if !actor.Auditor {
+		return nil, forbidden("only an auditor reads the audit log")
+	}
+	rows, err := s.pool.Query(ctx, `SELECT id, name, email, avatar_url FROM people WHERE workspace_id = $W ORDER BY lower(name), id`)
+	if err != nil {
+		return nil, fmt.Errorf("list people in the audit log: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByPos[AuditPerson])
+	if err != nil {
+		return nil, fmt.Errorf("list people in the audit log: %w", err)
 	}
 	return out, nil
 }

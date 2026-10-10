@@ -9,6 +9,8 @@ const baseURL = `http://localhost:${port}`;
 /** The organization's time zone, and the one the browsers are in unless a test says otherwise. */
 export const ZONE = 'America/Chicago';
 export const ADMIN = 'admin@e2e.test';
+/** Reads History; the admin doesn't, as being an admin doesn't make someone an auditor. */
+export const AUDITOR = 'auditor@e2e.test';
 
 const database =
   process.env.E2E_DATABASE_URL ?? 'postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable';
@@ -129,6 +131,7 @@ export default defineConfig({
         TIMECLOCK_SCHEMA: `e2e_${Date.now()}`,
         TIMECLOCK_DEV_USER: ADMIN,
         TIMECLOCK_ADMIN_EMAILS: ADMIN,
+        TIMECLOCK_AUDITOR_EMAILS: AUDITOR,
         TIMECLOCK_SECRET_KEY: 'integration key only used by the e2e tests',
         E2E_SERVICES_URL: SERVICES_URL,
       },

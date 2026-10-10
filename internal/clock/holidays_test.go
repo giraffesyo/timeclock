@@ -67,7 +67,7 @@ func TestHolidaysArePaidNotWorked(t *testing.T) {
 	if err != nil || len(list) != 2 || list[0].Name != "Founders Day" || list[1].Name != "Winter break" {
 		t.Fatalf("holidays = %+v, %v", list, err)
 	}
-	audit, err := f.Audit(ctx, f.admin, "", 10)
+	audit, _, err := f.Audit(ctx, asAuditor(f.admin), AuditQuery{Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
