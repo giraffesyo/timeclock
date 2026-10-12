@@ -122,16 +122,21 @@ function TimerPage() {
   const personId = search.person && search.person !== me.person.id ? search.person : undefined;
   const entries = useEntries(first, last, personId);
   const sheet = useTimesheet(undefined, personId);
+  // The footer's period is the one holding the week shown: this period for this week, an earlier one for an earlier week.
+  const shown = useTimesheet(week.includes(today) ? undefined : first, personId, true);
   const [adding, setAdding] = useState(false);
   const now = useNow(30_000, !!running || (entries.data ?? []).some((e) => !e.endedAt)); // keeps the week's total current
 
-  // The clock, and this period's days, are off while its timesheet is in.
-  const period = sheet.data?.period;
+  // The clock, and a period's days, are off while its timesheet is in.
   const s = sheet.data ? standing(sheet.data, me) : null;
-  const submitted = sheet.data?.timesheet?.status === 'submitted' || sheet.data?.timesheet?.status === 'approved';
+  const inSubmitted = (data: typeof sheet.data, day: Day) =>
+    !!data &&
+    (data.timesheet?.status === 'submitted' || data.timesheet?.status === 'approved') &&
+    day >= data.period.start &&
+    day <= data.period.end;
   // Someone else's time changes as their timesheet allows: not at all unless the caller may write it.
   const writable = !personId || !!s?.writer;
-  const lockedDay = (day: Day) => !writable || (submitted && !!period && day >= period.start && day <= period.end);
+  const lockedDay = (day: Day) => !writable || inSubmitted(sheet.data, day) || inSubmitted(shown.data, day);
   const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now), now);
   const name = personId ? sheet.data?.person.name : undefined;
 
@@ -208,37 +213,37 @@ function TimerPage() {
       </div>
 
       {/* Where this stands for payroll. */}
-      {sheet.isError ? (
-        <ErrorNote className="m-3" context={t('period.loadFailed')} error={sheet.error} />
+      {shown.isError ? (
+        <ErrorNote className="m-3" context={t('period.loadFailed')} error={shown.error} />
       ) : (
-        sheet.data && (
+        shown.data && (
           <div className="bottom-0 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-background px-4 py-2 text-sm md:sticky">
             <span className="font-medium">{t('period.title')}</span>
-            <span className="tabular text-muted-foreground">{periodLabel(sheet.data.period)}</span>
+            <span className="tabular text-muted-foreground">{periodLabel(shown.data.period)}</span>
             <span className="flex items-baseline gap-1.5">
-              <Hours value={sheet.data.regular + sheet.data.overtime} strong />
+              <Hours value={shown.data.regular + shown.data.overtime} strong />
               <span className="text-xs text-muted-foreground">{t('period.worked')}</span>
             </span>
-            {sheet.data.overtime > 0 && (
+            {shown.data.overtime > 0 && (
               <span className="flex items-baseline gap-1.5">
-                <Hours value={sheet.data.overtime} strong />
+                <Hours value={shown.data.overtime} strong />
                 <span className="text-xs text-muted-foreground">{t('period.overtime')}</span>
               </span>
             )}
-            {sheet.data.vacation + sheet.data.sick > 0 && (
+            {shown.data.vacation + shown.data.sick > 0 && (
               <span className="flex items-baseline gap-1.5">
-                <Hours value={sheet.data.vacation + sheet.data.sick} strong />
+                <Hours value={shown.data.vacation + shown.data.sick} strong />
                 <span className="text-xs text-muted-foreground">{t('period.timeOff')}</span>
               </span>
             )}
-            {sheet.data.holiday > 0 && (
+            {shown.data.holiday > 0 && (
               <span className="flex items-baseline gap-1.5">
-                <Hours value={sheet.data.holiday} strong />
+                <Hours value={shown.data.holiday} strong />
                 <span className="text-xs text-muted-foreground">{t('period.holiday')}</span>
               </span>
             )}
             <span className="ml-auto flex items-center gap-3">
-              <SheetStatus timesheet={sheet.data.timesheet} reportsOnly={!sheet.data.person.submitsTimesheets} />
+              <SheetStatus timesheet={shown.data.timesheet} reportsOnly={!shown.data.person.submitsTimesheets} />
               <Link
                 to="/timesheet"
                 search={{ person: personId, day: search.day }}

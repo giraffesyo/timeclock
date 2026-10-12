@@ -31,6 +31,20 @@ test('the calendar fills the space above payroll at different window heights', a
   }
 });
 
+test('an earlier week shows the pay period it falls in', async ({ me }) => {
+  const { page, api } = me;
+  // Five weeks back is outside this pay period, weekly or biweekly.
+  const monday = DateTime.now().setZone(ZONE).startOf('week').minus({ weeks: 5 });
+  const at = (hour: number) => monday.set({ hour }).toUTC().toISO() as string;
+  await api.entry('Acme / Platform', at(9), at(17), 'Earlier work');
+  await page.goto(`/?day=${monday.toISODate()}`);
+  const payroll = page.getByText('Pay period', { exact: true }).locator('..');
+  await expect(payroll).toContainText('8.00');
+  await expect(payroll).toContainText(String(monday.year));
+  await page.getByRole('button', { name: 'This week' }).click();
+  await expect(payroll).toContainText('0.00');
+});
+
 test('the day headings line up with their columns', async ({ me }) => {
   const { page } = me;
   await page.setViewportSize({ width: 1440, height: 900 });
