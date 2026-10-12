@@ -1,4 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
+import { DateTime } from 'luxon';
+import { ZONE } from '../playwright.config';
 import { column, expect, lastWeek, test } from './fixtures';
 
 /** Opens a row's menu and picks an item. The menu closes on any scroll, so both happen in one retried step. */
@@ -19,12 +21,15 @@ for (const mobile of [false, true]) {
   }, testInfo) => {
     const boss = await someone('boss');
     await manages(boss, me);
-    const week = lastWeek();
-    await me.api.entry('Acme / Platform', week.at(1, '09:00'), week.at(1, '12:00'), 'Build the export');
+    // Team opens the timer at the start of the period, so the time goes there, whatever today is.
+    const { period } = await me.api.get(`/timesheet?day=${lastWeek().day(1)}`);
+    const start = DateTime.fromISO(period.start, { zone: ZONE });
+    const at = (hour: number) => start.set({ hour }).toUTC().toISO() as string;
+    await me.api.entry('Acme / Platform', at(9), at(12), 'Build the export');
     const page = boss.page;
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
 
-    await page.goto(`/team?day=${week.day(1)}`);
+    await page.goto(`/team?day=${period.start}`);
     const row = page.getByRole('row').filter({ hasText: me.name });
     await choose(page, row.getByRole('button', { name: 'More actions' }), 'Open timer');
     await expect(page).toHaveURL(new RegExp(`[?&]person=${me.id}`));
