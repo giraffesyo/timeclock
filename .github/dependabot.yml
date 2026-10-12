@@ -1,22 +1,26 @@
 version: 2
+# Every ecosystem's updates arrive together, in one pull request a week.
+multi-ecosystem-groups:
+  dependencies:
+    schedule: { interval: weekly }
 updates:
   - package-ecosystem: gomod
     directory: /
-    schedule: { interval: weekly }
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
     commit-message: { prefix: "build(deps)" }
-    groups:
-      go: { patterns: ["*"] }
   - package-ecosystem: npm
     directory: /web
-    schedule: { interval: weekly }
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
     commit-message: { prefix: "build(deps)" }
-    groups:
-      web: { patterns: ["*"] }
   - package-ecosystem: docker
     directory: /
-    schedule: { interval: weekly }
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
     commit-message: { prefix: "build(deps)" }
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
-    commit-message: { prefix: "ci(deps)" }
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
+    commit-message: { prefix: "build(deps)" }
