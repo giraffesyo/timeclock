@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.0...timeclock-v0.27.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* show the pay period of the week being viewed on the timer page ([#136](https://github.com/giraffesyo/timeclock/issues/136)) ([a23cd24](https://github.com/giraffesyo/timeclock/commit/a23cd24d2cba5b54732dde83385fb2c378d63129))
+
 ## [0.27.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.26.0...timeclock-v0.27.0) (2026-10-10)
 
 
