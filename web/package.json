@@ -18,10 +18,10 @@
     "@giraffesyo/timeclock": "workspace:*",
     "@headlessui/react": "^2.2.10",
     "@parallelworks/i18n": "^0.3.0",
-    "@parallelworks/problem": "^0.3.0",
-    "@parallelworks/ui": "^0.24.1",
-    "@tanstack/react-query": "^5.104.1",
-    "@tanstack/react-router": "^1.170.41",
+    "@parallelworks/problem": "^0.4.0",
+    "@parallelworks/ui": "^0.48.0",
+    "@tanstack/react-query": "^5.104.2",
+    "@tanstack/react-router": "^1.170.44",
     "clsx": "^2.1.1",
     "luxon": "^3.7.2",
     "openapi-fetch": "^0.17.0",
@@ -35,12 +35,12 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@parallelworks/lint": "^0.4.0",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/router-plugin": "^1.168.42",
+    "@tanstack/router-plugin": "^1.168.46",
     "@types/luxon": "^3.7.1",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
@@ -48,6 +48,6 @@
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.3"
+    "vite": "^8.3.4"
   }
 }
