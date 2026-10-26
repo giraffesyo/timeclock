@@ -1,4 +1,4 @@
-import { column, expect, lastWeek, test } from './fixtures';
+import { column, confirmation, expect, lastWeek, test } from './fixtures';
 
 test('a timesheet is submitted, locks its time, and the manager approves it for payroll', async ({
   me,
@@ -36,7 +36,7 @@ test('a timesheet is submitted, locks its time, and the manager approves it for 
   await boss.page.goto(`/team?day=${week.day(1)}`);
   const row = boss.page.getByRole('row').filter({ hasText: me.name });
   await row.getByRole('button', { name: 'Approve' }).click();
-  await boss.page.getByRole('dialog').getByRole('button', { name: 'Approve' }).click();
+  await confirmation(boss.page).getByRole('button', { name: 'Approve' }).click();
   await expect(row).toContainText('Approved');
 
   await me.page.goto(`/timesheet?day=${week.day(1)}`);
@@ -54,7 +54,7 @@ test('a timesheet sent back can be corrected and submitted again', async ({ me, 
 
   await boss.page.goto(`/team?day=${week.day(1)}`);
   await boss.page.getByRole('row').filter({ hasText: me.name }).getByRole('button', { name: 'Send back' }).click();
-  const dialog = boss.page.getByRole('dialog');
+  const dialog = confirmation(boss.page);
   await dialog.getByRole('textbox').fill('Tuesday looks short');
   await dialog.getByRole('button', { name: 'Send back' }).click();
   await expect(dialog).toBeHidden();
@@ -99,8 +99,7 @@ test('time off is requested, approved, and counted on the timesheet', async ({ m
 
   await boss.page.goto('/team');
   await boss.page.getByRole('button', { name: /^Approve .+ vacation on /i }).click();
-  await boss.page
-    .getByRole('dialog')
+  await confirmation(boss.page)
     .getByRole('button', { name: /^Approve/ })
     .click();
   await expect(boss.page.getByText('No time off is waiting for your decision.')).toBeVisible();

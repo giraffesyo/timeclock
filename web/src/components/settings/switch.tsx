@@ -1,4 +1,4 @@
-import { SwitchToggleSmall } from '@parallelworks/ui';
+import { Switch as UISwitch } from '@parallelworks/ui';
 import { useId } from 'react';
 import { cn } from '@/lib/cn';
 
@@ -18,13 +18,13 @@ export function Switch({
   disabled?: boolean;
 }) {
   return (
-    <SwitchToggleSmall
-      type="button"
-      value={value}
+    <UISwitch
+      size="sm"
+      checked={value}
       disabled={disabled}
       aria-label={label}
       className={focus}
-      onClick={() => onChange(!value)}
+      onCheckedChange={onChange}
     />
   );
 }
@@ -55,13 +55,16 @@ export function SwitchRow({
           {hint}
         </p>
       </div>
-      <SwitchToggleSmall
-        type="button"
+      <UISwitch
+        size="sm"
+        // A sibling label names the switch through the button it points at.
+        nativeButton
+        render={<button type="button" />}
         id={id}
-        value={value}
+        checked={value}
         aria-describedby={`${id}-hint`}
         className={focus}
-        onClick={() => onChange(!value)}
+        onCheckedChange={onChange}
       />
     </div>
   );

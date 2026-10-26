@@ -58,13 +58,16 @@ test('badges explain themselves on hover and on keyboard focus', async ({ someon
   await page.getByRole('button', { name: 'Filter' }).click();
   await page
     .getByRole('menu')
-    .getByRole('button', { name: /^Archived/ })
+    .getByRole('menuitem', { name: /^Archived/ })
     .click();
   await page
     .getByRole('menu')
-    .getByRole('button', { name: /^Show archived/ })
+    .getByRole('menuitemcheckbox', { name: /^Show archived/ })
     .click();
+  // A checkbox row leaves its menu open, and Escape closes a submenu first.
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
   const archivedRow = page.getByRole('row').filter({ hasText: old });
   const archived = archivedRow.getByRole('button', { name: 'Archived', exact: true }).first();
   const billable = archivedRow.getByRole('button', { name: 'Billable', exact: true }).first();

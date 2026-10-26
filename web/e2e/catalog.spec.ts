@@ -12,8 +12,8 @@ async function menuItems(page: Page, target: Locator, button?: 'right') {
   let items: string[] = [];
   await expect(async () => {
     await target.click(button ? { button } : {});
-    await expect(page.getByRole('menu').getByRole('button').first()).toBeVisible({ timeout: 1000 });
-    items = await page.getByRole('menu').getByRole('button').allTextContents();
+    await expect(page.getByRole('menu').getByRole('menuitem').first()).toBeVisible({ timeout: 1000 });
+    items = await page.getByRole('menu').getByRole('menuitem').allTextContents();
   }).toPass();
   return items;
 }
@@ -21,7 +21,7 @@ async function choose(page: Page, target: Locator, item: string) {
   await target.scrollIntoViewIfNeeded();
   await expect(async () => {
     await target.click({ button: 'right' });
-    await page.getByRole('menu').getByRole('button', { name: item, exact: true }).click({ timeout: 1000 });
+    await page.getByRole('menu').getByRole('menuitem', { name: item, exact: true }).click({ timeout: 1000 });
   }).toPass();
 }
 
@@ -95,13 +95,16 @@ for (const mobile of [false, true]) {
       await page.getByRole('button', { name: 'Filter' }).click();
       await page
         .getByRole('menu')
-        .getByRole('button', { name: /^Archived/ })
+        .getByRole('menuitem', { name: /^Archived/ })
         .click();
       await page
         .getByRole('menu')
-        .getByRole('button', { name: /^Show archived/ })
+        .getByRole('menuitemcheckbox', { name: /^Show archived/ })
         .click();
+      // A checkbox row leaves its menu open, and Escape closes a submenu first.
       await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(projectRow).toBeVisible();
       // The status column's; a copy waits, hidden, to stack under the name on a phone.
       await expect(projectRow.getByText('Archived').filter({ visible: true })).toHaveCount(1);
@@ -115,22 +118,24 @@ for (const mobile of [false, true]) {
       await expect(async () => {
         await projectRow.getByRole('button', { name: 'More actions' }).focus();
         await page.keyboard.press('Shift+F10');
-        await expect(page.getByRole('menu').getByRole('button', { name: 'Unarchive' })).toBeVisible({ timeout: 1000 });
+        await expect(page.getByRole('menu').getByRole('menuitem', { name: 'Unarchive' })).toBeVisible({
+          timeout: 1000,
+        });
       }).toPass();
-      await page.getByRole('menu').getByRole('button', { name: 'Unarchive' }).click();
+      await page.getByRole('menu').getByRole('menuitem', { name: 'Unarchive' }).click();
       await expect(projectRow.getByText('Archived')).toHaveCount(0);
     }
 
     // Never used, so both can be deleted.
     await choose(page, projectRow.getByRole('cell').first(), 'Delete…');
     await page
-      .getByRole('dialog', { name: `Delete ${project}?` })
+      .getByRole('alertdialog', { name: `Delete ${project}?` })
       .getByRole('button', { name: 'Delete' })
       .click();
     await expect(projectRow).toHaveCount(0);
     await choose(page, row.getByRole('cell').first(), 'Delete…');
     await page
-      .getByRole('dialog', { name: `Delete ${customer}?` })
+      .getByRole('alertdialog', { name: `Delete ${customer}?` })
       .getByRole('button', { name: 'Delete' })
       .click();
     await expect(row).toHaveCount(0);

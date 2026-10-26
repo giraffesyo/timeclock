@@ -1,7 +1,6 @@
-import { ConfirmModal } from '@parallelworks/ui';
+import { ConfirmModal, toast } from '@parallelworks/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { api, type Schemas, unwrap } from '@/api/client';
 import { Button } from '@/components/button';

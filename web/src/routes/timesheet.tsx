@@ -1,4 +1,4 @@
-import { CalendarOffIcon, ClockIcon } from '@parallelworks/ui/icons';
+import { CalendarIcon, ClockIcon } from '@parallelworks/ui/icons';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
@@ -105,7 +105,7 @@ function TimesheetPage() {
                 </Banner>
               )}
               {summary.pendingTimeOff > 0 && (
-                <Banner tone="warning" icon={<CalendarOffIcon aria-hidden />}>
+                <Banner tone="warning" icon={<CalendarIcon aria-hidden />}>
                   {t('banner.pending', { hours: tc('hours', { hours: decimalHours(summary.pendingTimeOff) }) })}{' '}
                   {s.own && (
                     <Link to="/time-off" className="font-medium underline underline-offset-2">

@@ -1,6 +1,6 @@
-import { isDarkColor, THEME_PRESETS } from '@parallelworks/ui/theme';
+import { toast } from '@parallelworks/ui';
+import { isDarkColor, THEME_PRESETS, type Scheme as UIScheme } from '@parallelworks/ui/theme';
 import { type CSSProperties, useEffect, useState, useSyncExternalStore } from 'react';
-import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass } from '@/components/field';
@@ -32,6 +32,12 @@ type Draft = Record<Mode, Scheme>;
 type Seed = Scheme['interface'];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** A library preset's scheme in the form a workspace stores: its base is the background. */
+const fromPreset = ({ interface: page, sidebar }: UIScheme): Scheme => ({
+  interface: { accent: page.accent, background: page.base },
+  ...(sidebar?.base ? { sidebar: { accent: sidebar.accent ?? page.accent, background: sidebar.base } } : {}),
+});
 const MODES: Mode[] = ['light', 'dark'];
 
 /** A color: a swatch that opens the system's picker, and its hex to type or paste. */
@@ -210,7 +216,12 @@ function WorkspaceAppearance({ previewing, onPreview }: { previewing: boolean; o
   };
   const presets = [
     { name: 'timeclock', label: t('presets.own'), seed: DEFAULT_THEME.light, dark: DEFAULT_THEME.dark },
-    ...THEME_PRESETS.map((p) => ({ name: p.name, label: p.label, seed: p.seed as Scheme, dark: undefined })),
+    ...THEME_PRESETS.flatMap(({ name, label, theme: { light, dark } }) => {
+      const seed = light ?? dark;
+      if (!seed) return [];
+      // A preset with both modes sets both; one with one mode sets that one.
+      return [{ name, label, seed: fromPreset(seed), dark: light && dark ? fromPreset(dark) : undefined }];
+    }),
   ];
 
   return (

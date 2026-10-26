@@ -7,7 +7,8 @@
 @import "@parallelworks/ui/fonts.css";
 
 /* The utility classes @parallelworks/ui's components use. */
-@source "../node_modules/@parallelworks/ui/dist";
+@source "../node_modules/@parallelworks/ui/dist/components";
+@source "../node_modules/@parallelworks/ui/dist/list";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -16,7 +17,7 @@
 @theme inline {
   --color-background: var(--theme-app-bg);
   --color-card: var(--theme-panel-bg);
-  --color-card-foreground: var(--theme-panel);
+  --color-card-foreground: var(--theme-app);
   --color-muted: var(--theme-hover);
   --color-primary-foreground: var(--theme-accent-text);
   --color-ring: var(--theme-accent);
@@ -74,7 +75,7 @@
     border: 1px solid var(--theme-border);
     border-radius: var(--radius-lg);
     background-color: var(--theme-panel-bg);
-    color: var(--theme-panel);
+    color: var(--theme-app);
   }
 }
 
@@ -111,7 +112,7 @@
     display: flex;
     min-height: 100dvh;
     flex-direction: column;
-    background-color: var(--theme-bg);
+    background-color: var(--theme-sidebar-bg);
   }
   /* The sidebar and the phone's top strip sit on the sidebar's own colors:
    * inside them, the usual color names mean the sidebar's. Muted text is the
@@ -122,8 +123,8 @@
   .shell-top {
     --sidebar-wash: color-mix(in srgb, var(--sidebar-accent) 14%, transparent);
     --color-foreground: var(--theme-sidebar-text);
-    --color-muted-foreground: color-mix(in srgb, var(--theme-sidebar-text) 66%, var(--theme-bg));
-    --color-border: color-mix(in srgb, var(--theme-sidebar-text) 14%, var(--theme-bg));
+    --color-muted-foreground: color-mix(in srgb, var(--theme-sidebar-text) 66%, var(--theme-sidebar-bg));
+    --color-border: color-mix(in srgb, var(--theme-sidebar-text) 14%, var(--theme-sidebar-bg));
     --color-primary: var(--theme-sidebar-text);
     color: var(--theme-sidebar-text);
   }
@@ -205,7 +206,7 @@
     align-items: center;
     justify-content: center;
     padding: 1.5rem 1rem;
-    background-color: var(--theme-bg);
+    background-color: var(--theme-sidebar-bg);
   }
 }
 

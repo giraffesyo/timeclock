@@ -1,8 +1,8 @@
 import { matchingWork } from '@giraffesyo/timeclock';
 import { useSuggestions } from '@giraffesyo/timeclock/react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
-import { BareModal, modalPanelClasses } from '@parallelworks/ui';
-import { ArrowRightIcon, CloseIcon, CopyIcon, MenuIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
+import { Modal } from '@parallelworks/ui';
+import { ArrowRightIcon, CloseIcon, CopyIcon, MoreIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -10,7 +10,6 @@ import { Button, buttonClass } from '@/components/button';
 import { clock, useContinue } from '@/components/clock-bar';
 import { ErrorNote } from '@/components/page';
 import { ProjectSelect, useProjectName } from '@/components/project-select';
-import { cn } from '@/lib/cn';
 import { type Entry, useDeleteEntry, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, at, type Day, dayOf, hoursMinutes, timeInput } from '@/lib/time';
@@ -218,7 +217,7 @@ function Form({
           title={t('actions')}
           disabled={deleting || save.isPending || duplicate.isPending}
         >
-          <MenuIcon aria-hidden className="!size-5" />
+          <MoreIcon aria-hidden className="!size-5" />
         </MenuButton>
         <MenuItems modal={false} className="popover absolute left-0 top-full z-10 mt-1 min-w-40 p-1 focus:outline-none">
           <MenuItem>
@@ -394,15 +393,15 @@ function Form({
     );
   }
   return (
-    <BareModal
+    <Modal
       open
       onClose={onClose}
-      ariaLabel={title}
-      preventClose={save.isPending || remove.isPending}
-      className={cn(modalPanelClasses, 'w-[27rem] max-w-full px-4 pt-3 pb-4')}
+      aria-label={title}
+      dismissible={!save.isPending && !remove.isPending}
+      className="w-[27rem] max-w-full px-4 pt-3 pb-4"
     >
       {content}
-    </BareModal>
+    </Modal>
   );
 }
 

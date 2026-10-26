@@ -1,5 +1,5 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { LoaderIcon } from '@parallelworks/ui/icons';
+import { Loader } from '@parallelworks/ui';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'use-intl';
 import { cn } from '@/lib/cn';
@@ -85,7 +85,7 @@ export function Loading({ className }: { className?: string }) {
   const t = useTranslations('ui');
   return (
     <div role="status" aria-label={t('loading')} className={cn('flex justify-center py-10', className)}>
-      <LoaderIcon className="size-5 text-muted-foreground" />
+      <Loader inline decorative size={20} color="var(--color-muted-foreground)" />
     </div>
   );
 }

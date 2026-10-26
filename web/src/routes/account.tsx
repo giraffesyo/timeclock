@@ -1,8 +1,7 @@
-import { ConfirmModal } from '@parallelworks/ui';
+import { ConfirmModal, toast } from '@parallelworks/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import { toast } from 'sonner';
 import { encode } from 'uqr';
 import { useFormatter, useTranslations } from 'use-intl';
 import { authInput } from '@/components/auth-page';

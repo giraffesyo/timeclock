@@ -8,11 +8,9 @@ async function rightClickMenu(page: Page, target: Locator) {
   await target.scrollIntoViewIfNeeded();
   await expect(async () => {
     await target.click({ button: 'right' });
-    await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
+    await expect(menu.getByRole('menuitem').first()).toBeVisible({ timeout: 1000 });
     // The menu's own items: a submenu the pointer happens to open lists its items inside.
-    items = (await menu.locator(':scope > button, :scope > [role=none] > button').allTextContents()).map((s) =>
-      s.trim(),
-    );
+    items = (await menu.first().getByRole('menuitem').allTextContents()).map((s) => s.trim());
     // Read while one menu replaces another, it can come back empty: read again.
     expect(items.length).toBeGreaterThan(0);
   }).toPass();
@@ -54,7 +52,7 @@ test('a person has the same right-click menu wherever they appear', async ({
   await expect(async () => {
     await name.click({ button: 'right' });
     await page.screenshot({ path: '/tmp/timeclock-person-menu-report.png' });
-    await page.getByRole('menu').getByRole('button', { name: 'Edit settings…' }).click({ timeout: 1000 });
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Edit settings…' }).click({ timeout: 1000 });
   }).toPass();
   await expect(page.getByRole('dialog', { name: `Edit ${me.name}` })).toBeVisible();
   await testInfo.attach('Person menu in a report', {

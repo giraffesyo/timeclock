@@ -84,6 +84,16 @@ export function lastWeek(zone = ZONE) {
   };
 }
 
+/**
+ * The open confirmation: a dialog, or an alert dialog for what can't be undone,
+ * with its Cancel button. Toasts are dialogs too, so a bare role would find them.
+ */
+export const confirmation = (page: Page) =>
+  page
+    .getByRole('dialog')
+    .or(page.getByRole('alertdialog'))
+    .filter({ has: page.getByRole('button', { name: 'Cancel', exact: true }) });
+
 /** An instant as a number, for comparing times the API and a test wrote differently. */
 export const instant = (iso: string) => Date.parse(iso);
 

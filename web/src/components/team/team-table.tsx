@@ -1,4 +1,4 @@
-import { Table, TOOLTIP_ID } from '@parallelworks/ui';
+import { Table } from '@parallelworks/ui';
 import { CheckIcon, ClockIcon, RollbackIcon } from '@parallelworks/ui/icons';
 import {
   ListColumns,
@@ -6,8 +6,7 @@ import {
   ListRowActionsProvider,
   type ListView,
   listTableProps,
-  type PinnedRowAction,
-  type RowMenuItem,
+  type RowAction,
   useListNavigate,
   useListView,
 } from '@parallelworks/ui/list';
@@ -21,6 +20,7 @@ import { PersonIdentity } from '@/components/person-identity';
 import { usePersonMenu } from '@/components/person-menu';
 import { SheetStatus } from '@/components/status';
 import { useHoursText } from '@/components/time-off/runs';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { type PeriodSummary, type Person, useDecideTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { DecisionDialog } from './decision-dialog';
@@ -112,17 +112,15 @@ function TeamRow({
   const decidable = waiting && (!own || admin);
   const open = () => navigate({ to: '/timesheet', search: { person: m.person.id, day: m.period.start } });
 
-  const decisions: PinnedRowAction[] = decidable
+  const decisions: RowAction[] = decidable
     ? [
-        { key: 'approve', label: t('approve'), icon: <CheckIcon />, onSelect: () => onDecide(true) },
-        { key: 'sendBack', label: t('sendBack'), icon: <RollbackIcon />, onSelect: () => onDecide(false) },
+        { key: 'approve', label: t('approve'), icon: <CheckIcon />, onClick: () => onDecide(true) },
+        { key: 'sendBack', label: t('sendBack'), icon: <RollbackIcon />, onClick: () => onDecide(false) },
       ]
     : [];
   const items = personMenu.items(m.person, {
     day: m.period.start,
-    actions: decisions.map(
-      (d): RowMenuItem => ({ kind: 'action', label: d.label, icon: d.icon, onSelect: d.onSelect }),
-    ),
+    actions: decisions,
   });
 
   const status = (

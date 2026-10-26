@@ -42,7 +42,7 @@ for (const mobile of [false, true]) {
       avatarUrl = src;
       await page.reload();
       await expect(account.getByText('AM', { exact: true })).toBeVisible();
-      await expect(avatar).toHaveCount(0);
+      await expect(avatar).toBeHidden();
       await expect(fullName).toBeVisible();
     }
     // A refetch of /me may still be passing through the route as the test

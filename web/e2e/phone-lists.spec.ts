@@ -44,13 +44,16 @@ test('Projects on a phone marks an archived project under its name', async ({ ad
   await page.getByRole('button', { name: 'Filter' }).click();
   await page
     .getByRole('menu')
-    .getByRole('button', { name: /^Archived/ })
+    .getByRole('menuitem', { name: /^Archived/ })
     .click();
   await page
     .getByRole('menu')
-    .getByRole('button', { name: /^Show archived/ })
+    .getByRole('menuitemcheckbox', { name: /^Show archived/ })
     .click();
+  // A checkbox row leaves its menu open, and Escape closes a submenu first.
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   const row = page.getByRole('row').filter({ hasText: old });
   const chip = row.locator('[data-stacked]').getByRole('button', { name: 'Archived', exact: true });

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, lastWeek, test } from './fixtures';
+import { confirmation, expect, lastWeek, test } from './fixtures';
 
 /** The row menu's items. It closes on any scroll, so open it again if bringing the row into view moved the page. */
 async function menuItems(page: Page, target: Locator, button?: 'right') {
@@ -8,11 +8,9 @@ async function menuItems(page: Page, target: Locator, button?: 'right') {
   await target.scrollIntoViewIfNeeded();
   await expect(async () => {
     await target.click(button ? { button } : {});
-    await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
+    await expect(menu.getByRole('menuitem').first()).toBeVisible({ timeout: 1000 });
     // The menu's own items: a submenu the pointer happens to open lists its items inside.
-    items = (await menu.locator(':scope > button, :scope > [role=none] > button').allTextContents()).map((s) =>
-      s.trim(),
-    );
+    items = (await menu.first().getByRole('menuitem').allTextContents()).map((s) => s.trim());
     // Read while one menu replaces another, it can come back empty: read again.
     expect(items.length).toBeGreaterThan(0);
   }).toPass();
@@ -78,7 +76,7 @@ for (const mobile of [false, true]) {
     };
     expect(await before()).toBe(true);
     await page.getByRole('button', { name: 'Display options' }).click();
-    await page.getByRole('menu').getByRole('button', { name: 'Ascending' }).click();
+    await page.getByRole('dialog', { name: 'Display options' }).getByRole('button', { name: 'Ascending' }).click();
     await page.keyboard.press('Escape');
     await expect.poll(before).toBe(false);
 
@@ -118,10 +116,10 @@ for (const mobile of [false, true]) {
     } else {
       await expect(async () => {
         await away(me).click({ button: 'right' });
-        await page.getByRole('menu').getByRole('button', { name: 'Approve' }).click({ timeout: 1000 });
+        await page.getByRole('menu').getByRole('menuitem', { name: 'Approve' }).click({ timeout: 1000 });
       }).toPass();
     }
-    await page.getByRole('dialog').getByRole('button', { name: 'Approve' }).click();
+    await confirmation(page).getByRole('button', { name: 'Approve' }).click();
     await expect(row(me)).toContainText('Approved');
     expect(await menuItems(page, away(me), 'right')).toEqual(['Open timesheet', 'Open timer', 'Copy']);
     await page.keyboard.press('Escape');
@@ -130,9 +128,12 @@ for (const mobile of [false, true]) {
     await page.mouse.move(0, 0);
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('menu').getByRole('button', { name: 'Timesheet' }).click();
-    await page.getByRole('menu').getByRole('button', { name: 'Not submitted', exact: true }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Timesheet' }).click();
+    await page.getByRole('menu').getByRole('menuitemcheckbox', { name: 'Not submitted', exact: true }).click();
+    // A checkbox row leaves its menu open, and Escape closes a submenu first.
     await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menu')).toHaveCount(0);
     await expect(row(other)).toBeVisible();
     await expect(row(me)).toHaveCount(0);
     await page.screenshot({ path: `/tmp/timeclock-team-filter-${device}.png` });

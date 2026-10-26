@@ -8,7 +8,7 @@ async function choose(page: Page, target: Locator, item: string, button?: 'right
   await target.scrollIntoViewIfNeeded();
   await expect(async () => {
     await target.click(button ? { button } : {});
-    await page.getByRole('menu').getByRole('button', { name: item, exact: true }).click({ timeout: 1000 });
+    await page.getByRole('menu').getByRole('menuitem', { name: item, exact: true }).click({ timeout: 1000 });
   }).toPass();
 }
 

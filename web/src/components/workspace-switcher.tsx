@@ -1,4 +1,3 @@
-import { TOOLTIP_ID } from '@parallelworks/ui';
 import { CheckIcon } from '@parallelworks/ui/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
@@ -6,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { BrandIcon, KeyIcon } from '@/components/nav-icons';
 import { ErrorNote } from '@/components/page';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { accounts } from '@/lib/accounts';
 import { basePath } from '@/lib/base';
 import { cn } from '@/lib/cn';

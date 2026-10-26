@@ -104,9 +104,9 @@ for (const mobile of [false, true]) {
       let items: string[] = [];
       await expect(async () => {
         await target.click(button ? { button } : {});
-        await expect(menu.getByRole('button').first()).toBeVisible({ timeout: 1000 });
+        await expect(menu.getByRole('menuitem').first()).toBeVisible({ timeout: 1000 });
         // The menu's own items: a submenu the pointer happens to open lists its items inside.
-        items = await menu.locator(':scope > button, :scope > [role=none] > button').allTextContents();
+        items = await menu.first().getByRole('menuitem').allTextContents();
         // Read while one menu replaces another, it can come back empty: read again.
         expect(items.length).toBeGreaterThan(0);
       }).toPass();
@@ -127,7 +127,7 @@ for (const mobile of [false, true]) {
     await page.keyboard.press('Escape');
     await expect(async () => {
       await row.getByRole('cell').first().click({ button: 'right' });
-      await menu.getByRole('button', { name: 'Edit settings…' }).click({ timeout: 1000 });
+      await menu.getByRole('menuitem', { name: 'Edit settings…' }).click({ timeout: 1000 });
     }).toPass();
     const dialog = page.getByRole('dialog', { name: 'Edit Ada Lovelace' });
     const managerPicker = dialog.getByRole('button', { name: 'Manager' });
@@ -140,7 +140,8 @@ for (const mobile of [false, true]) {
     // Editing happens in the dialog, so the table keeps its width.
     await expect(row.getByRole('combobox')).toHaveCount(0);
     if (!mobile) {
-      const table = page.getByRole('table').locator('..');
+      // The modal hides the page from assistive technology, so the table is found by its tag.
+      const table = page.locator('table').locator('..');
       expect(await table.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
     await page.screenshot({ path: `/tmp/timeclock-people-edit-${device}.png` });
@@ -169,7 +170,7 @@ for (const mobile of [false, true]) {
     // The Display menu chooses the columns.
     if (!mobile) {
       await page.getByRole('button', { name: 'Display options' }).click();
-      const display = page.getByRole('menu');
+      const display = page.getByRole('dialog', { name: 'Display options' });
       await expect(display).toBeVisible();
       await page.screenshot({ path: `/tmp/timeclock-team-profiles-people-display-${device}.png` });
       await testInfo.attach(`People display ${device}`, {

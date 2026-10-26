@@ -1,6 +1,6 @@
+import { toast } from '@parallelworks/ui';
 import { CalendarIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { controlClass } from '@/components/field';

@@ -41,6 +41,8 @@ export function PersonDialog({ person, people, onClose }: { person: Person; peop
       title={t('editTitle', { name: person.name })}
       confirmLabel={tc('save')}
       closeOnConfirm={false}
+      // Its first field is a picker that opens as it takes focus, over the dialog's buttons.
+      initialFocus="confirm"
       onConfirm={async () => {
         try {
           await update.mutateAsync({ id: person.id, ...draft, payrollId: draft.payrollId.trim() });

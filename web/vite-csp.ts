@@ -1,16 +1,10 @@
 import type { Plugin } from 'vite';
 
-// sonner and react-tooltip inject their CSS as <style> elements at runtime,
-// which the server's CSP (no inline styles) refuses. main.tsx imports their
-// stylesheets instead, and this turns the injection off. A library upgrade
-// that changes the injection fails the build here rather than shipping
-// unstyled toasts or tooltips.
+// react-tooltip injects its CSS as <style> elements at runtime, which the
+// server's CSP (no inline styles) refuses. main.tsx imports its stylesheet
+// instead, and this turns the injection off. A library upgrade that changes
+// the injection fails the build here rather than shipping unstyled tooltips.
 const patches: { file: RegExp; from: string; to: string }[] = [
-  {
-    file: /\/sonner\/dist\/index\.mjs$/,
-    from: '\n__insertCSS("',
-    to: '\n(() => {})("',
-  },
   {
     file: /\/react-tooltip\/dist\/react-tooltip\.min\.mjs$/,
     from: '"undefined"!=typeof process&&process.env&&process.env.REACT_TOOLTIP_DISABLE_CORE_STYLES',
@@ -37,7 +31,7 @@ function transform(code: string, id: string) {
   return { code: out, map: null };
 }
 
-/** Turns off the runtime style injection of sonner and react-tooltip. */
+/** Turns off react-tooltip's runtime style injection. */
 export function noInlineStyles(): Plugin {
   return { name: 'no-inline-styles', enforce: 'pre', transform };
 }

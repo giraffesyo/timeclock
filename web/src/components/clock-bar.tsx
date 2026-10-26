@@ -2,8 +2,8 @@ import { type Entry as ClockEntry, clockFor } from '@giraffesyo/timeclock';
 import { ClockBar as Bar, type ClockAction } from '@giraffesyo/timeclock/react';
 import { fromResponseBody } from '@parallelworks/problem';
 import { useErrorMessage } from '@parallelworks/problem/react';
+import { toast } from '@parallelworks/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { useProjectName } from '@/components/project-select';
 import { basePath } from '@/lib/base';
@@ -73,7 +73,7 @@ export function ClockBar() {
             previousMonth: t('previousMonth'),
             nextMonth: t('nextMonth'),
           }}
-          onError={(err, action) => toast.error(failures[action], { description: errorMessage(asApiError(err)) })}
+          onError={(err, action) => toast.error(errorMessage(asApiError(err)), { title: failures[action] })}
           onSwitched={(next: ClockEntry) =>
             toast.success(t('switched', { project: projectName(next.projectId), time: time(next.startedAt) }))
           }
@@ -96,7 +96,7 @@ export function useContinue() {
     start: (entry: Pick<Entry, 'projectId' | 'note'>) => {
       clock.resume(entry).then(
         () => client.invalidateQueries(),
-        (err) => toast.error(t('inFailed'), { description: errorMessage(asApiError(err)) }),
+        (err) => toast.error(errorMessage(asApiError(err)), { title: t('inFailed') }),
       );
     },
   };

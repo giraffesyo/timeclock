@@ -34,7 +34,7 @@ async function choose(page: Page, row: Locator, item: string) {
   await row.scrollIntoViewIfNeeded();
   await expect(async () => {
     await row.getByRole('cell').first().click({ button: 'right' });
-    await page.getByRole('menu').getByRole('button', { name: item, exact: true }).click({ timeout: 1000 });
+    await page.getByRole('menu').getByRole('menuitem', { name: item, exact: true }).click({ timeout: 1000 });
   }).toPass();
 }
 
@@ -109,9 +109,9 @@ for (const mobile of [false, true]) {
       // The column is one the Display menu shows.
       // Other tests change the shared list under the open menu, so open and choose in one retried step.
       await expect(async () => {
-        if (!(await page.getByRole('menu').isVisible()))
-          await page.getByRole('button', { name: 'Display options' }).click();
-        await page.getByRole('menu').getByRole('button', { name: 'Holiday pay' }).click({ timeout: 1000 });
+        const display = page.getByRole('dialog', { name: 'Display options' });
+        if (!(await display.isVisible())) await page.getByRole('button', { name: 'Display options' }).click();
+        await display.getByRole('button', { name: 'Holiday pay' }).click({ timeout: 1000 });
       }).toPass();
       await page.keyboard.press('Escape');
       await expect(row).toContainText('Not paid');
@@ -127,7 +127,7 @@ for (const mobile of [false, true]) {
     await page.goto('/settings');
     await item.getByRole('button', { name: `Delete ${name}` }).click();
     await page
-      .getByRole('dialog', { name: `Delete ${name}?` })
+      .getByRole('alertdialog', { name: `Delete ${name}?` })
       .getByRole('button', { name: 'Delete' })
       .click();
     await expect(item).toHaveCount(0);

@@ -1,6 +1,6 @@
-import { TOOLTIP_ID } from '@parallelworks/ui';
 import { useId } from 'react';
 import { useTranslations } from 'use-intl';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { cn } from '@/lib/cn';
 import type { Timesheet } from '@/lib/queries';
 
