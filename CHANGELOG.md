@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.3](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.2...timeclock-v0.27.3) (2026-10-26)
+
+
+### Bug Fixes
+
+* **deps:** resolve every KaTeX to 0.19.1, past GHSA-238p-pmpm-9mq7 ([#152](https://github.com/giraffesyo/timeclock/issues/152)) ([b2cc7fe](https://github.com/giraffesyo/timeclock/commit/b2cc7fe95dd959f4c6d4e77e88a59e3086a65cc8))
+* **deps:** upgrade @parallelworks/ui from 0.24 to 0.94 ([#149](https://github.com/giraffesyo/timeclock/issues/149)) ([e836362](https://github.com/giraffesyo/timeclock/commit/e8363622ff19a4b8e62ebbdcc504af8d4eb7a1c6))
+
 ## [0.27.2](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.1...timeclock-v0.27.2) (2026-10-26)
 
 
