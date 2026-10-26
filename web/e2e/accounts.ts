@@ -81,7 +81,7 @@ export async function addAuthenticator(page: Page): Promise<{ key: string; codes
   await gate.getByLabel('Your password').fill(PASSWORD);
   await gate.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
-  const key = (await page.locator('code').innerText()).trim();
+  const key = (await page.locator('code').textContent())?.trim() ?? '';
   await page.getByLabel('Code from the app').fill(authenticatorCode(key));
   await page.getByRole('button', { name: 'Turn on' }).click();
   const saved = page.getByRole('dialog', { name: 'Save your recovery codes' });

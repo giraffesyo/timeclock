@@ -51,7 +51,7 @@ const fold = (s: string) =>
     .replace(/[_/]+/g, ' ');
 
 /** A zone's offset and abbreviation now, as Intl gives them. */
-function describe(zone: string, now: Date): Zone {
+function zoneAt(zone: string, now: Date): Zone {
   const part = (style: 'shortOffset' | 'short') =>
     new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: style })
       .formatToParts(now)
@@ -90,7 +90,7 @@ export function ZoneSelect({
   const zones = useMemo(() => {
     const now = new Date();
     const here = browserZone();
-    const all = timeZones(value).map((z) => describe(z, now));
+    const all = timeZones(value).map((z) => zoneAt(z, now));
     // The browser's own zone first: it is the likeliest choice.
     return [...all.filter((z) => z.value === here), ...all.filter((z) => z.value !== here)];
   }, [value]);
