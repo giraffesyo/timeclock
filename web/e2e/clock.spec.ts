@@ -198,7 +198,8 @@ test('the clock bar is on the Timer page only, and the clock keeps running elsew
 
 test('a submitted pay period turns the clock off', async ({ me }) => {
   const { page, api } = me;
-  await api.post('/timesheet/submit', { day: new Date().toISOString().slice(0, 10) });
+  // Today where the organization is: in UTC it can already be tomorrow, in a pay period not yet begun.
+  await api.post('/timesheet/submit', { day: DateTime.now().setZone(ZONE).toISODate() });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start the clock', exact: true })).toBeDisabled();
   await expect(note(page)).toBeDisabled();
