@@ -347,7 +347,7 @@ test('workspace project and description requirements control clocks and manual e
   await add.getByLabel('Day', { exact: true }).fill(lastWeek().day(0));
   await add.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(add.getByRole('alert')).toContainText('Describe what you worked on.');
-  await add.getByRole('textbox', { name: /^Note/ }).fill('Planning');
+  await add.getByRole('combobox', { name: /^Note/ }).fill('Planning');
   await add.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(add).toBeHidden();
 

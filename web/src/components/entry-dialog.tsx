@@ -1,11 +1,13 @@
+import { matchingWork } from '@giraffesyo/timeclock';
+import { useSuggestions } from '@giraffesyo/timeclock/react';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 import { BareModal, modalPanelClasses } from '@parallelworks/ui';
 import { ArrowRightIcon, CloseIcon, CopyIcon, MenuIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
-import { useContinue } from '@/components/clock-bar';
+import { clock, useContinue } from '@/components/clock-bar';
 import { ErrorNote } from '@/components/page';
 import { ProjectSelect, useProjectName } from '@/components/project-select';
 import { cn } from '@/lib/cn';
@@ -89,6 +91,7 @@ function Form({
 }) {
   const t = useTranslations('entry');
   const tc = useTranslations('common');
+  const tclock = useTranslations('clock');
   const format = useFormatter();
   const projectName = useProjectName();
   const { settings, person: me } = useSession();
@@ -107,7 +110,20 @@ function Form({
   const [deleting, setDeleting] = useState(false);
   const cancelDelete = useRef<HTMLButtonElement>(null);
   const actionsButton = useRef<HTMLButtonElement>(null);
+  // Your own time offers what you tracked before, as the clock does.
+  const known = useSyncExternalStore(clock.subscribe, clock.getState, clock.getState);
+  const mine = (entry?.personId ?? personId ?? me.id) === me.id;
   const noteField = useRef<HTMLTextAreaElement>(null);
+  const suggestions = useSuggestions({
+    field: noteField,
+    suggestions: mine && known.status === 'ready' ? matchingWork(known, note, projectId) : [],
+    projects: known.projects,
+    label: tclock('suggestions'),
+    onTake: (work) => {
+      setNote(work.note);
+      setProjectId(work.projectId ?? '');
+    },
+  });
   useLayoutEffect(() => {
     if (deleting) cancelDelete.current?.focus({ preventScroll: true });
   }, [deleting]);
@@ -146,6 +162,8 @@ function Form({
         note,
       });
       onSaved?.(saved);
+      // What was just written is suggested next time, here and on the clock.
+      void clock.refresh();
       onClose();
     } catch {
       // Shown below from save.error; the dialog stays open to fix it.
@@ -285,14 +303,23 @@ function Form({
           <textarea
             ref={noteField}
             className="entry-note"
+            {...suggestions.fieldProps}
             aria-label={tc('note')}
             rows={1}
             required={requireNote}
             maxLength={2000}
             value={note}
             placeholder={requireNote ? t('notePlaceholderRequired') : t('notePlaceholder')}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(e) => {
+              setNote(e.target.value);
+              suggestions.open();
+            }}
+            // A new entry offers earlier work as soon as the note is chosen;
+            // one already written waits until its note is changed.
+            onFocus={entry ? undefined : suggestions.open}
+            onBlur={suggestions.close}
             onKeyDown={(e) => {
+              if (suggestions.keyDown(e)) return;
               // Enter saves, as in a one-line field; Shift+Enter breaks the line.
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -300,6 +327,7 @@ function Form({
               }
             }}
           />
+          {suggestions.list}
           <div className="mt-2 flex items-center gap-2">
             <ProjectSelect
               className="min-w-0 max-w-[65%]"

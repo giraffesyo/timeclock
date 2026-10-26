@@ -144,6 +144,41 @@ test('a click on empty space offers a quarter hour from there, and stays open', 
   await expect(add).toBeVisible();
 });
 
+test('a new entry suggests earlier work, as the clock does, and taking one fills in its project', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Support', week.at(0, '09:00'), week.at(0, '10:00'), 'Ticket 42');
+  await api.entry('Acme / Platform', week.at(1, '09:00'), week.at(1, '10:00'), 'Code review');
+  await page.goto(`/?day=${week.day(2)}`);
+  await expect(column(page, 2)).toBeVisible();
+
+  const p = await at(page, 2, 14);
+  await page.mouse.click(p.x, p.y);
+  const add = dialog(page, 'Add time');
+  const note = add.getByRole('combobox', { name: 'Note' });
+  await expect(note).toBeFocused();
+  const list = page.getByRole('listbox', { name: 'Previously tracked' });
+  await expect(list.getByRole('option')).toHaveText([/^Code review.*Platform/, /^Ticket 42.*Support/]);
+
+  // Escape closes the list and leaves the entry open.
+  await note.press('Escape');
+  await expect(list).toHaveCount(0);
+  await expect(add).toBeVisible();
+
+  await note.fill('ticket');
+  await note.press('ArrowDown');
+  await note.press('Enter');
+  await expect(list).toHaveCount(0);
+  await expect(note).toHaveValue('Ticket 42');
+  await expect(add.getByRole('button', { name: /^Project:/ })).toContainText('Acme / Support');
+
+  await add.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(add).toBeHidden();
+  await expect
+    .poll(async () => (await api.get(`/entries?from=${week.day(2)}&to=${week.day(2)}`)).entries)
+    .toMatchObject([{ note: 'Ticket 42', projectId: await api.project('Acme / Support') }]);
+});
+
 test('dragging an edge changes when an entry ends, on five-minute marks', async ({ me }) => {
   const { page, api } = me;
   const week = lastWeek();
@@ -252,7 +287,7 @@ test('a block opens its entry to edit', async ({ me }) => {
 
   await page.getByRole('button', { name: /^Edit Build, Acme \/ Platform, 9:00 AM – 10:00 AM, 1h 0m$/ }).press('Enter');
   const edit = dialog(page, 'Edit time');
-  await edit.getByRole('textbox', { name: 'Note' }).fill('Build and test');
+  await edit.getByRole('combobox', { name: 'Note' }).fill('Build and test');
   await edit.getByRole('button', { name: 'Save' }).click();
   await expect(edit).toBeHidden();
   await expect(column(page, 4)).toContainText('Build and test');
@@ -307,7 +342,7 @@ test('a short entry remains clickable next to the following entry', async ({ me 
     .click();
   const edit = dialog(page, 'Edit time');
   await expect(edit).toBeVisible();
-  await expect(edit.getByRole('textbox', { name: 'Note' })).toHaveValue('Short entry');
+  await expect(edit.getByRole('combobox', { name: 'Note' })).toHaveValue('Short entry');
   await expect(edit.getByLabel(/^End/)).toHaveValue('09:07');
 });
 
@@ -391,7 +426,7 @@ test('the entry actions delete time on desktop and mobile, while cancel preserve
     await page.goto(`/?day=${week.day(0)}`);
     await page.getByRole('button', { name: /^Edit Delete me/ }).click();
     const edit = dialog(page, 'Edit time');
-    await edit.getByRole('textbox', { name: 'Note' }).fill('Unsaved changes');
+    await edit.getByRole('combobox', { name: 'Note' }).fill('Unsaved changes');
     const actions = edit.getByRole('button', { name: 'Entry actions' });
     await actions.press('Enter');
     const deletion = edit.getByRole('menuitem', { name: 'Delete' });
@@ -414,7 +449,7 @@ test('the entry actions delete time on desktop and mobile, while cancel preserve
       contentType: 'image/png',
     });
     await edit.getByRole('button', { name: 'Cancel' }).click();
-    await expect(edit.getByRole('textbox', { name: 'Note' })).toHaveValue('Unsaved changes');
+    await expect(edit.getByRole('combobox', { name: 'Note' })).toHaveValue('Unsaved changes');
     expect((await api.get(`/entries?from=${week.day(0)}&to=${week.day(0)}`)).entries).toHaveLength(1);
     await actions.click();
     await deletion.click();
