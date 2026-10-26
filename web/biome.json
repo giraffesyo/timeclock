@@ -15,7 +15,9 @@
       "!src/routeTree.gen.ts",
       "!src/api/schema.d.ts",
       "!src/api/openapi.json",
-      "!src/i18n/locales/*/index.ts"
+      "!src/i18n/locales/*/index.ts",
+      "!pnpm-lock.yaml",
+      "!pnpm-workspace.yaml"
     ]
   },
   "formatter": {

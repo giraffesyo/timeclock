@@ -1,7 +1,7 @@
 .PHONY: install build build-web build-server build-host build-e2e cli cli-dist check lint lint-go vuln test test-db e2e api release
 
-GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.8.0
+GOLANGCI := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+GOVULNCHECK := go run golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 # The database dev.json describes: `go -C tools tool dev` (or `dev stack`) runs it.
 TEST_DB_URL := postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable

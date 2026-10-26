@@ -160,7 +160,7 @@ test('an authenticator app is asked for after the password, and a recovery code 
   await gate.getByLabel('Your password').fill(PASSWORD);
   await gate.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('img', { name: 'QR code to scan with your authenticator app' })).toBeVisible();
-  const key = (await page.locator('code').innerText()).trim();
+  const key = (await page.locator('code').textContent())?.trim() ?? '';
   await page.getByLabel('Code from the app').fill('000000');
   await page.getByRole('button', { name: 'Turn on' }).click();
   await expect(page.getByRole('alert')).toHaveText('That code isn’t right, or was already used.');
