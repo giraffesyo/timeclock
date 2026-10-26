@@ -169,6 +169,28 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: web
+      # The browsers and the system packages they need, kept between runs:
+      # Ubuntu's mirror sometimes crawls, and those packages are 119 MB.
+      - name: Find the Playwright version and the runner image
+        id: playwright
+        run: |
+          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "image=$ImageOS" >> "$GITHUB_OUTPUT"
+        working-directory: web
+      - name: Keep apt's downloads where the cache can reach them
+        run: |
+          mkdir -p "$RUNNER_TEMP/apt-archives/partial"
+          printf 'Dir::Cache::Archives "%s";\nAPT::Keep-Downloaded-Packages "true";\n' "$RUNNER_TEMP/apt-archives" |
+            sudo tee /etc/apt/apt.conf.d/90-cache-archives
+      - name: Restore the browsers and their system packages
+        id: browsers
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ${{ runner.temp }}/apt-archives/*.deb
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.image }}-${{ steps.playwright.outputs.version }}
+          restore-keys: playwright-${{ runner.os }}-${{ steps.playwright.outputs.image }}-
       - name: Build E2E binaries and install browsers
         # Browser/OS downloads can overlap compilation. Keep the same headless
         # Chromium and WebKit engines; headed Chromium is unused by this suite.
@@ -181,6 +203,15 @@ jobs:
           wait "$build_pid" || status=1
           wait "$browsers_pid" || status=1
           exit "$status"
+      # Saved now, so a run whose tests fail still keeps them.
+      - name: Save the browsers and their system packages
+        if: steps.browsers.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ${{ runner.temp }}/apt-archives/*.deb
+          key: ${{ steps.browsers.outputs.cache-primary-key }}
       - name: Test
         env:
           E2E_DATABASE_URL: postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable
