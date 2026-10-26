@@ -171,9 +171,11 @@ jobs:
         working-directory: web
       # The browsers and the system packages they need, kept between runs:
       # Ubuntu's mirror sometimes crawls, and those packages are 119 MB.
-      - name: Find the Playwright version
+      - name: Find the Playwright version and the runner image
         id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "image=$ImageOS" >> "$GITHUB_OUTPUT"
         working-directory: web
       - name: Keep apt's downloads where the cache can reach them
         run: |
@@ -187,8 +189,8 @@ jobs:
           path: |
             ~/.cache/ms-playwright
             ${{ runner.temp }}/apt-archives/*.deb
-          key: playwright-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.playwright.outputs.version }}
-          restore-keys: playwright-${{ runner.os }}-${{ env.ImageOS }}-
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.image }}-${{ steps.playwright.outputs.version }}
+          restore-keys: playwright-${{ runner.os }}-${{ steps.playwright.outputs.image }}-
       - name: Build E2E binaries and install browsers
         # Browser/OS downloads can overlap compilation. Keep the same headless
         # Chromium and WebKit engines; headed Chromium is unused by this suite.
