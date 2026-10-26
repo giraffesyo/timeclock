@@ -1,10 +1,11 @@
-import { ConfirmModal, TOOLTIP_ID } from '@parallelworks/ui';
+import { ConfirmModal } from '@parallelworks/ui';
 import { LockIcon, TrashIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { ErrorNote } from '@/components/page';
 import { TimeOffStatus } from '@/components/status';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { type TimeOff, useCancelTimeOff } from '@/lib/queries';
 import { decimalHours } from '@/lib/time';
 import { groupRuns, type Run, useDayLabel, useHoursText } from './runs';

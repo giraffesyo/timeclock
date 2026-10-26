@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { confirmation, expect, test } from './fixtures';
 
 for (const mobile of [false, true]) {
   test(`an admin connects Toggl once and disconnects it${mobile ? ' on mobile' : ''}`, async ({ adminPerson, me }) => {
@@ -65,7 +65,7 @@ for (const mobile of [false, true]) {
     expect(await page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `/tmp/timeclock-integrations-${mobile ? 'mobile' : 'desktop'}.png`, fullPage: true });
     await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-    const dialog = page.getByRole('dialog');
+    const dialog = confirmation(page);
     await expect(dialog).toContainText('all person, project and entry mappings');
     await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
     await expect(page.getByLabel('Toggl API token')).toHaveValue('');
@@ -122,7 +122,7 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
   };
   const disconnect = async () => {
     await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-    const dialog = page.getByRole('dialog');
+    const dialog = confirmation(page);
     await expect(dialog).toContainText('all person, project and entry mappings');
     await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
     await expect(page.getByLabel('Toggl API token')).toHaveValue('');
@@ -160,7 +160,8 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
 
   // Cancel is harmless; confirm removes the connection but keeps recorded data.
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await confirmation(page).getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(confirmation(page)).toHaveCount(0);
   expect((await api.get('/integrations/toggl')).connected).toBe(true);
   await disconnect();
   const disconnected = await api.get('/integrations/toggl');
@@ -200,7 +201,7 @@ test('full history, two-way edits, disconnect, and reconnect through the real ba
   await expect(page.getByText('Local offline edit ·', { exact: false })).toBeVisible();
   await expect(page.getByText('Remote offline edit ·', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Keep Toggl version' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Confirm choice' }).click();
+  await confirmation(page).getByRole('button', { name: 'Confirm choice' }).click();
   await api.post('/integrations/toggl/sync');
   await expect
     .poll(async () => (await historical()).find((e: { id: string }) => e.id === original.id)?.note)

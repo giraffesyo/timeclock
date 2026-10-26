@@ -1,14 +1,14 @@
 {
   "loading": "Loading…",
   "modal": {
-    "cancel": "Cancel",
-    "close": "Close",
-    "create": "Create",
-    "creating": "Creating…",
-    "filter": "Filter",
-    "noOptions": "No options"
+    "creating": "Creating…"
   },
   "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "filter": "Filter",
+    "notifications": "Notifications",
     "copy": "Copy",
     "copied": "Copied",
     "copyFailed": "Couldn’t copy",

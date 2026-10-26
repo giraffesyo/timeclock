@@ -1,6 +1,6 @@
+import { toast } from '@parallelworks/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { controlClass } from '@/components/field';

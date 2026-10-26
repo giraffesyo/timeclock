@@ -6,12 +6,20 @@ import {
   contrastRatio,
   deriveTheme,
   isDarkColor,
-  type SurfaceSeeds,
-  type ThemeSeed,
+  SIDEBAR_TOKENS,
   type ThemeVariables,
+  type Scheme as UIScheme,
 } from '@parallelworks/ui/theme';
 
 export type Mode = 'light' | 'dark';
+
+/** The few colors a surface is derived from, as a workspace stores them. */
+export interface ThemeSeed {
+  accent: string;
+  background: string;
+  /** How far text and borders sit from the background: 1 is normal, from 0.5 to 1.5. */
+  contrast?: number;
+}
 
 /** A look in one mode: the page's seed, and the sidebar's when it has its own. */
 export interface Scheme {
@@ -74,11 +82,42 @@ export function schemeFor(theme: Theme | undefined, mode: Mode): Scheme {
  * the page's background a little deeper, so the page still reads as a sheet
  * laid on it.
  */
-export function surfaces(scheme: Scheme, mode: Mode): SurfaceSeeds {
+export function surfaces(scheme: Scheme, mode: Mode): Required<Scheme> {
   const sidebar = scheme.sidebar?.background
     ? scheme.sidebar
     : { ...scheme.interface, background: shade(scheme.interface.background, mode === 'dark' ? 0.4 : 0.045) };
   return { interface: scheme.interface, sidebar };
+}
+
+/**
+ * A stored contrast on the library's scale, 0 to 100 with 30 its normal:
+ * 0.5 is the least, 1 normal, and 1.5 the most.
+ */
+const scaled = (contrast: number) =>
+  Math.round(contrast <= 1 ? (Math.max(contrast, 0.5) - 0.5) * 60 : 30 + (Math.min(contrast, 1.5) - 1) * 140);
+
+/** A seed as @parallelworks/ui takes one: the background is its base. */
+const seeded = (seed: ThemeSeed): UIScheme => ({
+  interface: {
+    base: seed.background,
+    accent: seed.accent,
+    contrast: seed.contrast ? scaled(seed.contrast) : undefined,
+  },
+});
+
+/**
+ * Every token of a scheme. The library's sidebar takes only a background and
+ * an accent, so the sidebar's tokens come from its own seed, contrast and all,
+ * as the page's would.
+ */
+function derive({ interface: page, sidebar }: Required<Scheme>): ThemeVariables {
+  const vars = deriveTheme(seeded(page));
+  const side = deriveTheme({
+    ...seeded(sidebar),
+    sidebar: { base: sidebar.background, accent: sidebar.accent },
+  });
+  for (const token of SIDEBAR_TOKENS) vars[token] = side[token];
+  return vars;
 }
 
 /**
@@ -88,14 +127,15 @@ export function surfaces(scheme: Scheme, mode: Mode): SurfaceSeeds {
  */
 export type Look = ThemeVariables & { '--sidebar-accent': string };
 
-const washOf = (vars: ThemeVariables, accent: string) => mix(vars['--theme-bg'], accent, SIDEBAR_WASH);
-const sidebarMuted = (vars: ThemeVariables) => mix(vars['--theme-bg'], vars['--theme-sidebar-text'], SIDEBAR_MUTED);
+const washOf = (vars: ThemeVariables, accent: string) => mix(vars['--theme-sidebar-bg'], accent, SIDEBAR_WASH);
+const sidebarMuted = (vars: ThemeVariables) =>
+  mix(vars['--theme-sidebar-bg'], vars['--theme-sidebar-text'], SIDEBAR_MUTED);
 
 export function look(scheme: Scheme, mode: Mode): Look {
   const seeds = surfaces(scheme, mode);
-  const vars = deriveTheme(seeds);
-  const accent = seeds.sidebar?.accent ?? seeds.interface.accent;
-  const pole = isDarkColor(vars['--theme-bg']) ? '#ffffff' : '#000000';
+  const vars = derive(seeds);
+  const accent = seeds.sidebar.accent;
+  const pole = isDarkColor(vars['--theme-sidebar-bg']) ? '#ffffff' : '#000000';
   let marked = accent;
   for (let t = 0.05; t <= 1 && contrastRatio(marked, washOf(vars, marked)) < 3; t += 0.05) {
     marked = mix(accent, pole, t);
@@ -106,14 +146,13 @@ export function look(scheme: Scheme, mode: Mode): Look {
 // Text pairs that must stay WCAG AA.
 const textPairs: [keyof ThemeVariables, keyof ThemeVariables][] = [
   ['--theme-app', '--theme-app-bg'],
-  ['--theme-panel', '--theme-panel-bg'],
+  ['--theme-app', '--theme-panel-bg'],
   ['--theme-muted-text-color', '--theme-app-bg'],
   ['--theme-muted-text-color', '--theme-panel-bg'],
   ['--theme-muted-text-color', '--theme-hover'],
   ['--theme-accent-text', '--theme-accent'],
-  ['--theme-element-text', '--theme-element'],
   ['--theme-link', '--theme-panel-bg'],
-  ['--theme-sidebar-text', '--theme-bg'],
+  ['--theme-sidebar-text', '--theme-sidebar-bg'],
 ];
 
 const name = (token: string) => token.replace('--theme-', '');
@@ -130,7 +169,11 @@ export function contrastFailures(vars: Look): string[] {
       bg: 'sidebar-wash',
       ratio: contrastRatio(vars['--theme-sidebar-text'], washOf(vars, vars['--sidebar-accent'])),
     },
-    { fg: 'sidebar-muted', bg: name('--theme-bg'), ratio: contrastRatio(sidebarMuted(vars), vars['--theme-bg']) },
+    {
+      fg: 'sidebar-muted',
+      bg: name('--theme-sidebar-bg'),
+      ratio: contrastRatio(sidebarMuted(vars), vars['--theme-sidebar-bg']),
+    },
   ];
   return pairs.filter((p) => p.ratio < 4.5).map((p) => `${p.fg} on ${p.bg} (${p.ratio.toFixed(1)}:1)`);
 }

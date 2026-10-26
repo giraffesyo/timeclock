@@ -1,4 +1,4 @@
-import { LoaderIcon } from '@parallelworks/ui/icons';
+import { Loader } from '@parallelworks/ui';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
@@ -46,7 +46,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button type="button" className={buttonClass(variant, size, className)} disabled={disabled || loading} {...props}>
-      {loading ? <LoaderIcon aria-hidden /> : icon}
+      {loading ? <Loader inline decorative size={16} color="currentColor" /> : icon}
       {children}
     </button>
   );

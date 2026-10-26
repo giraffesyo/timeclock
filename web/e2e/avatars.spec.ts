@@ -38,7 +38,11 @@ test('people show their pictures wherever they are listed', async ({
 
   const { page } = me;
   await withAvatars(page);
-  const picture = (where: ReturnType<Page['locator']>, name: string) => where.getByRole('img', { name, exact: true });
+  // The picture inside the avatar named for the person, and for their presence when it shows one.
+  const picture = (where: ReturnType<Page['locator']>, name: string) =>
+    where
+      .getByRole('img', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(, .+)?$`) })
+      .locator('img');
 
   // On the clock: a running clock also shows as a dot on the picture.
   await page.goto('/overview');

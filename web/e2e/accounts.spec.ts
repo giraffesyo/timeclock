@@ -199,7 +199,7 @@ test('an authenticator app is asked for after the password, and a recovery code 
 
   // Turning it off needs the password; then the password is enough again.
   await page.getByRole('button', { name: 'Turn off' }).click();
-  const off = page.getByRole('dialog', { name: 'Turn off' });
+  const off = page.getByRole('alertdialog', { name: 'Turn off' });
   await off.getByLabel('Your password').fill(PASSWORD);
   await off.getByRole('button', { name: 'Turn off' }).click();
   await expect(page.getByRole('button', { name: 'Set up' })).toBeVisible();

@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { confirmation, expect, test } from './fixtures';
 
 // The row menu closes on any scroll, as the page moves under it, and other
 // tests' people keep this shared list moving. Open it and choose in one
@@ -8,18 +8,17 @@ async function choose(page: Page, target: Locator, item: string, how: 'right' | 
   await target.scrollIntoViewIfNeeded();
   await expect(async () => {
     await target.click(how === 'right' ? { button: 'right' } : {});
-    await page.getByRole('menu').getByRole('button', { name: item, exact: true }).click({ timeout: 1000 });
+    await page.getByRole('menu').getByRole('menuitem', { name: item, exact: true }).click({ timeout: 1000 });
   }).toPass();
   await confirm(page, item);
 }
 
 /** Confirms the action named in the dialog that asks first. */
 async function confirm(page: Page, item: string) {
-  await page
-    .getByRole('dialog')
+  await confirmation(page)
     .getByRole('button', { name: item.replace(/…$/, ''), exact: true })
     .click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(confirmation(page)).toHaveCount(0);
 }
 
 /** The menu's items for a row, by name. */
@@ -29,7 +28,7 @@ async function menuItems(page: Page, target: Locator, how: 'right' | 'click' = '
   await expect(async () => {
     await target.click(how === 'right' ? { button: 'right' } : {});
     await expect(page.getByRole('menu')).toBeVisible({ timeout: 1000 });
-    items = await page.getByRole('menu').getByRole('button').allTextContents();
+    items = await page.getByRole('menu').getByRole('menuitem').allTextContents();
     expect(items.length).toBeGreaterThan(0);
   }).toPass();
   await page.keyboard.press('Escape');
@@ -52,7 +51,7 @@ test('an admin changes several people at once from the selection or a right clic
   await page.getByRole('checkbox', { name: `Select ${cal.name}`, exact: true }).check();
   await expect(page.getByRole('status').filter({ hasText: '2 people selected' })).toBeVisible();
   await page.getByRole('button', { name: 'Mark overtime exempt' }).click();
-  await expect(page.getByRole('dialog')).toContainText('Mark 2 people overtime exempt?');
+  await expect(confirmation(page)).toContainText('Mark 2 people overtime exempt?');
   await confirm(page, 'Mark overtime exempt');
   await expect(page.getByText('2 people are now overtime exempt.')).toBeVisible();
   await expect.poll(() => exempt(bea)).toBe(true);
@@ -135,7 +134,7 @@ test('an admin makes someone an admin from the row menu, and only grants made he
   await own.getByRole('button', { name: 'More actions' }).scrollIntoViewIfNeeded();
   await expect(async () => {
     await own.getByRole('button', { name: 'More actions' }).click();
-    await expect(page.getByRole('menu').getByRole('button', { name: 'Remove admin' })).toHaveAttribute(
+    await expect(page.getByRole('menu').getByRole('menuitem', { name: 'Remove admin' })).toHaveAttribute(
       'aria-disabled',
       'true',
       { timeout: 1000 },

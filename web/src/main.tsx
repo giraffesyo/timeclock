@@ -2,9 +2,8 @@ import './theme-init';
 import '@giraffesyo/timeclock/styles.css';
 import './index.css';
 import 'virtual:timeclock-theme.css';
-// Their runtime style injection is off (vite-csp.ts); the CSP allows files.
+// Its runtime style injection is off (vite-csp.ts); the CSP allows files.
 import 'react-tooltip/dist/react-tooltip.css';
-import 'sonner/dist/styles.css';
 import { defaultLocale, defaultMessages, loadMessages, locales } from 'virtual:i18n';
 import { detectLocale } from '@parallelworks/i18n';
 import { LocaleProvider } from '@parallelworks/i18n/react';

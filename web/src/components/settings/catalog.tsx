@@ -1,5 +1,5 @@
 import { toApiError } from '@parallelworks/problem';
-import { ConfirmModal, Table } from '@parallelworks/ui';
+import { ConfirmModal, type MenuEntry, menuDivider, type OpenMenu, Table, useOpenMenu } from '@parallelworks/ui';
 import { AddIcon, ArchiveIcon, EditIcon, TrashIcon } from '@parallelworks/ui/icons';
 import {
   ListColumns,
@@ -8,11 +8,8 @@ import {
   ListRow,
   ListRowActionsProvider,
   listTableProps,
-  type OpenMenu,
-  type RowMenuItem,
   useListNavigate,
   useListView,
-  useRowMenu,
 } from '@parallelworks/ui/list';
 import { type ReactNode, useState } from 'react';
 import { useTranslations } from 'use-intl';
@@ -161,12 +158,12 @@ function ProjectDialog({
 /** Where a menu opens: at the pointer, or beside what has focus when the keyboard opened it. */
 const menuAt =
   (openMenu: OpenMenu): OpenMenu =>
-  (x, y, items, onClose) => {
-    if (!x && !y && document.activeElement) {
-      const box = document.activeElement.getBoundingClientRect();
-      [x, y] = [box.left + 24, box.bottom];
+  (at, items, options) => {
+    if (!(at instanceof Element) && !at.clientX && !at.clientY && document.activeElement) {
+      at.preventDefault?.();
+      return openMenu(document.activeElement, items, options);
     }
-    openMenu(x, y, items, onClose);
+    return openMenu(at, items, options);
   };
 
 /** A row without a menu still keeps the actions column, so the cells line up. */
@@ -194,7 +191,7 @@ export function Catalog() {
   const deleteCustomer = useDeleteCustomer();
   const deleteProject = useDeleteProject();
   const goTo = useListNavigate();
-  const { openMenu, contextMenu } = useRowMenu();
+  const openMenu = useOpenMenu();
 
   const [customerDialog, setCustomerDialog] = useState<{ customer?: Customer } | null>(null);
   const [projectDialog, setProjectDialog] = useState<{ project?: Project; customerId: string } | null>(null);
@@ -274,64 +271,55 @@ export function Catalog() {
   ];
 
   // Each menu: what changes it first, what can't be undone last.
-  const customerMenu = (c: Customer & { internal?: boolean }): RowMenuItem[] => {
+  const customerMenu = (c: Customer & { internal?: boolean }): MenuEntry[] => {
     const target: Target = { type: 'customer', customer: c };
     if (c.archived)
       return [
-        { kind: 'action', label: t('unarchive'), disabled: archivePending, onSelect: () => unarchive(target) },
-        { kind: 'divider' },
-        { kind: 'action', label: t('menu.delete'), destructive: true, onSelect: () => setDeleting(target) },
+        { label: t('unarchive'), disabled: archivePending, onClick: () => unarchive(target) },
+        menuDivider,
+        { label: t('menu.delete'), destructive: true, onClick: () => setDeleting(target) },
       ];
-    const add: RowMenuItem = {
-      kind: 'action',
+    const add: MenuEntry = {
       label: t('menu.addProject'),
       icon: <AddIcon />,
-      onSelect: () => setProjectDialog({ customerId: c.id }),
+      onClick: () => setProjectDialog({ customerId: c.id }),
     };
     if (c.internal) return [add];
     return [
       add,
       {
-        kind: 'action',
         label: t('menu.rename'),
         icon: <EditIcon />,
-        onSelect: () => setCustomerDialog({ customer: c }),
+        onClick: () => setCustomerDialog({ customer: c }),
       },
-      { kind: 'action', label: t('menu.archive'), icon: <ArchiveIcon />, onSelect: () => setArchiving(target) },
-      { kind: 'divider' },
+      { label: t('menu.archive'), icon: <ArchiveIcon />, onClick: () => setArchiving(target) },
+      menuDivider,
       {
-        kind: 'action',
         label: t('menu.delete'),
         icon: <TrashIcon />,
         destructive: true,
-        onSelect: () => setDeleting(target),
+        onClick: () => setDeleting(target),
       },
     ];
   };
-  const projectMenu = (p: Project): RowMenuItem[] => {
+  const projectMenu = (p: Project): MenuEntry[] => {
     const target: Target = { type: 'project', project: p };
-    const del: RowMenuItem = {
-      kind: 'action',
+    const del: MenuEntry = {
       label: t('menu.delete'),
       icon: <TrashIcon />,
       destructive: true,
-      onSelect: () => setDeleting(target),
+      onClick: () => setDeleting(target),
     };
     if (p.archived)
-      return [
-        { kind: 'action', label: t('unarchive'), disabled: archivePending, onSelect: () => unarchive(target) },
-        { kind: 'divider' },
-        del,
-      ];
+      return [{ label: t('unarchive'), disabled: archivePending, onClick: () => unarchive(target) }, menuDivider, del];
     return [
       {
-        kind: 'action',
         label: t('menu.edit'),
         icon: <EditIcon />,
-        onSelect: () => setProjectDialog({ project: p, customerId: p.customerId ?? '' }),
+        onClick: () => setProjectDialog({ project: p, customerId: p.customerId ?? '' }),
       },
-      { kind: 'action', label: t('menu.archive'), icon: <ArchiveIcon />, onSelect: () => setArchiving(target) },
-      { kind: 'divider' },
+      { label: t('menu.archive'), icon: <ArchiveIcon />, onClick: () => setArchiving(target) },
+      menuDivider,
       del,
     ];
   };
@@ -425,7 +413,7 @@ export function Catalog() {
                                 key: 'add',
                                 label: t('project.addTo', { name: c.name }),
                                 icon: <AddIcon />,
-                                onSelect: () => setProjectDialog({ customerId: c.id }),
+                                onClick: () => setProjectDialog({ customerId: c.id }),
                               },
                             ]
                       }
@@ -471,7 +459,6 @@ export function Catalog() {
           </div>
         )}
       </Panel>
-      {contextMenu}
       <p className="mt-2 text-xs text-muted-foreground">{t('archiveNote')}</p>
 
       {customerDialog && (

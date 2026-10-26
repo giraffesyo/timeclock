@@ -6,7 +6,7 @@
 .tc-picker,
 .tc-suggestions {
   --tc-bg: var(--theme-panel-bg, #fff);
-  --tc-fg: var(--theme-panel, #16181d);
+  --tc-fg: var(--theme-app, var(--theme-panel, #16181d));
   --tc-muted: var(--theme-muted-text-color, #5d6370);
   --tc-border: var(--theme-border, #d9dce3);
   --tc-hover: var(--theme-hover, #eef0f4);
@@ -254,7 +254,7 @@
 .tc-clock-button,
 .tc-clock-panel {
   --tc-bg: var(--theme-panel-bg, #fff);
-  --tc-fg: var(--theme-panel, #16181d);
+  --tc-fg: var(--theme-app, var(--theme-panel, #16181d));
   --tc-muted: var(--theme-muted-text-color, #5d6370);
   --tc-border: var(--theme-border, #d9dce3);
   --tc-hover: var(--theme-hover, #eef0f4);

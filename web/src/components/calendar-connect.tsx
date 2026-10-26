@@ -1,9 +1,9 @@
-import { TOOLTIP_ID } from '@parallelworks/ui';
 import { CalendarIcon, CloseIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { ErrorNote, Loading, Panel } from '@/components/page';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { basePath } from '@/lib/base';
 import { useCalendarEvents, useDisconnectGoogleCalendar, useGoogleCalendar } from '@/lib/queries';
 import { useSession } from '@/lib/session';

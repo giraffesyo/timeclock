@@ -1,4 +1,4 @@
-import { CloseIcon, CopyIcon, NewWindowIcon, StartIcon } from '@parallelworks/ui/icons';
+import { CloseIcon, CopyIcon, ExternalLinkIcon, StartIcon } from '@parallelworks/ui/icons';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { useContinue } from '@/components/clock-bar';
@@ -69,7 +69,7 @@ export function CalendarEventPopover({
             aria-label={t('eventOpen')}
             title={t('eventOpen')}
           >
-            <NewWindowIcon aria-hidden className="!size-5" />
+            <ExternalLinkIcon aria-hidden className="!size-5" />
           </a>
         )}
         <span className="flex-1" />

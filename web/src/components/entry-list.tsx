@@ -1,4 +1,4 @@
-import { ConfirmModal, TOOLTIP_ID } from '@parallelworks/ui';
+import { ConfirmModal } from '@parallelworks/ui';
 import { EditIcon, LockIcon, StartIcon, TrashIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -8,6 +8,7 @@ import { EntryDialog } from '@/components/entry-dialog';
 import { ErrorNote } from '@/components/page';
 import { ProjectDot, useProjectName } from '@/components/project-select';
 import { Chip } from '@/components/status';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { dayOf, elapsed, hoursMinutes } from '@/lib/time';

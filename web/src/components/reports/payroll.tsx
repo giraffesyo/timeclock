@@ -1,5 +1,5 @@
 import { ConfirmModal } from '@parallelworks/ui';
-import { CheckIcon, DownloadIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
+import { CheckIcon, DownloadIcon, WarningIcon } from '@parallelworks/ui/icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
@@ -111,7 +111,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
             </p>
             {noId.length > 0 && (
               <p className="mt-2 flex items-start gap-1.5 text-xs text-warning">
-                <WarningTriangleIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                <WarningIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                 <span>
                   {t.rich('missingIds', {
                     count: noId.length,
@@ -185,7 +185,7 @@ export function PayrollReport({ day, onDay }: { day?: Day; onDay: (day: Day | un
                         <span className="tabular">{r.person.payrollId}</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-warning">
-                          <WarningTriangleIcon className="size-3.5" aria-hidden />
+                          <WarningIcon className="size-3.5" aria-hidden />
                           {t('noPayrollId')}
                         </span>
                       )}

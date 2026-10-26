@@ -1,9 +1,8 @@
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { Avatar, TOOLTIP_ID } from '@parallelworks/ui';
+import { Avatar, toast } from '@parallelworks/ui';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import { type ReactNode, useState, useSyncExternalStore } from 'react';
-import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { ClockBar } from '@/components/clock-bar';
 import {
@@ -26,6 +25,7 @@ import {
   TimesheetIcon,
 } from '@/components/nav-icons';
 import { PersonMenuProvider } from '@/components/person-menu';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { ZoneDialog, zoneCity } from '@/components/zone';
 import { useSession } from '@/lib/session';
@@ -84,7 +84,7 @@ function UserMenu({ mobile = false }: { mobile?: boolean }) {
       const body = (await res.json().catch(() => null)) as { redirectUrl?: string } | null;
       window.location.assign(body?.redirectUrl || info.homeUrl || '/');
     } catch (err) {
-      toast.error(t('signOutFailed'), { description: errorMessage(err) });
+      toast.error(errorMessage(err), { title: t('signOutFailed') });
     }
   };
 

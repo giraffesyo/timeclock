@@ -86,11 +86,13 @@ test('an admin can change their theme without losing a workspace draft', async (
   await expect(html).not.toHaveClass(/dark/);
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(html).toHaveClass(/dark/);
+  // Navy has a look for each mode: the editor shows the dark one while the page is dark.
   await page.getByRole('button', { name: 'Navy' }).click();
-  await expect(page.getByRole('textbox', { name: 'Accent', exact: true })).toHaveValue(/^#06354f$/i);
+  await expect(page.getByRole('textbox', { name: 'Accent', exact: true })).toHaveValue(/^#5b9ccf$/i);
   await preference.getByRole('button', { name: 'Light', exact: true }).click();
   await expect(html).not.toHaveClass(/dark/);
-  await expect(page.getByRole('textbox', { name: 'Accent', exact: true })).toHaveValue(/^#06354f$/i);
+  // The draft outlasts the change of preference.
+  await expect(page.getByRole('textbox', { name: 'Accent', exact: true })).toHaveValue(/^#5b9ccf$/i);
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
   await page.screenshot({ path: '/tmp/timeclock-appearance-admin.png', fullPage: true, animations: 'disabled' });
@@ -169,7 +171,9 @@ test('a look is copied and pasted as a few values', async ({ adminPerson }) => {
   // Something that isn't a theme changes nothing.
   await page.evaluate(() => navigator.clipboard.writeText('not a theme'));
   await page.getByRole('button', { name: 'Paste theme' }).click();
-  await expect(page.getByText('There is no theme on the clipboard.')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Notifications' }).getByText('There is no theme on the clipboard.'),
+  ).toBeVisible();
   await expect(accent).toHaveValue(/^#06354f$/i);
   await page.getByRole('button', { name: 'Discard' }).click();
 });
@@ -210,7 +214,8 @@ test('the sidebar has colors of its own, and the current section wears its accen
     await expect.poll(() => ground(page)).toBe('rgb(230, 244, 241)');
     expect(await sheet(page)).toBe('rgb(255, 255, 255)');
     expect(await sidebarText(page)).toBe('rgb(0, 0, 0)');
-    await contrast.fill('60');
+    // Text reaches black from the default contrast up; less contrast softens it.
+    await contrast.fill('50');
     await expect.poll(() => sidebarText(page)).not.toBe('rgb(0, 0, 0)');
     await contrast.fill('100');
     await expect.poll(() => sidebarText(page)).toBe('rgb(0, 0, 0)');
@@ -292,7 +297,7 @@ test('the sidebar’s muted text is its own text toward its background, not the 
     // Near white, two thirds of the way from the blue: AA on it, where the
     // page's gray was not. The sections and the group labels alike, and on a
     // phone, the strip of sections.
-    const muted = /^color\(srgb 0\.67\d* 0\.71\d* 0\.87\d*\)$/;
+    const muted = /^color\(srgb 0\.70\d* 0\.74\d* 0\.88\d*\)$/;
     expect(await style(page, '.shell-side nav a:not([aria-current])', 'color')).toMatch(muted);
     expect(await style(page, '.shell-side nav > div > div:first-child', 'color')).toMatch(muted);
     await page.screenshot({ path: '/tmp/timeclock-sidebar-muted.png', animations: 'disabled' });
@@ -329,9 +334,11 @@ test('choosing light or dark from the menu ends a preview of the workspace’s c
   await expect.poll(() => ground(page)).toBe('rgb(243, 244, 247)');
   await page.keyboard.press('Escape');
 
-  // Editing again shows the draft again, and Dark from the menu leaves it.
+  // Editing again shows the draft again, in the dark mode still being edited:
+  // Navy's dark look, its sidebar a little deeper than its page. Dark from the
+  // menu leaves it.
   await page.getByRole('button', { name: 'Navy' }).click();
-  await expect.poll(() => ground(page)).toBe('rgb(6, 53, 79)');
+  await expect.poll(() => ground(page)).toBe('rgb(10, 12, 14)');
   await (await menu()).getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(html).toHaveClass(/dark/);
   await expect.poll(() => ground(page)).toBe('rgb(14, 15, 19)');

@@ -1,5 +1,5 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { TOOLTIP_ID } from '@parallelworks/ui';
+import { toast } from '@parallelworks/ui';
 import { ChevronLeftIcon, ChevronRightIcon, LockIcon } from '@parallelworks/ui/icons';
 import {
   type CSSProperties,
@@ -12,11 +12,11 @@ import {
   useState,
 } from 'react';
 import { flushSync } from 'react-dom';
-import { toast } from 'sonner';
 import { useFormatter, useTranslations } from 'use-intl';
 import { CalendarEventPopover } from '@/components/calendar-event';
 import { EntryDialog } from '@/components/entry-dialog';
 import { useProjectName } from '@/components/project-select';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { cn } from '@/lib/cn';
 import { morph } from '@/lib/morph';
 import { type CalendarEvent, type Entry, useAdjustEntry, useRememberMeeting, useSaveEntry } from '@/lib/queries';

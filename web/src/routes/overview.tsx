@@ -165,7 +165,7 @@ function DayChart({ week, rows, order }: { week: Day[]; rows: DayProjectHours[];
       </div>
       <Tooltip
         id={DAY_TOOLTIP}
-        className="config-tips z-[10000] text-left normal-case"
+        className="z-(--layer-popover) text-left normal-case"
         opacity={1}
         place="right"
         render={({ activeAnchor }) => {

@@ -1,10 +1,11 @@
-import { ConfirmModal, TOOLTIP_ID } from '@parallelworks/ui';
+import { ConfirmModal } from '@parallelworks/ui';
 import { CloseIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { Field } from '@/components/field';
 import { ErrorNote } from '@/components/page';
+import { TOOLTIP_ID } from '@/components/tooltip';
 import { ZoneSelect } from '@/components/zone-select';
 import { useSetOwnTimezone } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -29,6 +30,8 @@ export function ZoneDialog({ onClose }: { onClose: () => void }) {
       description={t('description')}
       confirmLabel={tc('save')}
       closeOnConfirm={false}
+      // Its first field is a picker that opens as it takes focus, over the dialog's buttons.
+      initialFocus="confirm"
       onConfirm={async () => {
         try {
           await save.mutateAsync(zone);

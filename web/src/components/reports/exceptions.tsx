@@ -1,5 +1,5 @@
 import { Avatar } from '@parallelworks/ui';
-import { AlertCircleIcon, WarningTriangleIcon } from '@parallelworks/ui/icons';
+import { ErrorIcon, WarningIcon } from '@parallelworks/ui/icons';
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { buttonClass } from '@/components/button';
@@ -38,7 +38,7 @@ const severity: Record<Kind, Severity> = {
 };
 
 const tones: Record<Severity, Tone> = { blocking: 'danger', check: 'warning' };
-const icons = { blocking: AlertCircleIcon, check: WarningTriangleIcon };
+const icons = { blocking: ErrorIcon, check: WarningIcon };
 
 const rank = (kind: Kind) => order.indexOf(kind);
 

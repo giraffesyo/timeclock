@@ -1,5 +1,5 @@
-import { Avatar, type AvatarStatus } from '@parallelworks/ui';
-import { HoverCardRow, HoverCardTrigger, UserHoverCard } from '@parallelworks/ui/list';
+import { Avatar, type AvatarStatus, HoverCard } from '@parallelworks/ui';
+import { HoverCardRow, UserHoverCard } from '@parallelworks/ui/list';
 import { useTranslations } from 'use-intl';
 import { BrandIcon, TeamIcon } from '@/components/nav-icons';
 import { usePersonMenu } from '@/components/person-menu';
@@ -29,11 +29,9 @@ export function PersonIdentity({
   const name = person.name || person.email || person.id;
   const manager = people.find((p) => p.id === person.managerId);
   return (
-    <HoverCardTrigger
-      className="flex w-fit max-w-full"
-      card={(placement) => (
+    <HoverCard
+      card={
         <UserHoverCard
-          {...placement}
           username={person.email || person.id}
           name={name}
           avatarSrc={person.avatarUrl}
@@ -61,7 +59,7 @@ export function PersonIdentity({
           </HoverCardRow>
           <HoverCardRow icon={<BrandIcon />}>{person.timezone || settings.timezone}</HoverCardRow>
         </UserHoverCard>
-      )}
+      }
     >
       <button
         type="button"
@@ -71,16 +69,16 @@ export function PersonIdentity({
             ? (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                personMenu.open(e.clientX, e.clientY, personMenu.items(person));
+                personMenu.open(e, personMenu.items(person));
               }
             : undefined
         }
-        className="flex min-h-9 items-center gap-2 rounded-md text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="flex min-h-9 w-fit max-w-full items-center gap-2 rounded-md text-left font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <Avatar src={person.avatarUrl} name={name} size="sm" status={status} className="shrink-0" />
         {/* An email standing in for a name has no spaces; let it break rather than widen a table. */}
         <span className="wrap-anywhere">{name}</span>
       </button>
-    </HoverCardTrigger>
+    </HoverCard>
   );
 }

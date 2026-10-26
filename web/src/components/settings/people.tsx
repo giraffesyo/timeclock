@@ -1,6 +1,6 @@
 import { useErrorMessage } from '@parallelworks/problem/react';
-import { ConfirmModal, Table } from '@parallelworks/ui';
-import { LoaderIcon, RefreshIcon } from '@parallelworks/ui/icons';
+import { ConfirmModal, Loader, type MenuEntry, type OpenMenu, Table, toast } from '@parallelworks/ui';
+import { RefreshIcon } from '@parallelworks/ui/icons';
 import {
   ListColumns,
   ListDisplayMenu,
@@ -8,15 +8,12 @@ import {
   ListRowActionsProvider,
   type ListView,
   listTableProps,
-  type OpenMenu,
-  type RowMenuItem,
   RowSelectCheckbox,
   useListNavigate,
   useListView,
 } from '@parallelworks/ui/list';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
-import { toast } from 'sonner';
 import { useTranslations } from 'use-intl';
 import { Button } from '@/components/button';
 import { Empty, ErrorNote, Loading, Panel } from '@/components/page';
@@ -38,7 +35,7 @@ import { useSession } from '@/lib/session';
 /** Something to do to a group of people, shown in the menu and the selection bar. */
 interface Action {
   label: string;
-  onSelect: () => void;
+  onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
   /** Why it is disabled. */
@@ -69,13 +66,12 @@ interface Pending {
   run: () => void;
 }
 
-const toMenuItem = (a: Action): RowMenuItem => ({
-  kind: 'action',
+const toMenuItem = (a: Action): MenuEntry => ({
   label: a.label,
-  onSelect: a.onSelect,
+  onClick: a.onClick,
   destructive: a.danger,
   disabled: a.disabled,
-  tooltip: a.tooltip,
+  disabledReason: a.tooltip,
 });
 
 /** One person, on the UI package's list row: ⋯ and a right click open the people menu. */
@@ -94,7 +90,7 @@ function PersonRow({
   people: Person[];
   view: ListView<Person>;
   /** The menu for this person alone; openMenu decides who it is for when it opens. */
-  items: RowMenuItem[];
+  items: MenuEntry[];
   openMenu: OpenMenu;
   selected: boolean;
   /** While anyone is selected, a click on a row toggles it. */
@@ -181,7 +177,7 @@ function PersonRow({
           <RowSelectCheckbox
             checked={selected}
             label={t('bulk.select', { name: person.name })}
-            onToggle={(e) => onSelect(e.shiftKey)}
+            onToggle={(e) => onSelect(e instanceof MouseEvent || e instanceof KeyboardEvent ? e.shiftKey : false)}
           />
         </Table.Item>
       }
@@ -250,14 +246,14 @@ export function People() {
   // A right click on a row outside the selection acts on that row alone, as in a file list.
   const openRowMenu =
     (person: Person): OpenMenu =>
-    (x, y, _items, onClose) => {
+    (at, _items, options) => {
       let group = chosen;
       if (!selected.has(person.id)) {
         setSelected(new Set([person.id]));
         setLast(person.id);
         group = [person];
       }
-      personMenu.open(x, y, menuFor(group), onClose);
+      return personMenu.open(at, menuFor(group), options);
     };
 
   /** Applies the patch to those in the group it would change. */
@@ -288,12 +284,12 @@ export function People() {
     );
   };
   const failed = (err: unknown, count: number) =>
-    toast.error(
-      err instanceof PartialFailure
-        ? t('bulk.failed', { count: err.failed, total: err.total })
-        : t('bulk.failed', { count, total: count }),
-      { description: errorMessage(err instanceof PartialFailure ? err.cause : err) },
-    );
+    toast.error(errorMessage(err instanceof PartialFailure ? err.cause : err), {
+      title:
+        err instanceof PartialFailure
+          ? t('bulk.failed', { count: err.failed, total: err.total })
+          : t('bulk.failed', { count, total: count }),
+    });
   const setAdmin = (group: Person[], admin: boolean) => {
     const ids = group.map((p) => p.id);
     admins.mutate(
@@ -322,7 +318,7 @@ export function People() {
     return {
       label: t(`bulk.${key}`),
       ...extra,
-      onSelect: () =>
+      onClick: () =>
         setPending({
           title: t(`confirm.${key}.title`, { who }),
           description: t(`confirm.${key}.description`),
@@ -458,7 +454,7 @@ export function People() {
     ];
   };
   // One person's menu is everyone's person menu, with the settings in the middle.
-  const menuFor = (group: Person[]): RowMenuItem[] => {
+  const menuFor = (group: Person[]): MenuEntry[] => {
     const settings = settingsFor(group).map(toMenuItem);
     const [only] = group;
     return only && group.length === 1 ? personMenu.items(only, { actions: settings }) : settings;
@@ -469,12 +465,12 @@ export function People() {
     return [
       ...(only && group.length === 1
         ? [
-            { label: tp('edit'), onSelect: () => personMenu.edit(only) },
+            { label: tp('edit'), onClick: () => personMenu.edit(only) },
             {
               label: tp('openSheet'),
-              onSelect: () => void navigate({ to: '/timesheet', search: { person: only.id } }),
+              onClick: () => void navigate({ to: '/timesheet', search: { person: only.id } }),
             },
-            { label: tp('openTimer'), onSelect: () => void navigate({ to: '/', search: { person: only.id } }) },
+            { label: tp('openTimer'), onClick: () => void navigate({ to: '/', search: { person: only.id } }) },
           ]
         : []),
       ...settingsFor(group),
@@ -534,12 +530,16 @@ export function People() {
                     variant={a.danger ? 'danger' : 'outline'}
                     disabled={busy || a.disabled}
                     title={a.tooltip}
-                    onClick={a.onSelect}
+                    onClick={a.onClick}
                   >
                     {a.label}
                   </Button>
                 ))}
-                {busy && <LoaderIcon className="size-3.5 text-muted-foreground" aria-label={t('saving')} />}
+                {busy && (
+                  <span role="status" aria-label={t('saving')} className="inline-flex">
+                    <Loader inline decorative size={14} color="var(--color-muted-foreground)" />
+                  </span>
+                )}
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
                   {t('bulk.clear')}
                 </Button>
