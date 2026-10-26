@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.2](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.1...timeclock-v0.27.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.3, which distrusts eMudhra's compromised intermediate CAs ([#142](https://github.com/giraffesyo/timeclock/issues/142)) ([a2ac5b1](https://github.com/giraffesyo/timeclock/commit/a2ac5b1c9499d2fc4ed40f535ac393cb58ce2954))
+* suggest earlier work in the entry popover's note, as the clock does ([#146](https://github.com/giraffesyo/timeclock/issues/146)) ([0429045](https://github.com/giraffesyo/timeclock/commit/04290458c2f19579ed400d9e54cc1093d38dcd26))
+
 ## [0.27.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.0...timeclock-v0.27.1) (2026-10-12)
 
 
