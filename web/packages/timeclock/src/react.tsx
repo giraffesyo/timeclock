@@ -4,6 +4,8 @@ import {
   type CSSProperties,
   type FocusEvent,
   type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
   useEffect,
   useId,
   useLayoutEffect,
@@ -17,6 +19,7 @@ import {
   type ClockStore,
   clockFor,
   type Entry,
+  matchingWork,
   type Project,
   projectHue,
   projectLabel,
@@ -84,17 +87,7 @@ export function useClock(options: UseClockOptions = {}): Clock {
     if (running && noteEdited) await store.saveNote(note);
   };
   const projectId = running ? (running.projectId ?? '') : current.projectId;
-  const words = note.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const open = new Map(state.projects.map((p) => [p.id, p]));
-  const suggestions = state.recent
-    .filter((w) => !w.projectId || open.has(w.projectId))
-    .filter((w) => !(w.note === note.trim() && (w.projectId ?? '') === projectId))
-    .filter((w) => {
-      const project = w.projectId ? open.get(w.projectId) : undefined;
-      const text = `${w.note} ${project ? projectLabel(project) : ''}`.toLowerCase();
-      return words.every((word) => text.includes(word));
-    })
-    .slice(0, 8);
+  const suggestions = matchingWork(state, note, projectId);
   return {
     ...state,
     store,
@@ -628,6 +621,177 @@ function TimesFields({
   );
 }
 
+// --- Earlier work, under a note ---
+
+/** A note field that offers earlier work: what to spread on the field, and the list to render beside it. */
+export interface Suggestions {
+  /** The combobox's attributes, for the field. */
+  fieldProps: {
+    role: 'combobox';
+    'aria-autocomplete': 'list';
+    'aria-expanded': boolean;
+    'aria-controls'?: string;
+    'aria-activedescendant'?: string;
+  };
+  /** Whether the list is open. */
+  shown: boolean;
+  /** Opens the list, with the cursor on none of it; call it as the note is typed or chosen. */
+  open: () => void;
+  close: () => void;
+  /** Moves through the list and takes from it; true when the key was the list's. */
+  keyDown: (e: KeyboardEvent) => boolean;
+  /** The list, while it is open; render it next to the field. */
+  list: ReactNode;
+}
+
+/**
+ * Earlier work, opening under a note field while it is being written: the
+ * arrow keys move through it, Enter or a press takes one, and Escape closes
+ * it. The field keeps focus throughout. `suggestions` is what fits the note
+ * so far, such as `useClock().suggestions` or matchingWork().
+ */
+export function useSuggestions({
+  field,
+  suggestions,
+  projects,
+  label,
+  onTake,
+}: {
+  /** The note field, which the list opens under. */
+  field: RefObject<HTMLElement | null>;
+  suggestions: RecentWork[];
+  /** The projects to name each suggestion's by. */
+  projects: Project[];
+  /** The list's name: "Previously tracked". */
+  label: string;
+  onTake: (work: RecentWork) => void;
+}): Suggestions {
+  const panel = useRef<HTMLDivElement>(null);
+  const id = useId();
+  // The cursor is on none of the list until the arrow keys move it.
+  const [suggesting, setSuggesting] = useState(false);
+  const [at, setAt] = useState(-1);
+  const shown = suggesting && suggestions.length > 0;
+  useLayoutEffect(() => {
+    const el = panel.current;
+    const input = field.current;
+    if (!shown || !el || !input) return;
+    el.showPopover();
+    const position = () => {
+      const rect = input.getBoundingClientRect();
+      el.style.width = `${Math.min(Math.max(rect.width, 288), 512)}px`;
+      el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8))}px`;
+      el.style.top = `${rect.bottom + 4}px`;
+    };
+    position();
+    const follow = (e: Event) => {
+      if (e.target instanceof Node && !el.contains(e.target)) position();
+    };
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', follow, true);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', follow, true);
+    };
+  }, [shown, field]);
+
+  const close = () => {
+    setSuggesting(false);
+    setAt(-1);
+  };
+  const take = (work: RecentWork) => {
+    close();
+    onTake(work);
+  };
+  const listed = shown ? suggestions : [];
+  const active = listed[at];
+  const projectOf = (projectId?: string) => (projectId ? projects.find((p) => p.id === projectId) : undefined);
+
+  return {
+    fieldProps: {
+      role: 'combobox',
+      'aria-autocomplete': 'list',
+      'aria-expanded': shown,
+      'aria-controls': shown ? id : undefined,
+      'aria-activedescendant': active ? `${id}-${at}` : undefined,
+    },
+    shown,
+    open: () => {
+      setSuggesting(true);
+      setAt(-1);
+    },
+    close,
+    keyDown: (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!shown) {
+          setSuggesting(true);
+          return true;
+        }
+        // Past either end is back on the note itself.
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setAt((i) => ((i + 1 + step + listed.length + 1) % (listed.length + 1)) - 1);
+        return true;
+      }
+      if (e.key === 'Escape' && shown) {
+        // The list closes; a panel around the field stays.
+        e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+        close();
+        return true;
+      }
+      if (e.key === 'Enter' && active) {
+        e.preventDefault();
+        take(active);
+        return true;
+      }
+      if (e.key === 'Tab') close();
+      return false;
+    },
+    list: shown && (
+      <div
+        ref={panel}
+        popover="manual"
+        className="tc-popover tc-suggestions"
+        // The note keeps focus while a suggestion is pressed.
+        onPointerDown={(e) => e.preventDefault()}
+      >
+        <div id={id} role="listbox" aria-label={label} className="tc-options">
+          <div aria-hidden className="tc-group">
+            {label}
+          </div>
+          {listed.map((work, i) => {
+            const project = projectOf(work.projectId);
+            return (
+              // biome-ignore lint/a11y/useKeyWithClickEvents: the note keeps focus and drives the list with the arrow keys
+              <div
+                key={`${work.projectId ?? ''}:${work.note}`}
+                id={`${id}-${i}`}
+                role="option"
+                tabIndex={-1}
+                aria-selected={i === at}
+                className={cx('tc-option', 'tc-suggestion', i === at && 'tc-option-active')}
+                onPointerMove={() => setAt(i)}
+                onClick={() => take(work)}
+              >
+                <span className="tc-suggestion-note">{work.note}</span>
+                {project && (
+                  <span className="tc-suggestion-project">
+                    <ProjectDot projectId={project.id} />
+                    <span className="tc-suggestion-project-name">{project.name}</span>
+                    {project.customerName && <span className="tc-muted">· {project.customerName}</span>}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ),
+  };
+}
+
 // --- The bar ---
 
 export interface ClockBarLabels extends ProjectPickerLabels {
@@ -730,12 +894,21 @@ export function ClockBar({
   // Escape leaves the panel without saving.
   const cancelTimes = useRef(false);
   const noteField = useRef<HTMLInputElement>(null);
-  const suggestionsList = useRef<HTMLDivElement>(null);
-  const suggestionsId = useId();
-  // Earlier work opens under the note while it is being written; the cursor
-  // is on none of it until the arrow keys move it.
-  const [suggesting, setSuggesting] = useState(false);
-  const [suggestion, setSuggestion] = useState(-1);
+  // Earlier work opens under the note while it is being written.
+  const suggestions = useSuggestions({
+    field: noteField,
+    suggestions: clock.suggestions,
+    projects: clock.projects,
+    label: labels.suggestions,
+    onTake: (work) => {
+      clock.suggest(work).then(
+        (next) => {
+          if (next) onChanged?.();
+        },
+        (err) => onError?.(err, 'note'),
+      );
+    },
+  });
 
   // The running time is the panel's invoker, so the browser opens and closes
   // it, and a press on the time doesn't count as one outside.
@@ -757,30 +930,6 @@ export function ClockBar({
     window.addEventListener('resize', position);
     return () => window.removeEventListener('resize', position);
   }, [timesOpen]);
-
-  const suggestionsShown = suggesting && clock.status === 'ready' && clock.suggestions.length > 0;
-  useLayoutEffect(() => {
-    const el = suggestionsList.current;
-    const field = noteField.current;
-    if (!suggestionsShown || !el || !field) return;
-    el.showPopover();
-    const position = () => {
-      const rect = field.getBoundingClientRect();
-      el.style.width = `${Math.min(Math.max(rect.width, 288), 512)}px`;
-      el.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8))}px`;
-      el.style.top = `${rect.bottom + 4}px`;
-    };
-    position();
-    const follow = (e: Event) => {
-      if (e.target instanceof Node && !el.contains(e.target)) position();
-    };
-    window.addEventListener('resize', position);
-    window.addEventListener('scroll', follow, true);
-    return () => {
-      window.removeEventListener('resize', position);
-      window.removeEventListener('scroll', follow, true);
-    };
-  }, [suggestionsShown]);
 
   if (clock.status !== 'ready') return null;
 
@@ -815,19 +964,6 @@ export function ClockBar({
     if (pressed.current || clock.busy || bar.current?.contains(e.relatedTarget)) return;
     clock.saveNote().then(onChanged, failed('note'));
   };
-  const closeSuggestions = () => {
-    setSuggesting(false);
-    setSuggestion(-1);
-  };
-  const takeSuggestion = (work: RecentWork) => {
-    closeSuggestions();
-    clock.suggest(work).then((next) => {
-      if (next) onChanged?.();
-    }, failed('note'));
-  };
-  const shownSuggestions = suggestionsShown ? clock.suggestions : [];
-  const activeSuggestion = shownSuggestions[suggestion];
-  const projectOf = (id?: string) => (id ? clock.projects.find((p) => p.id === id) : undefined);
   const startWall = running ? wallClock(Date.parse(running.startedAt), clock.timeZone) : null;
   const saveTimes = (draft: TimesDraft) => {
     if (!running || !startWall) return;
@@ -887,11 +1023,7 @@ export function ClockBar({
         ref={noteField}
         className="tc-note"
         value={clock.note}
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={suggestionsShown}
-        aria-controls={suggestionsShown ? suggestionsId : undefined}
-        aria-activedescendant={activeSuggestion ? `${suggestionsId}-${suggestion}` : undefined}
+        {...suggestions.fieldProps}
         autoComplete="off"
         placeholder={clock.locked ? labels.locked : labels.notePlaceholder}
         aria-label={labels.noteLabel}
@@ -902,43 +1034,17 @@ export function ClockBar({
         maxLength={2000}
         onChange={(e) => {
           clock.setNote(e.target.value);
-          setSuggesting(true);
-          setSuggestion(-1);
+          suggestions.open();
         }}
         // A stopped clock offers what was tracked before as soon as the note
         // is chosen; a running one waits until its note is changed.
-        onFocus={running ? undefined : () => setSuggesting(true)}
+        onFocus={running ? undefined : suggestions.open}
         onBlur={(e) => {
-          closeSuggestions();
+          suggestions.close();
           if (running) leaveNote(e);
         }}
         onKeyDown={(e) => {
-          const count = shownSuggestions.length;
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            if (!suggestionsShown) {
-              setSuggesting(true);
-              return;
-            }
-            // Past either end is back on the note itself.
-            const step = e.key === 'ArrowDown' ? 1 : -1;
-            setSuggestion((at) => ((at + 1 + step + count + 1) % (count + 1)) - 1);
-            return;
-          }
-          if (e.key === 'Escape' && suggestionsShown) {
-            // The list closes; a panel around the bar stays.
-            e.preventDefault();
-            e.stopPropagation();
-            e.nativeEvent.stopImmediatePropagation();
-            closeSuggestions();
-            return;
-          }
-          if (e.key === 'Enter' && activeSuggestion) {
-            e.preventDefault();
-            takeSuggestion(activeSuggestion);
-            return;
-          }
-          if (e.key === 'Tab') closeSuggestions();
+          if (suggestions.keyDown(e)) return;
           // While the clock runs, Enter is done with the note; it doesn't stop the clock.
           if (running && e.key === 'Enter') {
             e.preventDefault();
@@ -946,46 +1052,7 @@ export function ClockBar({
           }
         }}
       />
-      {suggestionsShown && (
-        <div
-          ref={suggestionsList}
-          popover="manual"
-          className="tc-popover tc-suggestions"
-          // The note keeps focus while a suggestion is pressed.
-          onPointerDown={(e) => e.preventDefault()}
-        >
-          <div id={suggestionsId} role="listbox" aria-label={labels.suggestions} className="tc-options">
-            <div aria-hidden className="tc-group">
-              {labels.suggestions}
-            </div>
-            {shownSuggestions.map((work, i) => {
-              const project = projectOf(work.projectId);
-              return (
-                // biome-ignore lint/a11y/useKeyWithClickEvents: the note keeps focus and drives the list with the arrow keys
-                <div
-                  key={`${work.projectId ?? ''}:${work.note}`}
-                  id={`${suggestionsId}-${i}`}
-                  role="option"
-                  tabIndex={-1}
-                  aria-selected={i === suggestion}
-                  className={cx('tc-option', 'tc-suggestion', i === suggestion && 'tc-option-active')}
-                  onPointerMove={() => setSuggestion(i)}
-                  onClick={() => takeSuggestion(work)}
-                >
-                  <span className="tc-suggestion-note">{work.note}</span>
-                  {project && (
-                    <span className="tc-suggestion-project">
-                      <ProjectDot projectId={project.id} />
-                      <span className="tc-suggestion-project-name">{project.name}</span>
-                      {project.customerName && <span className="tc-muted">· {project.customerName}</span>}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {suggestions.list}
       <ProjectPicker
         className="tc-bar-picker"
         projects={clock.projects}

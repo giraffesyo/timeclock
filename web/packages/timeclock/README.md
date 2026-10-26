@@ -71,6 +71,8 @@ function HeaderClock() {
 
 `useClock()` gives the state (`status`, `running`, `projects`, `requireProject`, `requireDescription`, `locked`, `timeZone`, `busy`), what is being typed (`note`, `setNote`, `projectId`), and what can be done (`start`, `stop`, `chooseProject`, `saveNote`, `saveTimes`, `resume`). Everything that changes the clock returns a promise that rejects with a `ClockError` when Timeclock refuses.
 
+`useSuggestions()` is the list of earlier work that opens under the bar's note, for a note field of your own: give it the field's ref, what fits the note so far (`clock.suggestions`, or `matchingWork(state, note, projectId)` for a note that isn't the clock's), the projects, a label and what to do with the one taken. Spread its `fieldProps` on the field, call `open()` as the note is typed and `close()` when it is left, pass key presses to `keyDown()`, and render its `list` beside the field.
+
 ## The store
 
 No React at all:

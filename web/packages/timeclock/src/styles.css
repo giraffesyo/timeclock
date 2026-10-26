@@ -1,9 +1,10 @@
-/* The look of @giraffesyo/timeclock's ClockBar and ProjectPicker. Colors come
- * from the --tc-* properties, which default to @parallelworks/ui's theme
- * contract (--theme-*) and, without it, to plain light values. Set --tc-*
- * on any ancestor to fit another look. */
+/* The look of @giraffesyo/timeclock's ClockBar, ProjectPicker and
+ * suggestions. Colors come from the --tc-* properties, which default to
+ * @parallelworks/ui's theme contract (--theme-*) and, without it, to plain
+ * light values. Set --tc-* on any ancestor to fit another look. */
 .tc-bar,
-.tc-picker {
+.tc-picker,
+.tc-suggestions {
   --tc-bg: var(--theme-panel-bg, #fff);
   --tc-fg: var(--theme-panel, #16181d);
   --tc-muted: var(--theme-muted-text-color, #5d6370);
@@ -18,7 +19,8 @@
   font-variant-numeric: tabular-nums;
 }
 .tc-bar *,
-.tc-picker * {
+.tc-picker *,
+.tc-suggestions * {
   box-sizing: border-box;
 }
 

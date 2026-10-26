@@ -49,7 +49,7 @@ test('calendar events sit beside the week’s time, and copy onto it or start th
   // The first copy of a meeting asks for its project, in the entry filled in from the event.
   await popover.getByRole('button', { name: 'Copy to your week' }).click();
   const entry = ada.getByRole('dialog', { name: 'Add time' });
-  await expect(entry.getByRole('textbox', { name: 'Note' })).toHaveValue('Sprint planning');
+  await expect(entry.getByRole('combobox', { name: 'Note' })).toHaveValue('Sprint planning');
   await expect(entry.getByLabel('Start', { exact: true })).toHaveValue('13:00');
   await expect(entry.getByLabel('End', { exact: true })).toHaveValue('14:00');
   await entry.getByRole('button', { name: /^Project/ }).click();
@@ -96,7 +96,7 @@ test('calendar events sit beside the week’s time, and copy onto it or start th
   // Change asks again, for the next copies.
   await standup(2).click();
   await popover.getByRole('button', { name: 'Change' }).click();
-  await expect(entry.getByRole('textbox', { name: 'Note' })).toHaveValue('Daily standup');
+  await expect(entry.getByRole('combobox', { name: 'Note' })).toHaveValue('Daily standup');
   await entry.getByRole('button', { name: 'Close entry' }).click();
 
   // Starting the clock on an event takes its title.

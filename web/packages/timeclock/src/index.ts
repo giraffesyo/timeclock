@@ -277,6 +277,31 @@ export function projectLabel(project: Project): string {
   return project.customerName ? `${project.customerName} / ${project.name}` : project.name;
 }
 
+/**
+ * What the person tracked before that fits a note so far, the latest first:
+ * only work on projects that still take time, and not what the note and
+ * project already are.
+ */
+export function matchingWork(
+  state: Pick<ClockState, 'recent' | 'projects'>,
+  note: string,
+  projectId: string,
+  limit = 8,
+): RecentWork[] {
+  const typed = note.trim();
+  const words = typed.toLowerCase().split(/\s+/).filter(Boolean);
+  const open = new Map(state.projects.map((p) => [p.id, p]));
+  return state.recent
+    .filter((w) => !w.projectId || open.has(w.projectId))
+    .filter((w) => !(w.note === typed && (w.projectId ?? '') === projectId))
+    .filter((w) => {
+      const project = w.projectId ? open.get(w.projectId) : undefined;
+      const text = `${w.note} ${project ? projectLabel(project) : ''}`.toLowerCase();
+      return words.every((word) => text.includes(word));
+    })
+    .slice(0, limit);
+}
+
 /** A project's hue (0–359), the same wherever its time is shown. */
 export function projectHue(projectId: string): number {
   let h = 0;
