@@ -3,3 +3,7 @@ packages:
 minimumReleaseAgeExclude:
   - '@parallelworks/problem@0.2.0'
   - '@parallelworks/ui@0.24.1'
+overrides:
+  # KaTeX before 0.18.2 lets prototype pollution bypass its trust option
+  # (GHSA-238p-pmpm-9mq7). @streamdown/math, rehype-katex and mermaid ask for 0.16.
+  'katex@<0.18.2': ^0.19.1
