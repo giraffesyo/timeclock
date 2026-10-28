@@ -41,8 +41,8 @@ import (
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/api"
 	"github.com/giraffesyo/timeclock/internal/clock"
+	"github.com/giraffesyo/timeclock/internal/database"
 	"github.com/giraffesyo/timeclock/internal/gcal"
-	"github.com/giraffesyo/timeclock/migrations"
 	"github.com/giraffesyo/timeclock/web"
 )
 
@@ -195,7 +195,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		return nil, fmt.Errorf("timeclock: %w", err)
 	}
 	if !opts.SkipMigrations {
-		if err := pgdb.Migrate(ctx, pool, pgdb.Migrations{FS: migrations.FS, Logger: logger}); err != nil {
+		if err := database.Migrate(ctx, pool, logger); err != nil {
 			pool.Close()
 			return nil, fmt.Errorf("timeclock: %w", err)
 		}
@@ -231,7 +231,7 @@ func New(ctx context.Context, opts Options) (*Timeclock, error) {
 		if opts.IntegrationSecretKey != "" {
 			periodic = append(periodic, toggl.Register(workers))
 		}
-		jobs, err = hopper.NewClient(pgdb.HopperDriver(pool), &hopper.Config{
+		jobs, err = hopper.NewClient(database.JobDriver(pool), &hopper.Config{
 			Queues:  map[string]hopper.QueueConfig{hopper.QueueDefault: {MaxWorkers: 2}},
 			Workers: workers, Periodic: periodic, Logger: logger,
 		})

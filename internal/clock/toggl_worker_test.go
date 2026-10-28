@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/giraffesyo/timeclock/internal/toggl"
 	"github.com/jackc/pgx/v5"
-	"github.com/parallelworks/foundation/pgdb"
 	"github.com/parallelworks/hopper"
 	"github.com/parallelworks/hopper/hoppertest"
+
+	"github.com/giraffesyo/timeclock/internal/database"
+	"github.com/giraffesyo/timeclock/internal/toggl"
 )
 
 func TestTogglWorkerOutlivesDefaultJobTimeout(t *testing.T) {
@@ -37,7 +38,7 @@ func TestTogglWorkerOutlivesDefaultJobTimeout(t *testing.T) {
 	}
 	workers := hopper.NewWorkers()
 	bridge.Register(workers)
-	client, err := hopper.NewClient(pgdb.HopperDriver(f.raw), &hopper.Config{
+	client, err := hopper.NewClient(database.JobDriver(f.raw), &hopper.Config{
 		Workers:    workers,
 		Queues:     map[string]hopper.QueueConfig{hopper.QueueDefault: {MaxWorkers: 1}},
 		JobTimeout: 100 * time.Millisecond,
