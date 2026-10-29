@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.6](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.5...timeclock-v0.27.6) (2026-10-29)
+
+
+### Bug Fixes
+
+* align calendar days with the midnight boundary ([#157](https://github.com/giraffesyo/timeclock/issues/157)) ([5bce989](https://github.com/giraffesyo/timeclock/commit/5bce989a86e51a2749ffbfa04260fb9bd3ae6003))
+
 ## [0.27.5](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.4...timeclock-v0.27.5) (2026-10-29)
 
 
