@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parallelworks/foundation/pgdb"
 	"github.com/parallelworks/foundation/pgdb/pgdbtest"
 	"github.com/parallelworks/foundation/problem"
 
 	"github.com/giraffesyo/timeclock/host"
-	"github.com/giraffesyo/timeclock/migrations"
+	"github.com/giraffesyo/timeclock/internal/database"
 )
 
 // TestDatabaseURL names the database the tests make their own schemas in,
@@ -34,7 +33,10 @@ type fixture struct {
 // Chicago, in the biweekly period 2026-09-28..2026-10-11.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	pool := pgdbtest.Migrated(t, TestDatabaseURL, pgdb.Migrations{FS: migrations.FS})
+	pool := pgdbtest.Open(t, TestDatabaseURL, "")
+	if err := database.Migrate(t.Context(), pool, nil); err != nil {
+		t.Fatal(err)
+	}
 	loc, err := time.LoadLocation("America/Chicago")
 	if err != nil {
 		t.Fatal(err)

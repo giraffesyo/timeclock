@@ -53,8 +53,8 @@ import (
 	"github.com/giraffesyo/timeclock"
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/clock"
+	"github.com/giraffesyo/timeclock/internal/database"
 	"github.com/giraffesyo/timeclock/internal/standalone"
-	"github.com/giraffesyo/timeclock/migrations"
 )
 
 func main() {
@@ -105,7 +105,7 @@ func open(ctx context.Context, logger *slog.Logger) (*pgxpool.Pool, *standalone.
 	if err != nil {
 		return nil, nil, "", "", err
 	}
-	if err := pgdb.Migrate(ctx, pool, pgdb.Migrations{FS: migrations.FS, Logger: logger}); err != nil {
+	if err := database.Migrate(ctx, pool, logger); err != nil {
 		pool.Close()
 		return nil, nil, "", "", err
 	}

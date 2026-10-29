@@ -18,12 +18,11 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
-	"github.com/parallelworks/foundation/pgdb"
 	"github.com/parallelworks/foundation/pgdb/pgdbtest"
 
 	"github.com/giraffesyo/timeclock/host"
 	"github.com/giraffesyo/timeclock/internal/clock"
-	"github.com/giraffesyo/timeclock/migrations"
+	"github.com/giraffesyo/timeclock/internal/database"
 )
 
 const dbEnv = "TIMECLOCK_TEST_DATABASE_URL"
@@ -76,7 +75,10 @@ func newFixture(t *testing.T) *fixture {
 	if os.Getenv(dbEnv) == "" {
 		t.Skip(dbEnv + " not set")
 	}
-	pool := pgdbtest.Migrated(t, dbEnv, pgdb.Migrations{FS: migrations.FS})
+	pool := pgdbtest.Open(t, dbEnv, "")
+	if err := database.Migrate(t.Context(), pool, nil); err != nil {
+		t.Fatal(err)
+	}
 	mail := &outbox{}
 	auth, err := New(t.Context(), pool, Config{
 		PublicURL: "https://time.example.com", Mailer: mail, AdminEmails: []string{"Pat@Example.com"},
