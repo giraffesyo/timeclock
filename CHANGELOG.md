@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.4](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.3...timeclock-v0.27.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* **database:** migrate background jobs explicitly ([#153](https://github.com/giraffesyo/timeclock/issues/153)) ([5227933](https://github.com/giraffesyo/timeclock/commit/5227933d7ecfdcecc9b0d1d6fcc8fe00ff5bab4c))
+
 ## [0.27.3](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.2...timeclock-v0.27.3) (2026-10-26)
 
 
