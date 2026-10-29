@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/flock v0.13.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/parallelworks/foundation v0.16.0
+	github.com/parallelworks/foundation v0.17.0
 	github.com/parallelworks/hopper v0.7.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/spf13/cobra v1.10.2
