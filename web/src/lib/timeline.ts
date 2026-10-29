@@ -26,6 +26,34 @@ export function dayBounds(day: Day, zone: string): Span {
 }
 
 /**
+ * A calendar's 24 local hour rows, even when a day has 23 or 25 elapsed hours.
+ * A repeated hour shares its row; a skipped hour maps to the next real instant.
+ * Interpolating between hour boundaries keeps both passes of a repeated hour
+ * reachable without changing recorded durations or shifting the hours after it.
+ */
+export function dayScale(day: Day, zone: string) {
+  const start = DateTime.fromISO(day, { zone }).startOf('day');
+  const marks = Array.from({ length: 25 }, (_, hour) => start.set({ hour }).toMillis());
+  return {
+    hour(ms: number): number {
+      if (ms <= (marks[0] as number)) return 0;
+      for (let h = 1; h < marks.length; h++) {
+        const end = marks[h] as number;
+        const begin = marks[h - 1] as number;
+        if (ms < end) return h - 1 + (ms - begin) / (end - begin);
+      }
+      return 24;
+    },
+    instant(hour: number): number {
+      const h = clamp(hour, 0, 24);
+      const i = Math.min(Math.floor(h), 23);
+      const begin = marks[i] as number;
+      return begin + (h - i) * ((marks[i + 1] as number) - begin);
+    },
+  };
+}
+
+/**
  * The hours the ruler shows: the working day, widened to whole hours around
  * everything in it, and by `earlier` and `later` hours on request.
  */

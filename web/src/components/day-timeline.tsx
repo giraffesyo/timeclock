@@ -22,7 +22,19 @@ import { morph } from '@/lib/morph';
 import { type CalendarEvent, type Entry, useAdjustEntry, useRememberMeeting, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, hoursMinutes, timeInput } from '@/lib/time';
-import { clamp, dayBounds, HOUR, lanes, MINUTE, projectHue, rulerWindow, SNAP, type Span, snap } from '@/lib/timeline';
+import {
+  clamp,
+  dayBounds,
+  dayScale,
+  HOUR,
+  lanes,
+  MINUTE,
+  projectHue,
+  rulerWindow,
+  SNAP,
+  type Span,
+  snap,
+} from '@/lib/timeline';
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
@@ -187,14 +199,18 @@ export function DayTimeline({
   const eventSide = lanes(suggestions);
   const openEvent = (openEventId && events?.find((e) => e.id === openEventId)) || null;
 
-  const win = shared
-    ? { start: bounds.start + shared.from * HOUR, end: Math.min(bounds.end, bounds.start + shared.to * HOUR) }
-    : rulerWindow(bounds, isToday ? [...blocks, { start: now, end: now }] : blocks, earlier, later);
+  const scale = shared ? dayScale(day, zone) : null;
+  const win =
+    shared && scale
+      ? { start: scale.instant(shared.from), end: scale.instant(shared.to) }
+      : rulerWindow(bounds, isToday ? [...blocks, { start: now, end: now }] : blocks, earlier, later);
   const length = win.end - win.start;
-  const at = (ms: number) => clamp((ms - win.start) / length, 0, 1);
+  const hourCount = shared ? shared.to - shared.from : length / HOUR;
+  const at = (ms: number) =>
+    clamp(shared && scale ? (scale.hour(ms) - shared.from) / hourCount : (ms - win.start) / length, 0, 1);
   const place = (s: Span) => ({ '--s': at(s.start), '--w': at(s.end) - at(s.start) }) as CSSProperties;
   const marks: number[] = [];
-  for (let h = win.start; h <= win.end; h += HOUR) marks.push(h);
+  for (let h = 0; h <= hourCount; h++) marks.push(h / hourCount);
   // Every hour is named until they crowd; then every other one.
   const labelEvery = across && marks.length > 17 ? 2 : 1;
 
@@ -227,7 +243,9 @@ export function DayTimeline({
     const r = track.current?.getBoundingClientRect();
     if (!r) return win.start;
     const f = across ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
-    return win.start + clamp(f, 0, 1) * length;
+    return shared && scale
+      ? scale.instant(shared.from + clamp(f, 0, 1) * hourCount)
+      : win.start + clamp(f, 0, 1) * length;
   };
 
   // An edge past this day's midnight isn't on the ruler, so it keeps its time.
@@ -400,10 +418,9 @@ export function DayTimeline({
             : clamp(Math.floor(now / SNAP) * SNAP, targetBounds.start, targetBounds.end);
           if (targetCap - targetBounds.start < size) return;
           const r = target.getBoundingClientRect();
-          const targetInstant =
-            targetBounds.start +
-            ((e.clientY - r.top) / r.height) *
-              Math.min(targetBounds.end - targetBounds.start, (shared?.to ?? 24) * HOUR);
+          const targetInstant = dayScale(targetDay, zone).instant(
+            (shared?.from ?? 0) + clamp((e.clientY - r.top) / r.height, 0, 1) * hourCount,
+          );
           const start = clamp(snap(targetInstant - drag.grab, step), targetBounds.start, targetCap - size);
           destination = targetDay === day ? undefined : targetDay;
           next = { start, end: start + size };
@@ -532,14 +549,16 @@ export function DayTimeline({
         onMovePreview?.(null);
       }}
       onPointerLeave={() => setHover(null)}
-      style={{ '--tl-hours': length / HOUR } as CSSProperties}
+      style={{ '--tl-hours': hourCount } as CSSProperties}
     >
       {/* The hours. A column's are named by the week around it. */}
       {!column && (
         <div className="tl-scale" aria-hidden>
           {marks.map((h, i) => (
-            <span key={h} className="tl-at tl-hour" style={{ '--s': at(h) } as CSSProperties}>
-              {i % labelEvery === 0 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
+            <span key={h} className="tl-at tl-hour" style={{ '--s': h } as CSSProperties}>
+              {i % labelEvery === 0 && (
+                <span className="tl-hour-label tabular">{hourLabel(win.start + h * length)}</span>
+              )}
             </span>
           ))}
         </div>
@@ -575,7 +594,7 @@ export function DayTimeline({
           }}
         >
           {marks.slice(1, -1).map((h) => (
-            <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': at(h) } as CSSProperties} />
+            <span key={h} aria-hidden className="tl-at tl-grid" style={{ '--s': h } as CSSProperties} />
           ))}
 
           {blocks.map((b) => {
@@ -748,7 +767,7 @@ export function DayTimeline({
       </div>
 
       {/* What is in hand, in words: it follows the pointer and is announced for the keyboard. */}
-      <p className={cn('tl-readout tabular', column && 'sr-only')} aria-live="polite">
+      <p className={cn('tabular', column ? 'sr-only' : 'tl-readout')} aria-live="polite">
         {readout ? (
           <span className="font-medium text-foreground">
             {t('readout', { range: range(readout), length: span(readout) })}

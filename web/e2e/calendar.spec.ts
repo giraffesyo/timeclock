@@ -31,6 +31,133 @@ test('the calendar fills the space above payroll at different window heights', a
   }
 });
 
+for (const [kind, monday] of [
+  ['ordinary', '2025-10-20'],
+  ['fall-back', '2025-10-27'],
+  ['spring-forward', '2025-03-03'],
+] as const) {
+  test(`every day reaches midnight during ${kind} weeks on desktop and mobile`, async ({ me }, testInfo) => {
+    const { page, api } = me;
+    const week = DateTime.fromISO(monday, { zone: ZONE });
+    for (const weekday of [0, 6]) {
+      const day = week.plus({ days: weekday });
+      await api.entry(
+        'Acme / Platform',
+        day.set({ hour: 9 }).toISO() as string,
+        day.set({ hour: 10 }).toISO() as string,
+        'Morning work',
+      );
+      await api.entry(
+        'Acme / Platform',
+        day.set({ hour: 23 }).toISO() as string,
+        day.plus({ days: 1 }).toISO() as string,
+        'Until midnight',
+      );
+    }
+    for (const viewport of [
+      { width: 1440, height: 1000 },
+      { width: 390, height: 750 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto(`/?day=${monday}`);
+      const hours = page.getByRole('region', { name: 'Calendar hours' });
+      if (viewport.width < 768) await page.getByRole('button', { name: /^Sunday/ }).click();
+      await expect(hours).toBeVisible();
+      const geometry = await hours.evaluate((el) => {
+        const gutter = el.querySelector('.wk-gutter')?.getBoundingClientRect();
+        if (!gutter) throw new Error('no hour gutter');
+        return [...el.querySelectorAll('.tl-track')].map((track) => {
+          const box = track.getBoundingClientRect();
+          const morning = track
+            .querySelector('[aria-label^="Edit Morning work"]')
+            ?.closest('[data-entry]')
+            ?.getBoundingClientRect();
+          const late = track
+            .querySelector('[aria-label^="Edit Until midnight"]')
+            ?.closest('[data-entry]')
+            ?.getBoundingClientRect();
+          return {
+            bottom: Math.abs(box.bottom - gutter.bottom),
+            morningHour: morning ? ((morning.top - box.top) / box.height) * 24 : null,
+            lateBottom: late ? Math.abs(late.bottom - box.bottom) : null,
+          };
+        });
+      });
+      expect(geometry).toHaveLength(viewport.width < 768 ? 1 : 7);
+      expect(geometry.filter((day) => day.morningHour !== null)).toHaveLength(viewport.width < 768 ? 1 : 2);
+      expect(geometry.filter((day) => day.lateBottom !== null)).toHaveLength(viewport.width < 768 ? 1 : 2);
+      for (const day of geometry) {
+        expect(day.bottom).toBeLessThanOrEqual(1);
+        if (day.morningHour !== null) expect(day.morningHour).toBeCloseTo(9, 2);
+        // Blocks leave a one-pixel separator, with subpixel rounding at the edge.
+        if (day.lateBottom !== null) expect(day.lateBottom).toBeLessThanOrEqual(1.1);
+      }
+      await hours.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      await hours.locator('.wk-gutter .tl-hour-label').last().scrollIntoViewIfNeeded();
+      const late = page.getByRole('button', { name: /^Edit Until midnight/ }).last();
+      await expect(late).toBeInViewport();
+      await expect(hours.locator('.wk-gutter .tl-hour-label').last()).toHaveText('12 AM');
+      // The scroll position rounds to pixels; allow a subpixel at the edge.
+      await expect(hours.locator('.wk-gutter .tl-hour-label').last()).toBeInViewport({ ratio: 0.95 });
+      const bottomGap = await hours.evaluate((el) => {
+        const gutter = el.querySelector('.wk-gutter')?.getBoundingClientRect();
+        if (!gutter) throw new Error('no hour gutter');
+        return Math.abs(el.getBoundingClientRect().bottom - gutter.bottom);
+      });
+      expect(bottomGap).toBeLessThanOrEqual(1);
+      await testInfo.attach(`midnight-${kind}-${viewport.width}`, {
+        body: await page.screenshot({ path: testInfo.outputPath(`midnight-${kind}-${viewport.width}.png`) }),
+        contentType: 'image/png',
+      });
+    }
+  });
+}
+
+test('moving and resizing time on daylight-saving days follows the local hour rows', async ({ me }) => {
+  const { page, api } = me;
+  for (const monday of ['2025-10-27', '2025-03-03']) {
+    const week = DateTime.fromISO(monday, { zone: ZONE });
+    const sunday = week.plus({ days: 6 });
+    await api.entry(
+      'Acme / Platform',
+      week.set({ hour: 9 }).toISO() as string,
+      week.set({ hour: 10 }).toISO() as string,
+      'Move to Sunday',
+    );
+    await page.goto(`/?day=${monday}`);
+    await expect(page.getByRole('button', { name: /^Edit Move to Sunday/ })).toBeVisible();
+    await drag(page, await at(page, 0, 9.5), await at(page, 6, 9.5));
+    const path = `/entries?from=${sunday.toISODate()}&to=${sunday.toISODate()}`;
+    await expect.poll(async () => (await api.get(path)).entries).toHaveLength(1);
+    let entry = (await api.get(path)).entries[0];
+    expect(instant(entry.startedAt)).toBe(sunday.set({ hour: 9 }).toMillis());
+    expect(instant(entry.endedAt)).toBe(sunday.set({ hour: 10 }).toMillis());
+    const end = await at(page, 6, 10);
+    await drag(page, { x: end.x, y: end.y - 2 }, await at(page, 6, 11));
+    await expect
+      .poll(async () => instant((await api.get(path)).entries[0].endedAt))
+      .toBe(sunday.set({ hour: 11 }).toMillis());
+    entry = (await api.get(path)).entries[0];
+    expect(instant(entry.endedAt) - instant(entry.startedAt)).toBe(2 * 60 * 60_000);
+  }
+});
+
+test('both occurrences of the fall-back hour keep their recorded duration and remain reachable', async ({ me }) => {
+  const { page, api } = me;
+  await api.entry('Acme / Platform', '2025-11-02T01:15:00-05:00', '2025-11-02T01:45:00-06:00', 'Repeated hour');
+  await page.goto('/?day=2025-11-02');
+  const block = page.getByRole('button', { name: /^Edit Repeated hour/ });
+  await expect(block).toHaveAccessibleName(/1h 30m/);
+  const end = await at(page, 6, 1.875);
+  await drag(page, { x: end.x, y: end.y - 2 }, await at(page, 6, 2.25));
+  await expect
+    .poll(async () => instant((await api.get('/entries?from=2025-11-02&to=2025-11-02')).entries[0].endedAt))
+    .toBe(instant('2025-11-02T02:15:00-06:00'));
+  await expect(block).toHaveAccessibleName(/2h 0m/);
+});
+
 test('an earlier week shows the pay period it falls in', async ({ me }) => {
   const { page, api } = me;
   // Five weeks back is outside this pay period, weekly or biweekly.
