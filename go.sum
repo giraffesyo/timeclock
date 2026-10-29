@@ -56,8 +56,8 @@ github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6B
 github.com/mfridman/interpolate v0.0.2/go.mod h1:p+7uk6oE07mpE/Ik1b8EckO0O4ZXiGAfshKBWLUM9Xg=
 github.com/ncruces/go-strftime v1.1.0 h1:vtPmPWMkb539RGV9WpWT9EwJGvrOCKvMNI4obWL47Hk=
 github.com/ncruces/go-strftime v1.1.0/go.mod h1:yVaq7iwCN09vHRrKBrrflXT0M9tTMG2KmZ9Fj7xeG/g=
-github.com/parallelworks/foundation v0.16.0 h1:m/LueiXbm8+oFP8nXl6aAHbW9cky65gixAQzQWnFXaM=
-github.com/parallelworks/foundation v0.16.0/go.mod h1:YwMBtKJNgoehHgGAHoTKVmzoViOhsQo18fQ3orQoSTw=
+github.com/parallelworks/foundation v0.17.0 h1:61j116BYMRkyKfn6b9zjAe38JPFIWYAnn2VjpUJxKHQ=
+github.com/parallelworks/foundation v0.17.0/go.mod h1:YwMBtKJNgoehHgGAHoTKVmzoViOhsQo18fQ3orQoSTw=
 github.com/parallelworks/hopper v0.7.0 h1:z9nuhTY5Ia4yUpWMjy5kmvMOkhvPcYRaUCCmt3BuLRw=
 github.com/parallelworks/hopper v0.7.0/go.mod h1:ivhrpFDhAcYXl8I/zNStn7xDFyDZaKs/+YyoVov7W4g=
 github.com/philhofer/fwd v1.2.1 h1:UtpS73q8bFgy/yH3gCq8LSNvj5gv/FowNOiWZa7uKwQ=
