@@ -702,6 +702,10 @@
     position: relative;
     height: calc(var(--tl-hours) * var(--tl-hour));
   }
+  /* Keep the closing midnight label inside the scrollable day. */
+  .wk-gutter > .tl-at:last-child .tl-hour-label {
+    translate: 0 -100%;
+  }
   /* Keep the hour scale steady while scrolling through the full day. */
   .wk {
     --tl-hour: 3rem;

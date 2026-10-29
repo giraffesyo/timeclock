@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 import { type Entry, useCalendarEvents } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayToDate, hoursMinutes } from '@/lib/time';
-import { covered, dayBounds, HOUR, type Span } from '@/lib/timeline';
+import { covered, dayBounds, dayScale, HOUR, type Span } from '@/lib/timeline';
 import { useMedia } from '@/lib/use-media';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
@@ -60,21 +60,29 @@ export function WeekCalendar({
     // Worked time stops at now; what lies ahead is planned, and counts once it passes.
     const past = spans.filter((s) => s.start < now).map((s) => ({ start: s.start, end: Math.min(s.end, now) }));
     const ahead = spans.filter((s) => s.end > now).map((s) => ({ start: Math.max(s.start, now), end: s.end }));
-    return { day, bounds, entries: own, spans, worked: covered(past), planned: covered(ahead) };
+    return {
+      day,
+      bounds,
+      scale: dayScale(day, zone),
+      entries: own,
+      spans,
+      worked: covered(past),
+      planned: covered(ahead),
+    };
   });
 
   // Render the whole day at a constant scale. Start at the working day, or
   // the first earlier entry, but leave every hour reachable by scrolling.
   const from = 0;
-  const to = Math.max(24, ...days.map((d) => (d.bounds.end - d.bounds.start) / HOUR));
+  const to = 24;
   let initialHour = 7;
   for (const d of days) {
     for (const s of d.spans) {
-      initialHour = Math.min(initialHour, Math.floor((s.start - d.bounds.start) / HOUR));
+      initialHour = Math.min(initialHour, Math.floor(d.scale.hour(s.start)));
     }
   }
-  const todayBounds = days.find((d) => d.day === today)?.bounds;
-  const currentHour = todayBounds ? (now - todayBounds.start) / HOUR : null;
+  const todayScale = days.find((d) => d.day === today)?.scale;
+  const currentHour = todayScale ? todayScale.hour(now) : null;
   const positionKey = `${week[0]}:${zone}`;
   useLayoutEffect(() => {
     const el = scroll.current;
@@ -83,12 +91,10 @@ export function WeekCalendar({
     el.scrollTop =
       currentHour === null ? (initialHour / to) * height : (currentHour / to) * height - el.clientHeight / 2;
     positioned.current = positionKey;
-  }, [positionKey, initialHour, currentHour, to]);
+  }, [positionKey, initialHour, currentHour]);
   const hours = { from, to };
   const marks = Array.from({ length: to - from + 1 }, (_, i) => from + i);
-  const first = days[0];
-  const hourLabel = (h: number) =>
-    first ? format.dateTime(new Date(first.bounds.start + h * HOUR), { hour: 'numeric', timeZone: zone }) : '';
+  const hourLabel = (h: number) => format.dateTime(new Date(h * HOUR), { hour: 'numeric', timeZone: 'UTC' });
 
   const shown = wide ? days : days.filter((d) => d.day === (picked ?? (hasToday ? today : week[0])));
   const total = (ms: number) => tc('duration', hoursMinutes(ms));
@@ -165,7 +171,7 @@ export function WeekCalendar({
           <div className="wk-gutter" aria-hidden style={{ '--tl-hours': to - from } as CSSProperties}>
             {marks.map((h, i) => (
               <span key={h} className="tl-at" style={{ '--s': i / Math.max(1, to - from) } as CSSProperties}>
-                {i > 0 && i < marks.length - 1 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
+                {i > 0 && <span className="tl-hour-label tabular">{hourLabel(h)}</span>}
               </span>
             ))}
           </div>
