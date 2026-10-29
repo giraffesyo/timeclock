@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.5](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.4...timeclock-v0.27.5) (2026-10-29)
+
+
+### Bug Fixes
+
+* **database:** adopt nonblocking migration locks ([#155](https://github.com/giraffesyo/timeclock/issues/155)) ([d651308](https://github.com/giraffesyo/timeclock/commit/d6513085c1958b3bcaa0e6d46038b9c83ad56417))
+
 ## [0.27.4](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.3...timeclock-v0.27.4) (2026-10-29)
 
 
