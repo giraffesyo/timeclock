@@ -17,8 +17,8 @@ import { useWeek, WeekNav } from '@/components/week-nav';
 import { ZoneBanner } from '@/components/zone';
 import { type Entry, useEntries, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { type Day, dayOf, dayToDate, hoursMinutes } from '@/lib/time';
-import { workedAndPlanned } from '@/lib/timeline';
+import { type Day, dayToDate, hoursMinutes } from '@/lib/time';
+import { dayBounds, entrySpan, type Span, within, workedAndPlanned } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
 
@@ -43,7 +43,7 @@ export const Route = createFileRoute('/')({
   }),
 });
 
-/** The week's entries a day at a time, newest day first. */
+/** The week's entries a day at a time, newest day first. One that runs past midnight is on each day it touches. */
 function WeekList({
   week,
   entries,
@@ -60,9 +60,13 @@ function WeekList({
   const format = useFormatter();
   const { today } = useSession();
   const zone = useZone(personId);
+  const now = Date.now();
   const days = [...week]
     .reverse()
-    .map((day) => ({ day, entries: entries.filter((e) => dayOf(e.startedAt, zone) === day) }))
+    .map((day) => {
+      const bounds = dayBounds(day, zone);
+      return { day, bounds, entries: entries.filter((e) => within(entrySpan(e, now), bounds)) };
+    })
     .filter((d) => d.entries.length > 0);
   if (days.length === 0) return <Empty>{t('empty')}</Empty>;
   return (
@@ -75,24 +79,25 @@ function WeekList({
                 ? t('today')
                 : format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'short', day: 'numeric' })}
             </h3>
-            <DayHours entries={d.entries} />
+            <DayHours entries={d.entries} bounds={d.bounds} />
           </div>
-          <EntryList entries={d.entries} readOnly={locked} />
+          <EntryList entries={d.entries} day={d.day} readOnly={locked} />
         </section>
       ))}
     </div>
   );
 }
 
-const spansOf = (entries: Entry[], now: number) =>
-  entries.map((e) => ({ start: Date.parse(e.startedAt), end: e.endedAt ? Date.parse(e.endedAt) : now }));
+/** The entries' time inside a day or a week: what runs past its midnights belongs to the days beyond. */
+const spansOf = (entries: Entry[], now: number, bounds: Span) =>
+  entries.flatMap((e) => within(entrySpan(e, now), bounds) ?? []);
 
 /** A day's worked hours, and any still planned. */
-function DayHours({ entries }: { entries: Entry[] }) {
+function DayHours({ entries, bounds }: { entries: Entry[]; bounds: Span }) {
   const tc = useTranslations('common');
   const tl = useTranslations('timeline');
   const now = Date.now();
-  const { worked, planned } = workedAndPlanned(spansOf(entries, now), now);
+  const { worked, planned } = workedAndPlanned(spansOf(entries, now, bounds), now);
   return (
     <span className="tabular text-sm font-medium">
       {tc('duration', hoursMinutes(worked))}
@@ -137,7 +142,9 @@ function TimerPage() {
   // Someone else's time changes as their timesheet allows: not at all unless the caller may write it.
   const writable = !personId || !!s?.writer;
   const lockedDay = (day: Day) => !writable || inSubmitted(sheet.data, day) || inSubmitted(shown.data, day);
-  const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now), now);
+  const zone = useZone(personId);
+  const weekSpan = { start: dayBounds(first, zone).start, end: dayBounds(last, zone).end };
+  const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now, weekSpan), now);
   const name = personId ? sheet.data?.person.name : undefined;
 
   return (

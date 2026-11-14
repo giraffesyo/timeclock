@@ -11,15 +11,27 @@ import { Chip } from '@/components/status';
 import { TOOLTIP_ID } from '@/components/tooltip';
 import { type Entry, useDeleteEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { dayOf, elapsed, hoursMinutes } from '@/lib/time';
+import { type Day, dayOf, hoursMinutes } from '@/lib/time';
+import { dayBounds, entrySpan, type Span, within } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
 
 /**
  * A day's entries, oldest first: when, on what, for how long. Each can be
- * edited or deleted unless its day is in a submitted timesheet.
+ * edited or deleted unless its day is in a submitted timesheet. One that
+ * runs past midnight is in the list of each day it touches, with its time
+ * on that day, as the calendar and the timesheet's hours count it.
  */
-export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: boolean }) {
+export function EntryList({
+  entries,
+  day,
+  readOnly,
+}: {
+  entries: Entry[];
+  /** The day the list is of; absent lists each entry whole. */
+  day?: Day;
+  readOnly?: boolean;
+}) {
   const t = useTranslations('entry');
   const tc = useTranslations('common');
   const format = useFormatter();
@@ -30,85 +42,94 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
   const { person: me } = useSession();
   const [editing, setEditing] = useState<Entry | null>(null);
   const [deleting, setDeleting] = useState<Entry | null>(null);
-  useNow(
+  const now = useNow(
     30_000,
     entries.some((e) => !e.endedAt),
   ); // keeps a running entry's length current
+  const bounds = day ? dayBounds(day, zone) : null;
+  /** The entry's time in this list: its part of the day, or the whole of it. */
+  const shown = (e: Entry): Span => {
+    const whole = entrySpan(e, now);
+    return (bounds && within(whole, bounds)) ?? whole;
+  };
 
-  const time = (iso: string) => format.dateTime(new Date(iso), { hour: 'numeric', minute: '2-digit', timeZone: zone });
-  const range = (e: Entry) =>
-    e.endedAt
-      ? t('range', { start: time(e.startedAt), end: time(e.endedAt) })
-      : t('rangeRunning', { start: time(e.startedAt) });
+  const time = (ms: number) => format.dateTime(new Date(ms), { hour: 'numeric', minute: '2-digit', timeZone: zone });
+  // A running entry is still going where its time here reaches now.
+  const range = (e: Entry, s: Span) =>
+    e.endedAt || s.end < now
+      ? t('range', { start: time(s.start), end: time(s.end) })
+      : t('rangeRunning', { start: time(s.start) });
 
   return (
     <>
       <ul className="divide-y divide-border">
-        {entries.map((e) => (
-          <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
-            {/* Side by side on a wide screen; the time above the project on a phone. */}
-            <span className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
-              <span className="tabular block shrink-0 text-xs text-muted-foreground sm:w-36 sm:text-sm sm:text-foreground">
-                {range(e)}
-              </span>
-              <span className="block min-w-0 sm:flex-1">
-                {e.note && <span className="block truncate text-sm font-medium">{e.note}</span>}
-                <span
-                  className={
-                    e.note
-                      ? 'flex items-center gap-1.5 text-xs text-muted-foreground'
-                      : 'flex items-center gap-2 text-sm font-medium'
-                  }
-                >
-                  <ProjectDot projectId={e.projectId} />
-                  <span className="truncate">{projectName(e.projectId)}</span>
+        {entries
+          .map((e) => [e, shown(e)] as const)
+          .map(([e, s]) => (
+            <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+              {/* Side by side on a wide screen; the time above the project on a phone. */}
+              <span className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
+                <span className="tabular block shrink-0 text-xs text-muted-foreground sm:w-36 sm:text-sm sm:text-foreground">
+                  {range(e, s)}
+                </span>
+                <span className="block min-w-0 sm:flex-1">
+                  {e.note && <span className="block truncate text-sm font-medium">{e.note}</span>}
+                  <span
+                    className={
+                      e.note
+                        ? 'flex items-center gap-1.5 text-xs text-muted-foreground'
+                        : 'flex items-center gap-2 text-sm font-medium'
+                    }
+                  >
+                    <ProjectDot projectId={e.projectId} />
+                    <span className="truncate">{projectName(e.projectId)}</span>
+                  </span>
                 </span>
               </span>
-            </span>
-            {e.endedAt && Date.parse(e.startedAt) >= Date.now() && (
-              <Chip tone="neutral" hint={t('plannedHint')}>
-                {t('planned')}
-              </Chip>
-            )}
-            <span className="tabular shrink-0 text-sm font-medium">
-              {tc('duration', hoursMinutes(elapsed(e.startedAt, e.endedAt)))}
-            </span>
-            {!readOnly &&
-              (e.locked ? (
-                <span
-                  className="flex w-24 justify-end text-muted-foreground"
-                  role="img"
-                  aria-label={t('locked')}
-                  data-tooltip-id={TOOLTIP_ID}
-                  data-tooltip-content={t('locked')}
-                >
-                  <LockIcon className="size-3.5" aria-hidden />
-                </span>
-              ) : (
-                <span className="flex w-24 justify-end gap-0.5">
-                  {/* Starting again runs your clock, so only from your own time. */}
-                  {e.endedAt && e.personId === me.id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={t('continue')}
-                      data-tooltip-id={TOOLTIP_ID}
-                      data-tooltip-content={t('continue')}
-                      onClick={() => again.start(e)}
-                    >
-                      <StartIcon aria-hidden className="!size-4.5" />
+              {e.endedAt && Date.parse(e.startedAt) >= Date.now() && (
+                <Chip tone="neutral" hint={t('plannedHint')}>
+                  {t('planned')}
+                </Chip>
+              )}
+              <span className="tabular shrink-0 text-sm font-medium">
+                {tc('duration', hoursMinutes(s.end - s.start))}
+              </span>
+              {!readOnly &&
+                (e.locked ? (
+                  <span
+                    className="flex w-24 justify-end text-muted-foreground"
+                    role="img"
+                    aria-label={t('locked')}
+                    data-tooltip-id={TOOLTIP_ID}
+                    data-tooltip-content={t('locked')}
+                  >
+                    <LockIcon className="size-3.5" aria-hidden />
+                  </span>
+                ) : (
+                  <span className="flex w-24 justify-end gap-0.5">
+                    {/* Starting again runs your clock, so only from your own time. */}
+                    {e.endedAt && e.personId === me.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t('continue')}
+                        data-tooltip-id={TOOLTIP_ID}
+                        data-tooltip-content={t('continue')}
+                        onClick={() => again.start(e)}
+                      >
+                        <StartIcon aria-hidden className="!size-4.5" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" aria-label={t('edit')} onClick={() => setEditing(e)}>
+                      <EditIcon aria-hidden />
                     </Button>
-                  )}
-                  <Button variant="ghost" size="sm" aria-label={t('edit')} onClick={() => setEditing(e)}>
-                    <EditIcon aria-hidden />
-                  </Button>
-                  <Button variant="ghost" size="sm" aria-label={t('delete')} onClick={() => setDeleting(e)}>
-                    <TrashIcon aria-hidden />
-                  </Button>
-                </span>
-              ))}
-          </li>
-        ))}
+                    <Button variant="ghost" size="sm" aria-label={t('delete')} onClick={() => setDeleting(e)}>
+                      <TrashIcon aria-hidden />
+                    </Button>
+                  </span>
+                ))}
+            </li>
+          ))}
       </ul>
       <EntryDialog
         open={!!editing}
@@ -124,7 +145,12 @@ export function EntryList({ entries, readOnly }: { entries: Entry[]; readOnly?: 
         }}
         title={t('deleteTitle')}
         description={
-          deleting ? t('deleteDescription', { range: range(deleting), project: projectName(deleting.projectId) }) : null
+          deleting
+            ? t('deleteDescription', {
+                range: range(deleting, entrySpan(deleting, now)),
+                project: projectName(deleting.projectId),
+              })
+            : null
         }
         confirmLabel={t('delete')}
         destructive

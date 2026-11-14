@@ -14,6 +14,11 @@ export function addDays(day: Day, n: number): Day {
   return DateTime.fromISO(day).plus({ days: n }).toISODate() ?? day;
 }
 
+/** How many days after `from` the day `to` is; negative when it is before. */
+export function daysApart(from: Day, to: Day): number {
+  return Math.round(DateTime.fromISO(to).diff(DateTime.fromISO(from), 'days').days);
+}
+
 /** The days from..to, both included. */
 export function daysBetween(from: Day, to: Day): Day[] {
   const out: Day[] = [];
@@ -45,12 +50,6 @@ export function at(day: Day, time: string, zone: string): string | null {
 /** The HH:mm of an instant in the zone, for a time input. */
 export function timeInput(iso: string, zone: string): string {
   return DateTime.fromISO(iso, { zone }).toFormat('HH:mm');
-}
-
-/** Milliseconds between two instants; the second defaults to now. */
-export function elapsed(startIso: string, endIso?: string | null): number {
-  const end = endIso ? Date.parse(endIso) : Date.now();
-  return Math.max(0, end - Date.parse(startIso));
 }
 
 /** A duration as whole hours and minutes. */

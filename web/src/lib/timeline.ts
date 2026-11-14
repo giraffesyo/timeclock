@@ -25,6 +25,22 @@ export function dayBounds(day: Day, zone: string): Span {
   return { start: start.toMillis(), end: start.plus({ days: 1 }).toMillis() };
 }
 
+/** When an entry runs: a running one, up to now. */
+export function entrySpan(entry: { startedAt: string; endedAt?: string | null }, now: number): Span {
+  const start = Date.parse(entry.startedAt);
+  return { start, end: entry.endedAt ? Date.parse(entry.endedAt) : Math.max(now, start) };
+}
+
+/**
+ * The part of a span inside another, such as an entry's time on one day, or
+ * null where it has none. A span that only ends on the other's first instant
+ * isn't inside it; one of no length yet, a clock just started, is.
+ */
+export function within(s: Span, bounds: Span): Span | null {
+  if (s.start >= bounds.end || s.end < bounds.start || (s.end === bounds.start && s.start < s.end)) return null;
+  return { start: Math.max(s.start, bounds.start), end: Math.min(s.end, bounds.end) };
+}
+
 /**
  * A calendar's 24 local hour rows, even when a day has 23 or 25 elapsed hours.
  * A repeated hour shares its row; a skipped hour maps to the next real instant.
