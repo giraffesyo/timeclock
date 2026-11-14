@@ -70,9 +70,13 @@ test('an admin changes several people at once from the selection or a right clic
   await expect.poll(() => exempt(cal)).toBe(false);
   expect(await exempt(bea)).toBe(true);
 
-  // The keyboard's menu key opens it too, and Escape closes it.
+  // The keyboard's menu key opens it too, and Escape closes it. The menu hides
+  // while its row is out of view, where other tests' people can push it, and
+  // focusing a box that already has focus doesn't bring it back.
+  const box = row.getByRole('checkbox', { name: `Select ${cal.name}` });
   await expect(async () => {
-    await row.getByRole('checkbox', { name: `Select ${cal.name}` }).focus();
+    await box.scrollIntoViewIfNeeded();
+    await box.focus();
     await page.keyboard.press('Shift+F10');
     await expect(menu).toBeVisible({ timeout: 1000 });
   }).toPass();
