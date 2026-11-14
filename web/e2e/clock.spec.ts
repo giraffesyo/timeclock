@@ -208,7 +208,10 @@ test('a submitted pay period turns the clock off', async ({ me }) => {
 
 test('the running time opens a panel that moves the start to another day', async ({ me }) => {
   const { page, api } = me;
-  const started = await api.clockInAgo('Acme / Platform', 30, 'Build');
+  // Started today, even in the half hour after midnight: the panel names the day it started on.
+  const now = DateTime.now().setZone(ZONE);
+  const sinceMidnight = Math.floor(now.diff(now.startOf('day'), 'minutes').minutes);
+  const started = await api.clockInAgo('Acme / Platform', Math.min(30, sinceMidnight), 'Build');
   await page.goto('/');
   const bar = page.getByRole('form', { name: 'Clock' });
   await bar.getByRole('button', { name: 'Change the start or stop time' }).click();

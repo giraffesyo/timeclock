@@ -21,11 +21,18 @@ export const pathOf = (link: string) => new URL(link).pathname + new URL(link).s
  */
 export function manager(env: Record<string, string | undefined>) {
   return (...args: string[]): string => {
-    const out = execFileSync('../timeclock-server', args, {
-      env: { ...process.env, ...env },
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
+    let out: string;
+    try {
+      out = execFileSync('../timeclock-server', args, {
+        env: { ...process.env, ...env },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      // The command says why it failed; "Command failed" alone doesn't.
+      const said = String((err as { stderr?: unknown }).stderr ?? '').trim();
+      throw new Error(`timeclock-server ${args.join(' ')}: ${said || (err as Error).message}`);
+    }
     const link = out.match(/https?:\/\/\S+/)?.[0];
     if (!link) throw new Error(`no link in: ${out}`);
     return pathOf(link);

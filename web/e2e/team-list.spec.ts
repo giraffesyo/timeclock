@@ -123,6 +123,8 @@ for (const mobile of [false, true]) {
     await expect(row(me)).toContainText('Approved');
     expect(await menuItems(page, away(me), 'right')).toEqual(['Open timesheet', 'Open timer', 'Copy']);
     await page.keyboard.press('Escape');
+    // The row's menu fades out, still in the page: gone first, the filter's Timesheet isn't mistaken for its Open timesheet.
+    await expect(page.getByRole('menu')).toHaveCount(0);
 
     // The status filter. Away from the names first: a focused or hovered name keeps its profile card open.
     await page.mouse.move(0, 0);

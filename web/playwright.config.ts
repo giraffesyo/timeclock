@@ -12,8 +12,13 @@ export const ADMIN = 'admin@e2e.test';
 /** Reads History; the admin doesn't, as being an admin doesn't make someone an auditor. */
 export const AUDITOR = 'auditor@e2e.test';
 
+// Each server here opens a pool or two, and every run of its command line one
+// more, each as large as the machine has cores. On a large machine that takes
+// the database to its limit of connections, and past it beside a development
+// server. Four to a pool is what a CI runner gets.
 const database =
-  process.env.E2E_DATABASE_URL ?? 'postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable';
+  process.env.E2E_DATABASE_URL ??
+  'postgres://timeclock:timeclock@localhost:54331/timeclock_test?sslmode=disable&pool_max_conns=4';
 
 // A second server with real sign-in: no development user, so its tests
 // invite people, set passwords and sign in. Tests reach its command line

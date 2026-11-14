@@ -67,6 +67,10 @@ for (const mobile of [false, true]) {
         },
       }),
     );
+    // The development sign-in has no account to read invitations with, and the
+    // refusal shows a second or so into the page, moving the rows out from
+    // under the pointer. None are waiting here.
+    await page.route('**/auth/invites', (route) => route.fulfill({ json: { invites: [] } }));
     await page.goto('/people');
     await page.bringToFront();
     const row = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Ada Lovelace', exact: true }) });
