@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.7](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.6...timeclock-v0.27.7) (2026-11-14)
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.4, past GO-2026-6859 ([#165](https://github.com/giraffesyo/timeclock/issues/165)) ([ddca990](https://github.com/giraffesyo/timeclock/commit/ddca990d86e5179147ee28296acba3e7bfaaa855))
+* keep the day an entry ends on when it runs past midnight ([#164](https://github.com/giraffesyo/timeclock/issues/164)) ([261edbb](https://github.com/giraffesyo/timeclock/commit/261edbbd573a472f4faf99ab420d5fbb2be2b4dd))
+
 ## [0.27.6](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.5...timeclock-v0.27.6) (2026-10-29)
 
 
