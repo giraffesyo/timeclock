@@ -32,6 +32,8 @@ func scanEntry(row pgx.Row) (Entry, error) {
 }
 
 // Entries lists a person's time that touches the days from..to, oldest first.
+// Time that ends at the midnight from starts on was all the day before, and
+// isn't listed.
 func (s *Service) Entries(ctx context.Context, actor Actor, personID string, from, to Date) ([]Entry, error) {
 	p, err := s.viewable(ctx, s.pool, actor, personID)
 	if err != nil {
@@ -43,7 +45,7 @@ func (s *Service) Entries(ctx context.Context, actor Actor, personID string, fro
 	}
 	loc := cfg.LocationOf(p)
 	rows, err := s.pool.Query(ctx, entrySelect+`
-		WHERE e.workspace_id = $W AND e.person_id = $2 AND e.started_at < $4 AND coalesce(e.ended_at, now()) >= $3
+		WHERE e.workspace_id = $W AND e.person_id = $2 AND e.started_at < $4 AND coalesce(e.ended_at, now()) > $3
 		ORDER BY e.started_at`, cfg.Timezone, p.ID, from.In(loc), to.AddDays(1).In(loc))
 	if err != nil {
 		return nil, fmt.Errorf("list entries: %w", err)

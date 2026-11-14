@@ -12,13 +12,17 @@ import { ErrorNote } from '@/components/page';
 import { ProjectSelect, useProjectName } from '@/components/project-select';
 import { type Entry, useDeleteEntry, useSaveEntry } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { addDays, at, type Day, dayOf, hoursMinutes, timeInput } from '@/lib/time';
+import { addDays, at, type Day, dayOf, daysApart, hoursMinutes, timeInput } from '@/lib/time';
 import { useZone } from '@/lib/zone';
+
+/** The day a stretch ends on when only its times say: an end at or before the start is the next day's. */
+const endsOn = (day: Day, start: string, end: string): Day => (end <= start ? addDays(day, 1) : day);
 
 /**
  * Adds or edits a stretch of time. Times are in the organization's time
  * zone. An end at or before the start is the next day, so a night shift is
- * one entry.
+ * one entry. An entry that ends on some other day, such as a clock left
+ * running for longer than a day, keeps that day and shows it, to change.
  */
 export function EntryDialog({
   open,
@@ -103,6 +107,12 @@ function Form({
   const [date, setDate] = useState(entry ? dayOf(entry.startedAt, zone) : day);
   const [start, setStart] = useState(entry ? timeInput(entry.startedAt, zone) : from);
   const [end, setEnd] = useState(entry?.endedAt ? timeInput(entry.endedAt, zone) : entry ? '' : to);
+  // The day the end is on, where the times alone would say another; absent follows the times.
+  const [until, setUntil] = useState<Day | null>(() => {
+    if (!entry?.endedAt) return null;
+    const ends = dayOf(entry.endedAt, zone);
+    return ends === endsOn(date, start, end) ? null : ends;
+  });
   const [projectId, setProjectId] = useState(entry?.projectId ?? '');
   const [note, setNote] = useState(entry?.note ?? about);
   const [invalid, setInvalid] = useState(false);
@@ -140,13 +150,21 @@ function Form({
       : t('rangeRunning', { start: time(e.startedAt) });
 
   const running = !!entry && !entry.endedAt;
-  const startedAt = at(date, start, zone);
-  const overnight = end !== '' && end <= start;
-  const endedAt = end === '' ? null : at(overnight ? addDays(date, 1) : date, end, zone);
-  const length = startedAt && endedAt ? hoursMinutes(Date.parse(endedAt) - Date.parse(startedAt)) : null;
+  // A field left as the entry has it keeps the entry's own instant: its
+  // seconds, and which pass of an hour the clocks repeat.
+  const kept = (iso: string | null | undefined, day: Day, time: string) =>
+    iso && dayOf(iso, zone) === day && timeInput(iso, zone) === time ? iso : null;
+  const startedAt = kept(entry?.startedAt, date, start) ?? at(date, start, zone);
+  const endDay = until ?? endsOn(date, start, end);
+  const endedAt = end === '' ? null : (kept(entry?.endedAt, endDay, end) ?? at(endDay, end, zone));
+  // A clock running since an earlier day can stop on any day since, so its end day is asked for too.
+  const showEndDay = end !== '' && (until !== null || (running && date < dayOf(new Date().toISOString(), zone)));
+  const overnight = !showEndDay && end !== '' && end <= start;
+  const backwards = !!startedAt && !!endedAt && Date.parse(endedAt) <= Date.parse(startedAt);
+  const length = startedAt && endedAt && !backwards ? hoursMinutes(Date.parse(endedAt) - Date.parse(startedAt)) : null;
 
   const submit = async () => {
-    if (!startedAt || (!endedAt && !running)) {
+    if (!startedAt || (!endedAt && !running) || backwards) {
       setInvalid(true);
       return;
     }
@@ -196,7 +214,7 @@ function Form({
           loading={duplicate.isPending}
           disabled={deleting}
           onClick={async () => {
-            if (!startedAt || !endedAt) {
+            if (!startedAt || !endedAt || backwards) {
               setInvalid(true);
               return;
             }
@@ -340,9 +358,26 @@ function Form({
               className="entry-day"
               aria-label={t('day')}
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                // The end moves with the start, so the entry keeps its length on another day.
+                if (until && date && e.target.value) setUntil(addDays(until, daysApart(date, e.target.value)));
+                setDate(e.target.value);
+              }}
             />
           </div>
+          {showEndDay && (
+            <label className="flex items-center justify-end gap-1 text-sm text-muted-foreground">
+              {t('ends')}
+              <input
+                type="date"
+                className="entry-day"
+                aria-label={t('endDay')}
+                value={endDay}
+                min={date}
+                onChange={(e) => setUntil(e.target.value || null)}
+              />
+            </label>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3">
             <div className="flex items-center gap-2">
               <input
@@ -374,7 +409,7 @@ function Form({
           </div>
           {invalid && (
             <p role="alert" className="mt-3 text-sm text-danger">
-              {t('invalid')}
+              {backwards ? t('endBeforeStart') : t('invalid')}
             </p>
           )}
           {save.isError && <ErrorNote className="mt-3" context={t('saveFailed')} error={save.error} />}
@@ -422,13 +457,21 @@ export function EntryPopover({
     const el = panel.current;
     if (!el) return;
     el.showPopover();
+    // What scrolls the block: a block taller than the hours in view, as one
+    // that runs on from the day before often is, starts above them.
+    const scrollers: HTMLElement[] = [];
+    for (let parent = anchor.parentElement; parent; parent = parent.parentElement) {
+      if (getComputedStyle(parent).overflowY !== 'visible') scrollers.push(parent);
+    }
     const position = () => {
       const rect = anchor.getBoundingClientRect();
       const width = el.offsetWidth;
       const height = el.offsetHeight;
+      // Beside the part of the block in view, not where it starts out of sight.
+      const top = Math.max(rect.top, ...scrollers.map((s) => s.getBoundingClientRect().top));
       const left = rect.right + width + 12 < window.innerWidth ? rect.right + 8 : rect.left - width - 8;
       el.style.left = `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`;
-      el.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - height - 8))}px`;
+      el.style.top = `${Math.max(8, Math.min(top, window.innerHeight - height - 8))}px`;
     };
     position();
     const observer = new ResizeObserver(position);

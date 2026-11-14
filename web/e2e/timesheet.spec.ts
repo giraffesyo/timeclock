@@ -37,3 +37,28 @@ test('a timesheet day opens to its time, drawn by the hour', async ({ me }) => {
   await expect(page.getByRole('img', { name: /^Build, Acme \/ Platform.*in a submitted timesheet$/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Edit / })).toHaveCount(0);
 });
+
+test('time that runs past midnight is in both days it is on', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(1, '22:00'), week.at(2, '02:00'), 'Overnight');
+  await page.goto(`/timesheet?day=${week.day(1)}`);
+  for (const [weekday, range] of [
+    [1, '10:00 PM – 12:00 AM'],
+    [2, '12:00 AM – 2:00 AM'],
+  ] as const) {
+    const day = page.locator(`button[aria-controls="day-${week.day(weekday)}"]`);
+    await expect(day).toContainText('1 entry');
+    await day.click();
+    // The hours the day is paid for are the ones drawn and listed under it.
+    const row = page.locator(`#day-${week.day(weekday)}`);
+    await expect(
+      row.getByRole('button', { name: `Edit Overnight, Acme / Platform, ${range}, 2h 0m`, exact: true }),
+    ).toBeVisible();
+    await expect(row.getByRole('listitem')).toContainText(`${range}Overnight`);
+    await expect(row.getByRole('listitem')).toContainText('2h 0m');
+  }
+  const sheet = await api.get(`/timesheet?day=${week.day(1)}`);
+  const hours = (weekday: number) => sheet.days.find((d: { day: string }) => d.day === week.day(weekday)).regular;
+  expect([hours(1), hours(2)]).toEqual([2, 2]);
+});

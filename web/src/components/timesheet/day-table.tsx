@@ -12,7 +12,8 @@ import { totalHours } from '@/components/timesheet/sheet';
 import { cn } from '@/lib/cn';
 import { type Entry, type PeriodSummary, useEntries } from '@/lib/queries';
 import { useSession } from '@/lib/session';
-import { type Day, dayOf, dayToDate } from '@/lib/time';
+import { type Day, dayToDate } from '@/lib/time';
+import { dayBounds, entrySpan, within } from '@/lib/timeline';
 import { useZone } from '@/lib/zone';
 
 const num = 'px-3 py-2 text-right';
@@ -44,10 +45,16 @@ export function DayTable({
   const [open, setOpen] = useState<ReadonlySet<Day>>(new Set());
   const [adding, setAdding] = useState<Day | null>(null);
 
+  // An entry is on every day it touches, as its hours are: one that runs
+  // past midnight is the next day's too.
+  const now = Date.now();
   const byDay = new Map<Day, Entry[]>();
-  for (const e of entries.data ?? []) {
-    const day = dayOf(e.startedAt, zone);
-    byDay.set(day, [...(byDay.get(day) ?? []), e]);
+  for (const d of days) {
+    const bounds = dayBounds(d.day, zone);
+    byDay.set(
+      d.day,
+      (entries.data ?? []).filter((e) => within(entrySpan(e, now), bounds)),
+    );
   }
 
   const allOpen = days.length > 0 && days.every((d) => open.has(d.day));
@@ -170,7 +177,7 @@ export function DayTable({
                               </div>
                             )}
                             {dayEntries.length > 0 ? (
-                              <EntryList entries={dayEntries} readOnly={readOnly} />
+                              <EntryList entries={dayEntries} day={d.day} readOnly={readOnly} />
                             ) : (
                               <p className="px-4 py-3 text-sm text-muted-foreground">
                                 {future ? t('emptyFuture') : readOnly ? t('emptyReadOnly') : t('empty')}

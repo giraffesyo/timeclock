@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { DateTime } from 'luxon';
 import { ZONE } from '../playwright.config';
-import { column, drag, expect, hourPoint, instant, lastWeek, test } from './fixtures';
+import { column, drag, expect, hourPoint, instant, lastWeek, RECENT, test } from './fixtures';
 
 // The full day is rendered, initially scrolled to working hours.
 const FROM = 0;
@@ -518,6 +518,172 @@ test('an entry edits in a popover, changes project, and dismisses with Escape', 
   await page.keyboard.press('Escape');
   await expect(edit).toBeHidden();
   await expect(block).toBeFocused();
+});
+
+test('an entry that runs past midnight opens beside the part of its block in view', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  await api.entry('Acme / Platform', week.at(0, '20:00'), week.at(1, '11:00'), 'Night shift');
+  await page.goto(`/?day=${week.day(0)}`);
+  const hours = page.getByRole('region', { name: 'Calendar hours' });
+  await expect(column(page, 1).locator('[data-entry]')).toHaveCount(1);
+  // The working day, as the calendar opens: Tuesday's block starts at midnight, above it.
+  await hours.evaluate((el) => {
+    el.scrollTop = (7 / 24) * (el.firstElementChild?.clientHeight ?? 0);
+  });
+  const view = await hours.boundingBox();
+  const track = await column(page, 1).boundingBox();
+  if (!view || !track) throw new Error('calendar is not laid out');
+  await page.mouse.click(track.x + track.width / 2, view.y + 80);
+  const edit = dialog(page, 'Edit time');
+  await expect(edit.getByRole('combobox', { name: 'Note' })).toHaveValue('Night shift');
+  const popover = await edit.boundingBox();
+  if (!popover) throw new Error('the entry is not open');
+  // Level with the hours in view, clear of the clock above them, and beside the block.
+  expect(Math.abs(popover.y - view.y)).toBeLessThanOrEqual(1);
+  expect(popover.x).toBeGreaterThanOrEqual(track.x + track.width);
+  // It reads as the night shift it is: the day it starts on, and an end the next day.
+  await expect(edit.getByLabel('Day', { exact: true })).toHaveValue(week.day(0));
+  await expect(edit).toContainText('15h 0m');
+  await expect(edit).toContainText('Ends the next day');
+  await expect(edit.getByLabel('End day')).toHaveCount(0);
+  // An end before midnight is the same day again.
+  await edit.getByLabel('End', { exact: true }).fill('23:30');
+  await expect(edit).toContainText('3h 30m');
+  await expect(edit).not.toContainText('Ends the next day');
+});
+
+test('an entry longer than a day keeps the day it ends on, and can be given another', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  // A clock left running overnight and stopped the next afternoon.
+  const long = await api.entry('Acme / Platform', week.at(2, '09:00'), week.at(3, '17:00'), 'Left running');
+  const path = `/entries?from=${week.day(1)}&to=${week.day(3)}`;
+  const saved = async () => {
+    const { entries } = await api.get(path);
+    const e = entries.find((x: { id: string }) => x.id === long.id);
+    return [instant(e.startedAt), instant(e.endedAt)];
+  };
+  await page.goto(`/?day=${week.day(2)}`);
+  const block = column(page, 3).locator('[data-entry] .tl-body');
+  await block.click();
+  const edit = dialog(page, 'Edit time');
+  await expect(edit.getByLabel('Day', { exact: true })).toHaveValue(week.day(2));
+  await expect(edit.getByLabel('End day')).toHaveValue(week.day(3));
+  await expect(edit).toContainText('32h 0m');
+
+  // Changing what it was about leaves when it was alone.
+  await edit.getByRole('combobox', { name: 'Note' }).fill('Left running overnight');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect.poll(async () => (await api.get(path)).entries[0].note).toBe('Left running overnight');
+  expect(await saved()).toEqual([instant(week.at(2, '09:00')), instant(week.at(3, '17:00'))]);
+
+  // Moved to another day it keeps its length; its end can't come before its start.
+  await block.click();
+  await edit.getByLabel('Day', { exact: true }).fill(week.day(1));
+  await expect(edit.getByLabel('End day')).toHaveValue(week.day(2));
+  await expect(edit).toContainText('32h 0m');
+  await edit.getByLabel('End', { exact: true }).fill('08:00');
+  await edit.getByLabel('End day').fill(week.day(1));
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit.getByRole('alert')).toHaveText('The end must be after the start.');
+  // Ended the day it started, it is the working day it should have been.
+  await edit.getByLabel('End', { exact: true }).fill('17:00');
+  await expect(edit).toContainText('8h 0m');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect.poll(saved).toEqual([instant(week.at(1, '09:00')), instant(week.at(1, '17:00'))]);
+  await expect(column(page, 1).locator('[data-entry]')).toHaveCount(1);
+  await expect(column(page, 2).locator('[data-entry]')).toHaveCount(0);
+  await expect(column(page, 3).locator('[data-entry]')).toHaveCount(0);
+});
+
+test('time that started and ended in the same minute stays on its day when its note changes', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  // A clock started and stopped again at once: both read 9:00.
+  const start = DateTime.fromISO(week.at(0, '09:00')).plus({ seconds: 10 }).toISO() as string;
+  const end = DateTime.fromISO(week.at(0, '09:00')).plus({ seconds: 40 }).toISO() as string;
+  const brief = await api.entry('Acme / Platform', start, end, 'Brief');
+  await page.goto(`/?day=${week.day(0)}&view=list`);
+  await page.getByRole('button', { name: 'Edit time' }).click();
+  const edit = dialog(page, 'Edit time');
+  await expect(edit).not.toContainText('Ends the next day');
+  await edit.getByRole('combobox', { name: 'Note' }).fill('Brief, renamed');
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  const path = `/entries?from=${week.day(0)}&to=${week.day(1)}`;
+  await expect.poll(async () => (await api.get(path)).entries[0].note).toBe('Brief, renamed');
+  const { entries } = await api.get(path);
+  expect(entries[0].id).toBe(brief.id);
+  expect([instant(entries[0].startedAt), instant(entries[0].endedAt)]).toEqual([instant(start), instant(end)]);
+});
+
+test('a clock running since an earlier day stops on the day chosen', async ({ me }) => {
+  const { page, api } = me;
+  const now = DateTime.now().setZone(ZONE);
+  const stop = now.minus({ minutes: 5 }).startOf('minute');
+  test.skip(stop.toISODate() !== now.toISODate(), 'too soon after midnight to stop the clock earlier today');
+  const running = await api.clockInAgo('Acme / Platform', 50 * 60, 'Forgotten');
+  await page.goto('/');
+  // By the keyboard: soon after midnight today's block is too short to click.
+  await page
+    .getByRole('button', { name: /^Edit Forgotten/ })
+    .last()
+    .press('Enter');
+  const edit = dialog(page, 'Edit time');
+  const endDay = edit.getByLabel('End day');
+  // Still running, it has no end, so no day to end on.
+  await expect(endDay).toHaveCount(0);
+  await edit.getByLabel(/^End \(/).fill(stop.toFormat('HH:mm'));
+  await expect(endDay).toBeVisible();
+  await endDay.fill(now.toISODate() as string);
+  await edit.getByRole('button', { name: 'Save' }).click();
+  await expect(edit).toBeHidden();
+  await expect.poll(async () => (await api.get('/me')).running).toBeUndefined();
+  const { entries } = await api.get(RECENT());
+  const stopped = entries.find((e: { id: string }) => e.id === running.id);
+  expect(instant(stopped.endedAt)).toBe(stop.toMillis());
+  expect(instant(stopped.startedAt)).toBe(instant(running.startedAt));
+});
+
+test('time that runs past midnight counts on each day and in each week it is in', async ({ me }) => {
+  const { page, api } = me;
+  const week = lastWeek();
+  const monday = DateTime.fromISO(week.day(0), { zone: ZONE });
+  const iso = (t: DateTime) => t.toISO() as string;
+  // From the Sunday before into Monday, and Sunday's last hour, up to the midnight the next week starts on.
+  await api.entry('Acme / Platform', iso(monday.minus({ hours: 2 })), iso(monday.plus({ hours: 2 })), 'Across weeks');
+  await api.entry(
+    'Acme / Platform',
+    iso(monday.plus({ days: 7, hours: -1 })),
+    iso(monday.plus({ days: 7 })),
+    'Last hour',
+  );
+  const total = page.getByText('Week total').locator('..');
+  const days = page.getByRole('main').locator('section');
+
+  await page.goto(`/?day=${week.day(0)}`);
+  await expect(dayTotal(page, /^Monday/)).toContainText('2h 0m');
+  await expect(dayTotal(page, /^Sunday/)).toContainText('1h 0m');
+  await expect(total).toContainText('3h 0m');
+  await page.getByRole('button', { name: 'List' }).click();
+  await expect(days).toHaveCount(2);
+  await expect(days.last().locator('h3')).toContainText('Monday');
+  await expect(days.last()).toContainText('2h 0m');
+  await expect(days.last().getByRole('listitem')).toContainText('12:00 AM – 2:00 AM');
+  await expect(total).toContainText('3h 0m');
+
+  // The week before has its two hours of the first, and the week after has neither.
+  await page.goto(`/?day=${iso(monday.minus({ days: 1 })).slice(0, 10)}&view=list`);
+  await expect(days).toHaveCount(1);
+  await expect(days.getByRole('listitem')).toContainText('10:00 PM – 12:00 AM');
+  await expect(days.getByRole('listitem')).toContainText('2h 0m');
+  await expect(total).toContainText('2h 0m');
+  await page.goto('/?view=list');
+  await expect(page.getByText('Nothing recorded this week.')).toBeVisible();
+  await expect(total).toContainText('0h 0m');
 });
 
 test('duplicating time preserves its details and can put the copy on another day', async ({ me }) => {

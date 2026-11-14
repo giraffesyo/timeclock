@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/parallelworks/foundation/pgdb/pgdbtest"
 	"github.com/parallelworks/foundation/problem"
 
@@ -362,6 +363,38 @@ func TestOwnTimezoneCutsTheDay(t *testing.T) {
 	rows, err := f.HoursByDayAndProject(ctx, ada, day(t, "2026-10-01"), day(t, "2026-10-02"), true)
 	if err != nil || len(rows) != 1 || rows[0].Day != day(t, "2026-10-01") {
 		t.Errorf("hours by day = %+v, %v", rows, err)
+	}
+}
+
+func TestEntriesAreOnTheDaysTheirTimeIsOn(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.RequireProject = false })
+	ctx := t.Context()
+
+	// One ends at Thursday's midnight, and one runs past it into Friday.
+	untilMidnight := f.work(f.ada, "2026-09-30 22:00", "2026-10-01 00:00")
+	pastMidnight := f.work(f.ada, "2026-10-01 23:00", "2026-10-02 01:00")
+	on := func(date string) []uuid.UUID {
+		t.Helper()
+		entries, err := f.Entries(ctx, f.ada, "", day(t, date), day(t, date))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]uuid.UUID, 0, len(entries))
+		for _, e := range entries {
+			ids = append(ids, e.ID)
+		}
+		return ids
+	}
+	for date, want := range map[string][]uuid.UUID{
+		"2026-09-30": {untilMidnight.ID},
+		"2026-10-01": {pastMidnight.ID},
+		"2026-10-02": {pastMidnight.ID},
+		"2026-10-03": {},
+	} {
+		if got := on(date); !slices.Equal(got, want) {
+			t.Errorf("entries on %s = %v, want %v", date, got, want)
+		}
 	}
 }
 
