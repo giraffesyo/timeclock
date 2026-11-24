@@ -1,6 +1,7 @@
 {
   "title": "Timer",
   "today": "Today",
+  "daysOff": "Days off",
   "weekTotal": "Week total",
   "empty": "Nothing recorded this week. Start the clock, or add time by hand.",
   "loadFailed": "Couldn’t load this week’s time.",
