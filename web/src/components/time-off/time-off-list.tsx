@@ -10,8 +10,8 @@ import { type TimeOff, useCancelTimeOff } from '@/lib/queries';
 import { decimalHours } from '@/lib/time';
 import { groupRuns, type Run, useDayLabel, useHoursText } from './runs';
 
-/** Days belong to one run when they'd read the same: type, status and both notes. */
-const alike = (t: TimeOff) => [t.typeId, t.status, t.note, t.decisionNote ?? ''].join('\u0000');
+/** Days belong to one run when they'd read the same: type, status, who decided, and both notes. */
+const alike = (t: TimeOff) => [t.typeId, t.status, t.decidedBy ?? '', t.note, t.decisionNote ?? ''].join('\u0000');
 
 /**
  * The caller's time off as runs of consecutive days. A run states its type,
@@ -59,7 +59,7 @@ export function TimeOffList({ items, newestFirst }: { items: TimeOff[]; newestFi
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="tabular text-sm font-medium sm:min-w-52">{label.range(first.day, run.last.day)}</span>
           <span className="text-sm">{first.typeName}</span>
-          <TimeOffStatus status={first.status} />
+          <TimeOffStatus item={first} />
           {multi && <span className="text-sm text-muted-foreground">{t('days', { count: run.days.length })}</span>}
           <span className="tabular ml-auto text-sm font-medium">{tc('hours', { hours: decimalHours(run.hours) })}</span>
           {!multi && removeButton(first)}

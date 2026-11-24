@@ -7,7 +7,14 @@ import { Empty, ErrorNote, Loading, Page, Panel, Refreshing } from '@/components
 import { PeriodNav, usePeriod, usePeriodLabel } from '@/components/period-nav';
 import { PendingTimeOff, pendingRuns } from '@/components/team/pending-time-off';
 import { TeamTable, useTeamView } from '@/components/team/team-table';
-import { type PeriodSummary, type Person, usePendingTimeOff, usePeople, useTeam } from '@/lib/queries';
+import {
+  type PeriodSummary,
+  type Person,
+  usePendingTimeOff,
+  usePeople,
+  useTeam,
+  useUnapprovedTimeOff,
+} from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, dayToDate } from '@/lib/time';
 
@@ -58,11 +65,12 @@ function Approvals() {
   const t = useTranslations('team');
   const format = useFormatter();
   const periodLabel = usePeriodLabel();
-  const { person: me, admin, today } = useSession();
+  const { person: me, admin, today, settings } = useSession();
   const { day } = Route.useSearch();
   const navigate = Route.useNavigate();
   const team = useTeam(day, true, true);
   const pending = usePendingTimeOff();
+  const unapproved = useUnapprovedTimeOff();
   const people = usePeople();
   const view = useTeamView();
 
@@ -85,6 +93,9 @@ function Approvals() {
     list.filter((m) => m.person.submitsTimesheets && (!m.timesheet || m.timesheet.status === 'rejected')).length;
 
   const runs = pendingRuns(pending.data ?? []);
+  const recordedRuns = pendingRuns(unapproved.data ?? []);
+  // Where time off needs approval, what waits is what matters; what was recorded before that shows only if there is some.
+  const showRecorded = !settings.approveTimeOff || recordedRuns.length > 0;
   // Everyone the page names: the directory where the caller may read it, and the team either way.
   const directory = new Map<string, Person>();
   for (const p of people.data ?? []) directory.set(p.id, p);
@@ -137,17 +148,34 @@ function Approvals() {
           )}
         </Panel>
 
-        <Panel flush title={t('timeOff.title')}>
-          {pending.isError ? (
-            <ErrorNote className="m-4" context={t('timeOff.loadFailed')} error={pending.error} />
-          ) : pending.isPending ? (
-            <Loading />
-          ) : runs.length === 0 ? (
-            <Empty>{t('timeOff.empty')}</Empty>
-          ) : (
-            <PendingTimeOff runs={runs} people={everyone} />
-          )}
-        </Panel>
+        {(settings.approveTimeOff || runs.length > 0) && (
+          <Panel flush title={t('timeOff.title')}>
+            {pending.isError ? (
+              <ErrorNote className="m-4" context={t('timeOff.loadFailed')} error={pending.error} />
+            ) : pending.isPending ? (
+              <Loading />
+            ) : runs.length === 0 ? (
+              <Empty>{t('timeOff.empty')}</Empty>
+            ) : (
+              <PendingTimeOff runs={runs} people={everyone} />
+            )}
+          </Panel>
+        )}
+
+        {showRecorded && (
+          <Panel flush title={t('recorded.title')}>
+            <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{t('recorded.hint')}</p>
+            {unapproved.isError ? (
+              <ErrorNote className="m-4" context={t('recorded.loadFailed')} error={unapproved.error} />
+            ) : unapproved.isPending ? (
+              <Loading />
+            ) : recordedRuns.length === 0 ? (
+              <Empty>{t('recorded.empty')}</Empty>
+            ) : (
+              <PendingTimeOff runs={recordedRuns} people={everyone} approveOnly />
+            )}
+          </Panel>
+        )}
 
         <Panel
           flush

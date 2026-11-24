@@ -119,8 +119,8 @@ func TestTogglAwayApprovalLocksAndConflicts(t *testing.T) {
 	f.settings(func(s *Settings) { s.ApproveTimeOff = false })
 	awayEntry(f, fake, 201, togglSick, "2026-10-02 08:00", "2026-10-02 12:00")
 	requireSync(t, f, b)
-	if s := adaTimeOff(t, f)["2026-10-02 sick"]; s.Status != StatusApproved || s.DecidedBy != "integration:toggl" {
-		t.Fatalf("without approval, time off is approved by the integration: %+v", s)
+	if s := adaTimeOff(t, f)["2026-10-02 sick"]; s.Status != StatusApproved || s.DecidedBy != "" || s.TypeName != "Sick" {
+		t.Fatalf("without approval, time off counts at once, approved by no one: %+v", s)
 	}
 
 	// A submitted timesheet holds its days: the change waits as an issue.

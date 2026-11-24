@@ -56,7 +56,7 @@
       "timesheetsOff": "Off: a submitted timesheet is final at once, with no one reviewing it.",
       "timeOff": "Time off needs approval",
       "timeOffOn": "Time off waits for the person’s manager or an admin before it counts.",
-      "timeOffOff": "Off: time off is recorded at once and counts toward payroll without review."
+      "timeOffOff": "Off: time off is recorded at once and counts toward payroll without review. Managers can still approve it from Team."
     },
     "holidayPay": {
       "title": "Holiday pay",

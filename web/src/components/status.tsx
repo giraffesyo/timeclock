@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useTranslations } from 'use-intl';
 import { TOOLTIP_ID } from '@/components/tooltip';
 import { cn } from '@/lib/cn';
-import type { Timesheet } from '@/lib/queries';
+import type { TimeOff, Timesheet } from '@/lib/queries';
 
 const chip = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap';
 
@@ -101,13 +101,20 @@ export function SheetStatus({
   );
 }
 
-export function TimeOffStatus({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
+/**
+ * Where time off stands. Time off recorded where no approval is needed has
+ * nothing to say, until someone approves it anyway; approved, it names who.
+ */
+export function TimeOffStatus({ item }: { item: Pick<TimeOff, 'status' | 'decidedBy' | 'decidedByName'> }) {
   const t = useTranslations('common.timeOffStatus');
   const hint = useTranslations('common.timeOffStatusHint');
+  const { status } = item;
+  if (status === 'approved' && !item.decidedBy) return null;
   const tone: Tone = status === 'approved' ? 'success' : status === 'pending' ? 'warning' : 'danger';
+  const name = item.decidedByName || item.decidedBy || '';
   return (
     <Chip tone={tone} hint={hint(status)}>
-      {t(status)}
+      {status === 'pending' ? t('pending') : t(status === 'approved' ? 'approvedBy' : 'rejectedBy', { name })}
     </Chip>
   );
 }

@@ -16,8 +16,8 @@
   },
   "timeOffStatus": {
     "pending": "Pending",
-    "approved": "Approved",
-    "rejected": "Rejected"
+    "approvedBy": "Approved by {name}",
+    "rejectedBy": "Rejected by {name}"
   },
   "paysAs": {
     "vacation": "PTO",
@@ -57,7 +57,7 @@
   },
   "timeOffStatusHint": {
     "pending": "Waiting for a manager or an admin to approve it. Not paid until then.",
-    "approved": "Approved: it’s paid with the pay period it falls in.",
+    "approved": "Approved: it’s paid with the pay period it falls in. Where no approval is needed, it’s paid either way.",
     "rejected": "Rejected: it isn’t paid."
   },
   "search": {

@@ -47,15 +47,23 @@
     "reject": "Reject",
     "rejectAll": "Reject all {count} days",
     "byDay": "Decide day by day",
+    "approveByDay": "Approve day by day",
     "together": "Decide together",
     "approveLabel": "Approve {name}’s {kind} on {days}",
     "rejectLabel": "Reject {name}’s {kind} on {days}",
     "approveTitle": "Approve {name}’s time off?",
     "rejectTitle": "Reject {name}’s time off?",
     "description": "{kind}, {days}: {count, plural, one {# day} other {# days}}, {total} h.",
+    "descriptionRecorded": "{kind}, {days}: {count, plural, one {# day} other {# days}}, {total} h. It needed no approval and already counts; approving it notes that you did.",
     "failed": "Couldn’t record the decision.",
     "partial": "{done} of {total} days were decided. These weren’t:",
     "retry": "Try {count, plural, one {# day} other {# days}} again"
+  },
+  "recorded": {
+    "title": "Recorded without approval",
+    "hint": "Time off doesn’t need approval here, so this already counts. Approve it to show you’ve seen it; nothing waits on it.",
+    "loadFailed": "Couldn’t load the recorded time off.",
+    "empty": "Nothing recorded in the last month or coming up that you haven’t approved."
   },
   "note": {
     "optional": "Note (optional)",

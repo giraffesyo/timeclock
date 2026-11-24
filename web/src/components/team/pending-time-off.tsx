@@ -33,14 +33,18 @@ interface Target {
 /**
  * Time off waiting for the caller's decision. Each day is its own record;
  * a run of them is decided together, or day by day when only some can go.
+ * Time off that needed no approval is offered for approving only: it
+ * already counts, so there is nothing to reject.
  */
 export function PendingTimeOff({
   runs,
   people,
+  approveOnly,
 }: {
   runs: Run[];
   /** Everyone the requests can name, with their profiles. */
   people: Person[];
+  approveOnly?: boolean;
 }) {
   const t = useTranslations('team.timeOff');
   const tn = useTranslations('team.note');
@@ -75,12 +79,19 @@ export function PendingTimeOff({
     const context = { name, kind: run.first.typeName, days: label.range(run.first.day, run.last.day) };
     return (
       <>
-        <Button size="sm" variant="primary" aria-label={t('approveLabel', context)} onClick={() => ask(run, true)}>
+        <Button
+          size="sm"
+          variant={approveOnly ? 'outline' : 'primary'}
+          aria-label={t('approveLabel', context)}
+          onClick={() => ask(run, true)}
+        >
           {count > 1 ? t('approveAll', { count }) : t('approve')}
         </Button>
-        <Button size="sm" variant="danger" aria-label={t('rejectLabel', context)} onClick={() => ask(run, false)}>
-          {count > 1 ? t('rejectAll', { count }) : t('reject')}
-        </Button>
+        {!approveOnly && (
+          <Button size="sm" variant="danger" aria-label={t('rejectLabel', context)} onClick={() => ask(run, false)}>
+            {count > 1 ? t('rejectAll', { count }) : t('reject')}
+          </Button>
+        )}
       </>
     );
   };
@@ -110,7 +121,7 @@ export function PendingTimeOff({
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
                   {multi && (
                     <Button size="sm" variant="ghost" aria-expanded={byDay} onClick={() => toggle(run.id)}>
-                      {byDay ? t('together') : t('byDay')}
+                      {byDay ? t('together') : approveOnly ? t('approveByDay') : t('byDay')}
                     </Button>
                   )}
                   {!byDay && actions(run, name)}
@@ -140,7 +151,7 @@ export function PendingTimeOff({
         title={target ? t(target.approve ? 'approveTitle' : 'rejectTitle', { name: target.name }) : ''}
         description={
           target
-            ? t('description', {
+            ? t(approveOnly ? 'descriptionRecorded' : 'description', {
                 kind: target.days[0]?.typeName ?? '',
                 days: target.range,
                 count: target.total,

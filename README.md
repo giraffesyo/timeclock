@@ -18,7 +18,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Overtime.** Time beyond a weekly threshold is overtime, counted per workweek on the day it was worked, so a week that straddles two pay periods puts its overtime in the right one. People can be marked exempt.
 - **Time off.** Hours off are recorded per day and reported per pay period, as the types each workspace defines (Vacation and Sick to start; add Health day, Bereavement or anything else). An admin sets whether each type is paid as PTO or as sick time, which is fixed once it is used. Time off and company holidays show on the week calendar. Balances stay in the payroll system.
 - **Timesheets.** Each period a person submits their timesheet, which locks that period's time. A manager or admin can send it back.
-- **Approvals.** Timesheets and time off can each need approval, from the person's manager or an admin, or not. Nobody approves their own.
+- **Approvals.** Timesheets and time off can each need approval, from the person's manager or an admin, or not. Time off that needs no approval counts at once; a manager may still approve it, which records who did. Nobody approves their own.
 - **Exceptions.** What payroll should look at before paying: a clock left running, a very long entry, a timesheet not submitted or not approved, pending time off, overtime, a period with nothing recorded.
 - **Reports.** Hours per person per pay period, exported as a CSV for Gusto's hours import, and hours by customer, project and person.
 - **Audit log.** Every change to payroll data, with who made it.

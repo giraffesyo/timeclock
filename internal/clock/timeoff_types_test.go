@@ -109,3 +109,59 @@ func TestTimeOffTypes(t *testing.T) {
 	_, err = f.SaveTimeOffType(ctx, f.admin, later.ID, TimeOffTypeInput{Name: "Unwell", PaysAs: Sick, Archived: true})
 	wantProblem(t, err, "validation")
 }
+
+// Where no approval is needed, time off counts at once and names no one as
+// approving it; a manager may still approve it, which names them, but not
+// reject it.
+func TestOptionalTimeOffApproval(t *testing.T) {
+	f := newFixture(t)
+	f.settings(func(s *Settings) { s.ApproveTimeOff = false })
+	ctx := t.Context()
+
+	off, err := f.RequestTimeOff(ctx, f.ada, TimeOffInput{Kind: Vacation, From: day(t, "2026-10-05"), To: day(t, "2026-10-06"), Hours: 8})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off[0].Status != StatusApproved || off[0].DecidedBy != "" || off[0].DecidedAt != nil {
+		t.Fatalf("recorded %+v, want approved by no one", off[0])
+	}
+	if pending, _ := f.PendingTimeOff(ctx, f.boss); len(pending) != 0 {
+		t.Errorf("boss has %d waiting, want none", len(pending))
+	}
+	unapproved, err := f.UnapprovedTimeOff(ctx, f.boss)
+	if err != nil || len(unapproved) != 2 || unapproved[0].TypeName != "Vacation" {
+		t.Fatalf("boss may approve %+v (%v), want ada's 2 days", unapproved, err)
+	}
+	if mine, _ := f.UnapprovedTimeOff(ctx, f.ada); len(mine) != 0 {
+		t.Errorf("ada may approve %d of her own, want none", len(mine))
+	}
+
+	_, err = f.DecideTimeOff(ctx, f.boss, off[0].ID, false, "no")
+	wantProblem(t, err, "not_awaiting_decision")
+	_, err = f.DecideTimeOff(ctx, f.ada, off[0].ID, true, "")
+	wantProblem(t, err, "own_approval")
+	approved, err := f.DecideTimeOff(ctx, f.boss, off[0].ID, true, "enjoy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approved.Status != StatusApproved || approved.DecidedBy != f.boss.ID || approved.DecidedByName != "Bo Boss" || approved.DecisionNote != "enjoy" {
+		t.Fatalf("approved %+v", approved)
+	}
+	_, err = f.DecideTimeOff(ctx, f.boss, off[0].ID, true, "")
+	wantProblem(t, err, "not_awaiting_decision")
+	if left, _ := f.UnapprovedTimeOff(ctx, f.boss); len(left) != 1 || left[0].ID != off[1].ID {
+		t.Errorf("left to approve %+v, want the second day", left)
+	}
+
+	// Approving changes nothing payroll pays.
+	sum, err := f.Summary(ctx, f.ada, "", day(t, "2026-10-05"))
+	if err != nil || sum.Vacation != 16 || sum.PendingTimeOff != 0 {
+		t.Errorf("summary vacation %v pending %v (%v), want 16 and 0", sum.Vacation, sum.PendingTimeOff, err)
+	}
+
+	// Long past, it's no longer offered for approving.
+	f.at("2026-11-20 09:00")
+	if left, _ := f.UnapprovedTimeOff(ctx, f.boss); len(left) != 0 {
+		t.Errorf("a month on, %d still offered for approving", len(left))
+	}
+}
