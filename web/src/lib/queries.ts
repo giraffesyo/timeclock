@@ -13,6 +13,8 @@ export type Entry = Schemas['Entry'];
 export type EntryInput = Schemas['EntryInput'];
 export type TimeOff = Schemas['TimeOff'];
 export type TimeOffInput = Schemas['TimeOffInput'];
+export type TimeOffType = Schemas['TimeOffType'];
+export type TimeOffTypeInput = Schemas['TimeOffTypeInput'];
 export type FeedContents = Schemas['FeedContents'];
 export type Timesheet = Schemas['Timesheet'];
 export type PeriodSummary = Schemas['PeriodSummary'];
@@ -118,6 +120,14 @@ export function usePendingTimeOff(enabled = true) {
     queryKey: ['time-off', 'pending'],
     queryFn: async () => unwrap(await api.GET('/api/v1/time-off/pending')).timeOff ?? [],
     enabled,
+  });
+}
+
+/** The kinds of time off the workspace offers, in its order, archived ones too. */
+export function useTimeOffTypes() {
+  return useQuery({
+    queryKey: ['time-off-types'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/time-off-types')).types ?? [],
   });
 }
 
@@ -365,6 +375,15 @@ export function useSaveHoliday() {
     id
       ? unwrap(await api.PUT('/api/v1/holidays/{id}', { params: { path: { id } }, body }))
       : unwrap(await api.POST('/api/v1/holidays', { body })),
+  );
+}
+
+/** Adds a time off type, or with an id renames, archives or restores one. */
+export function useSaveTimeOffType() {
+  return useWrite(async ({ id, ...body }: TimeOffTypeInput & { id?: string }) =>
+    id
+      ? unwrap(await api.PUT('/api/v1/time-off-types/{id}', { params: { path: { id } }, body }))
+      : unwrap(await api.POST('/api/v1/time-off-types', { body })),
   );
 }
 

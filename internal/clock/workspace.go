@@ -113,8 +113,10 @@ func (s *Service) EnsureWorkspace(ctx context.Context, key string) (Workspace, e
 		if tag.RowsAffected() == 0 { // someone else made it just now
 			return tx.QueryRow(ctx, `SELECT id, key, name FROM workspaces WHERE key = $1`, key).Scan(&w.ID, &w.Key, &w.Name)
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO settings (workspace_id) VALUES ($1)`, w.ID)
-		return err
+		if _, err = tx.Exec(ctx, `INSERT INTO settings (workspace_id) VALUES ($1)`, w.ID); err != nil {
+			return err
+		}
+		return seedTimeOffTypes(ctx, tx, w.ID)
 	})
 	if err != nil {
 		return Workspace{}, fmt.Errorf("ensure workspace %q: %w", key, err)

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const timeOffColumns = `id, person_id, kind, day, hours::float8, note, status, decided_by, decided_at, decision_note`
+const timeOffColumns = `id, person_id, type_id, kind, day, hours::float8, note, status, decided_by, decided_at, decision_note`
 
 // timeOffLocked is whether a time_off row (aliased o) is in a submitted or
 // approved timesheet.
@@ -21,7 +21,7 @@ const timeOffLocked = `EXISTS (SELECT 1 FROM timesheets t WHERE t.workspace_id =
 func scanTimeOff(row pgx.Row) (TimeOff, error) {
 	var t TimeOff
 	var day time.Time
-	err := row.Scan(&t.ID, &t.PersonID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote)
+	err := row.Scan(&t.ID, &t.PersonID, &t.TypeID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote)
 	t.Day = DateFromTime(day)
 	return t, err
 }
@@ -30,13 +30,16 @@ func scanTimeOff(row pgx.Row) (TimeOff, error) {
 func scanTimeOffListed(row pgx.CollectableRow) (TimeOff, error) {
 	var t TimeOff
 	var day time.Time
-	err := row.Scan(&t.ID, &t.PersonID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote, &t.Locked)
+	err := row.Scan(&t.ID, &t.PersonID, &t.TypeID, &t.Kind, &day, &t.Hours, &t.Note, &t.Status, &t.DecidedBy, &t.DecidedAt, &t.DecisionNote, &t.Locked)
 	t.Day = DateFromTime(day)
 	return t, err
 }
 
-// nameDeciders fills in who decided each one, by name.
-func nameDeciders(ctx context.Context, q querier, list []TimeOff) error {
+// describe fills in each one's type name and who decided it, by name.
+func describe(ctx context.Context, q querier, list []TimeOff) error {
+	if err := nameTypes(ctx, q, list); err != nil {
+		return err
+	}
 	var ids []string
 	for _, t := range list {
 		if t.DecidedBy != "" {
@@ -72,7 +75,7 @@ func timeOff(ctx context.Context, q querier, personID string, from, to Date) ([]
 	if err != nil {
 		return nil, fmt.Errorf("list time off: %w", err)
 	}
-	return out, nameDeciders(ctx, q, out)
+	return out, describe(ctx, q, out)
 }
 
 // PendingTimeOff lists the time off waiting for actor's decision: their
@@ -89,7 +92,7 @@ func (s *Service) PendingTimeOff(ctx context.Context, actor Actor) ([]TimeOff, e
 	if err != nil {
 		return nil, fmt.Errorf("list pending time off: %w", err)
 	}
-	return out, nil
+	return out, nameTypes(ctx, s.pool, out)
 }
 
 // prefixed qualifies a column list with a table alias.
@@ -103,13 +106,14 @@ func prefixed(alias, columns string) string {
 
 // TimeOffInput is a request for time off on a run of days.
 type TimeOffInput struct {
-	PersonID string  `json:"personId,omitempty" doc:"Whose time off. Defaults to the caller; a manager or admin can record it for someone else."`
-	Kind     string  `json:"kind" enum:"vacation,sick"`
-	From     Date    `json:"from" format:"date"`
-	To       Date    `json:"to" format:"date" doc:"The last day off; the same as from for one day."`
-	Hours    float64 `json:"hours" exclusiveMinimum:"0" maximum:"24" doc:"Hours off on each day."`
-	Weekends bool    `json:"weekends,omitempty" doc:"Include Saturdays and Sundays in the run."`
-	Note     string  `json:"note,omitempty" maxLength:"2000"`
+	PersonID string    `json:"personId,omitempty" doc:"Whose time off. Defaults to the caller; a manager or admin can record it for someone else."`
+	TypeID   uuid.UUID `json:"typeId,omitempty" doc:"Its type, one the workspace still offers. Required unless kind is given."`
+	Kind     string    `json:"kind,omitempty" enum:"vacation,sick" doc:"Instead of typeId: how it's paid, which records it as the first type offered that's paid that way."`
+	From     Date      `json:"from" format:"date"`
+	To       Date      `json:"to" format:"date" doc:"The last day off; the same as from for one day."`
+	Hours    float64   `json:"hours" exclusiveMinimum:"0" maximum:"24" doc:"Hours off on each day."`
+	Weekends bool      `json:"weekends,omitempty" doc:"Include Saturdays and Sundays in the run."`
+	Note     string    `json:"note,omitempty" maxLength:"2000"`
 }
 
 // maxTimeOffDays bounds one request, so a mistyped year can't write
@@ -136,6 +140,13 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 		if err != nil {
 			return err
 		}
+		typ, err := typeFor(ctx, tx, in.TypeID, in.Kind)
+		if err != nil {
+			return err
+		}
+		if typ.Archived {
+			return invalidField("typeId", typ.Name+" is no longer offered")
+		}
 		status := StatusApproved
 		if cfg.ApproveTimeOff {
 			status = StatusPending
@@ -147,15 +158,16 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 			if err := dayLocked(ctx, tx, p.ID, d); err != nil {
 				return err
 			}
-			t, err := scanTimeOff(tx.QueryRow(ctx, `INSERT INTO time_off (id, workspace_id, person_id, kind, day, hours, note, status)
-				VALUES ($1, $W, $2, $3, $4, $5, $6, $7) RETURNING `+timeOffColumns,
-				newID(), p.ID, in.Kind, d.Time(), in.Hours, strings.TrimSpace(in.Note), status))
+			t, err := scanTimeOff(tx.QueryRow(ctx, `INSERT INTO time_off (id, workspace_id, person_id, type_id, kind, day, hours, note, status)
+				VALUES ($1, $W, $2, $3, $4, $5, $6, $7, $8) RETURNING `+timeOffColumns,
+				newID(), p.ID, typ.ID, typ.PaysAs, d.Time(), in.Hours, strings.TrimSpace(in.Note), status))
 			if isUniqueViolation(err) {
-				return ErrOverlap.Newf("%s time off is already recorded on %s", in.Kind, d)
+				return ErrOverlap.Newf("%s is already recorded on %s", typ.Name, d)
 			}
 			if err != nil {
 				return fmt.Errorf("record time off: %w", err)
 			}
+			t.TypeName = typ.Name
 			out = append(out, t)
 		}
 		if len(out) == 0 {
@@ -205,7 +217,11 @@ func (s *Service) CancelTimeOff(ctx context.Context, actor Actor, id uuid.UUID) 
 		if _, err := tx.Exec(ctx, `DELETE FROM time_off WHERE id = $1 AND workspace_id = $W`, id); err != nil {
 			return fmt.Errorf("cancel time off: %w", err)
 		}
-		return audit(ctx, tx, actor, "time_off.cancel", t.PersonID, t)
+		gone := []TimeOff{t}
+		if err := nameTypes(ctx, tx, gone); err != nil {
+			return err
+		}
+		return audit(ctx, tx, actor, "time_off.cancel", t.PersonID, gone[0])
 	})
 }
 
@@ -231,6 +247,11 @@ func (s *Service) DecideTimeOff(ctx context.Context, actor Actor, id uuid.UUID, 
 		if err != nil {
 			return fmt.Errorf("decide time off: %w", err)
 		}
+		decided := []TimeOff{t}
+		if err := describe(ctx, tx, decided); err != nil {
+			return err
+		}
+		t = decided[0]
 		return audit(ctx, tx, actor, "time_off."+status, t.PersonID, t)
 	})
 	return t, err

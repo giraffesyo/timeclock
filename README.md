@@ -16,7 +16,7 @@ It is one Go module with its web app embedded. It runs two ways:
 - **Pay periods.** Weekly, biweekly, twice a month or monthly, set by an admin.
 - **Time zones.** The organization has one, and a person can have their own: their times show in it, and their days and workweeks start at its midnight. Pay periods are the same calendar dates for everyone.
 - **Overtime.** Time beyond a weekly threshold is overtime, counted per workweek on the day it was worked, so a week that straddles two pay periods puts its overtime in the right one. People can be marked exempt.
-- **Time off.** Vacation and sick hours are recorded per day and reported per pay period. Balances stay in the payroll system.
+- **Time off.** Hours off are recorded per day and reported per pay period, as the types each workspace defines (Vacation and Sick to start; add Health day, Bereavement or anything else). An admin sets whether each type is paid as PTO or as sick time, which is fixed once it is used. Balances stay in the payroll system.
 - **Timesheets.** Each period a person submits their timesheet, which locks that period's time. A manager or admin can send it back.
 - **Approvals.** Timesheets and time off can each need approval, from the person's manager or an admin, or not. Nobody approves their own.
 - **Exceptions.** What payroll should look at before paying: a clock left running, a very long entry, a timesheet not submitted or not approved, pending time off, overtime, a period with nothing recorded.
@@ -82,7 +82,7 @@ Where the host has no credentials for someone, they can connect their own calend
 
 ### Calendar feed
 
-In Settings → Calendar, each person can make a secret link to an iCalendar feed and choose what it shows; changing the choice keeps the link. **Company holidays** and **Who's out** (approved time off for everyone active in the workspace) are all-day events. Other people's time off says only that they are out; the subscriber's own says vacation or sick. **My tracked time**, off by default, adds the subscriber's own entries and planned time as timed events, titled by project, with the description as the event's; a running clock runs to the time of the fetch. **Add to Google Calendar** subscribes to it in one click, and any app that subscribes by URL can use it too. Timeclock keeps only a hash of the link, so the link is shown once. Making a new link retires the old one. The feed stops working when the person turns it off, is deactivated, or leaves the host's directory.
+In Settings → Calendar, each person can make a secret link to an iCalendar feed and choose what it shows; changing the choice keeps the link. **Company holidays** and **Who's out** (approved time off for everyone active in the workspace) are all-day events. Other people's time off says only that they are out; the subscriber's own says its type. **My tracked time**, off by default, adds the subscriber's own entries and planned time as timed events, titled by project, with the description as the event's; a running clock runs to the time of the fetch. **Add to Google Calendar** subscribes to it in one click, and any app that subscribes by URL can use it too. Timeclock keeps only a hash of the link, so the link is shown once. Making a new link retires the old one. The feed stops working when the person turns it off, is deactivated, or leaves the host's directory.
 
 Calendar apps fetch the feed signed out, so a host that refuses signed-out requests should let `<base path>/api/v1/calendar/feeds/` through. The secret in the path tells Timeclock whose feed it is and which workspace it belongs to; the request's own workspace is ignored. To reach Google, the feed has to be on a public HTTPS address.
 
@@ -232,7 +232,7 @@ In development the Go server proxies the web app from Vite, so open the Go serve
 
 ## The payroll export
 
-`GET /api/v1/reports/payroll.csv?day=<any day in the period>` has one row per person whose time is settled (their timesheet is approved, or submitted when timesheets need no approval), with the columns `last_name, first_name, gusto_employee_id, regular_hours, overtime_hours, double_overtime_hours, pto_hours, sick_hours`. `?all=true` includes everyone. Check the columns against the template Gusto gives your company before the first import; the column names are in `internal/api/reports.go`.
+`GET /api/v1/reports/payroll.csv?day=<any day in the period>` has one row per person whose time is settled (their timesheet is approved, or submitted when timesheets need no approval), with the columns `last_name, first_name, gusto_employee_id, regular_hours, overtime_hours, double_overtime_hours, holiday_hours, pto_hours, sick_hours`. Each time off type adds to `pto_hours` or `sick_hours`, as it is paid. `?all=true` includes everyone. Check the columns against the template Gusto gives your company before the first import; the column names are in `internal/api/reports.go`.
 
 ## Releasing
 

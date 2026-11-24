@@ -15,6 +15,7 @@
   "own_approval": "You can’t approve your own time. Your manager or an admin does.",
   "in_use": "It’s still in use, so it can’t be deleted. Archive it instead.",
   "name_taken": "That name is already used.",
+  "time_off_type_used": "Time off of this type is already recorded, so how it’s paid can’t change. Add a new type instead.",
   "manager_loop": "That would make someone their own manager.",
   "invalid_credentials": "That email and password don’t match.",
   "too_many_attempts": "Too many attempts. Wait a little, then try again.",

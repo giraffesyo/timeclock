@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -43,11 +44,12 @@ func checkFeedContents(c FeedContents) error {
 	return nil
 }
 
-// Absence is a day someone is out: approved vacation or sick time.
+// Absence is a day someone is out: time off that counts, of one type.
 type Absence struct {
 	PersonID   string
 	PersonName string
-	Kind       string
+	TypeID     uuid.UUID
+	TypeName   string
 	Day        Date
 	Hours      float64
 }
@@ -142,17 +144,18 @@ func (s *Service) CalendarFeedOwner(ctx context.Context, token string) (FeedOwne
 // Absences is everyone's approved time off on the days from..to, for those
 // still active, by day.
 func (s *Service) Absences(ctx context.Context, from, to Date) ([]Absence, error) {
-	rows, err := s.pool.Query(ctx, `SELECT o.person_id, p.name, o.kind, o.day, o.hours::float8 FROM time_off o
+	rows, err := s.pool.Query(ctx, `SELECT o.person_id, p.name, o.type_id, t.name, o.day, o.hours::float8 FROM time_off o
 		JOIN people p ON p.workspace_id = o.workspace_id AND p.id = o.person_id
+		JOIN time_off_types t ON t.workspace_id = o.workspace_id AND t.id = o.type_id
 		WHERE o.workspace_id = $W AND o.status = 'approved' AND p.active AND o.day BETWEEN $1 AND $2
-		ORDER BY o.person_id, o.kind, o.day`, from.Time(), to.Time())
+		ORDER BY o.person_id, t.position, t.created_at, o.day`, from.Time(), to.Time())
 	if err != nil {
 		return nil, fmt.Errorf("list absences: %w", err)
 	}
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Absence, error) {
 		var a Absence
 		var day time.Time
-		err := row.Scan(&a.PersonID, &a.PersonName, &a.Kind, &day, &a.Hours)
+		err := row.Scan(&a.PersonID, &a.PersonName, &a.TypeID, &a.TypeName, &day, &a.Hours)
 		a.Day = DateFromTime(day)
 		return a, err
 	})

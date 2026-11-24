@@ -45,10 +45,10 @@
     "matchHint": "Review the email matches below. Only matched people sync; employees do not need to connect their accounts. Existing matches cannot be reassigned while connected.",
     "doNotSync": "Do not sync this person",
     "noPeople": "No Toggl users were found.",
-    "roles": "Holiday, vacation and sick projects",
-    "rolesHint": "Entries on these projects aren’t work. From the day you choose a project, its holiday entries are left out (company holidays pay that time), and vacation and sick entries become time off, waiting for approval when time off needs it. Time off is never sent to Toggl. Earlier entries keep syncing as work.",
+    "roles": "Holiday, PTO and sick projects",
+    "rolesHint": "Entries on these projects aren’t work. From the day you choose a project, its holiday entries are left out (company holidays pay that time), and PTO and sick entries become time off of the first type paid that way (Settings → Payroll), waiting for approval when time off needs it. Time off is never sent to Toggl. Earlier entries keep syncing as work.",
     "holidayProject": "Holiday project",
-    "vacationProject": "Vacation project",
+    "vacationProject": "PTO project",
     "sickProject": "Sick project",
     "noRole": "None",
     "roleFrom": "{name}, from {date}",
@@ -87,6 +87,6 @@
       "time_off_exists": "Timeclock already has time off of this kind on this day. Remove one of them; the Toggl entries sync once the day is clear.",
       "invalid_entry": "These Toggl entries add up to more than 24 hours on one day. Fix them in Toggl."
     },
-    "timeOffSummary": "{kind, select, vacation {Vacation} other {Sick}} · {hours} h · {day}"
+    "timeOffSummary": "{kind, select, vacation {PTO} other {Sick}} · {hours} h · {day}"
   }
 }

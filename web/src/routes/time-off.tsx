@@ -22,11 +22,11 @@ export const Route = createFileRoute('/time-off')({
   },
 });
 
-/** Hours of each kind, leaving out what was rejected: it wasn't taken. */
+/** Hours of each type, by name, leaving out what was rejected: it wasn't taken. */
 function totals(items: TimeOff[]) {
-  const sums = new Map<TimeOff['kind'], number>();
+  const sums = new Map<string, number>();
   for (const item of items) {
-    if (item.status !== 'rejected') sums.set(item.kind, (sums.get(item.kind) ?? 0) + item.hours);
+    if (item.status !== 'rejected') sums.set(item.typeName, (sums.get(item.typeName) ?? 0) + item.hours);
   }
   return [...sums].sort(([a], [b]) => a.localeCompare(b));
 }
@@ -106,9 +106,9 @@ function TimeOffPage() {
             <>
               {yearTotals.length > 0 && (
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border px-4 py-2.5 text-sm">
-                  {yearTotals.map(([kind, hours]) => (
-                    <div key={kind} className="flex gap-2">
-                      <dt className="text-muted-foreground">{tc(`kind.${kind}`)}</dt>
+                  {yearTotals.map(([name, hours]) => (
+                    <div key={name} className="flex gap-2">
+                      <dt className="text-muted-foreground">{name}</dt>
                       <dd className="tabular font-medium">{tc('hours', { hours: decimalHours(hours) })}</dd>
                     </div>
                   ))}

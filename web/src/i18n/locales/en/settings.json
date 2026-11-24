@@ -55,7 +55,7 @@
       "timesheetsOn": "A submitted timesheet waits for the person’s manager or an admin.",
       "timesheetsOff": "Off: a submitted timesheet is final at once, with no one reviewing it.",
       "timeOff": "Time off needs approval",
-      "timeOffOn": "Vacation and sick time wait for the person’s manager or an admin before they count.",
+      "timeOffOn": "Time off waits for the person’s manager or an admin before it counts.",
       "timeOffOff": "Off: time off is recorded at once and counts toward payroll without review."
     },
     "holidayPay": {
@@ -90,9 +90,32 @@
       "action": "Change pay periods"
     }
   },
+  "timeOffTypes": {
+    "title": "Time off types",
+    "hint": "The kinds of time off people choose from. Each is paid as PTO or as sick time, on timesheets and in the payroll export. An archived type isn’t offered for new time off; what was recorded keeps its name.",
+    "add": "Add type",
+    "addTitle": "Add a time off type",
+    "editTitle": "Edit {name}",
+    "name": "Name",
+    "namePlaceholder": "Health day",
+    "paysAs": "Paid as",
+    "paysAsHint": "Fixed once time off of this type is recorded, so pay already recorded never moves.",
+    "paysAsLocked": "Time off of this type is recorded, so this can’t change. Add a new type to pay it another way.",
+    "paidAs": "Paid as {kind}",
+    "archived": "Archived",
+    "edit": "Edit",
+    "editFor": "Edit {name}",
+    "archive": "Archive",
+    "archiveFor": "Archive {name}",
+    "restore": "Restore",
+    "restoreFor": "Restore {name}",
+    "saveFailed": "Couldn’t save the time off type.",
+    "archiveFailed": "Couldn’t change {name}.",
+    "loadFailed": "Couldn’t load the time off types."
+  },
   "holidays": {
     "title": "Company holidays",
-    "hint": "Each holiday pays its hours to everyone with holiday pay, as Holiday hours beside vacation and sick. Holiday hours are never overtime. Enter the days the company observes them.",
+    "hint": "Each holiday pays its hours to everyone with holiday pay, as Holiday hours beside PTO and sick time. Holiday hours are never overtime. Enter the days the company observes them.",
     "add": "Add holiday",
     "addTitle": "Add a holiday",
     "editTitle": "Edit holiday",
@@ -364,7 +387,9 @@
       "project_delete": "Deleted a project",
       "holiday_create": "Added a holiday",
       "holiday_update": "Changed a holiday",
-      "holiday_delete": "Deleted a holiday"
+      "holiday_delete": "Deleted a holiday",
+      "time_off_type_create": "Added a time off type",
+      "time_off_type_update": "Changed a time off type"
     }
   },
   "appearance": {

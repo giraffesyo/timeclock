@@ -8,6 +8,7 @@ import { ErrorNote, Panel } from '@/components/page';
 import { usePeriodLabel } from '@/components/period-nav';
 import { Holidays } from '@/components/settings/holidays';
 import { SwitchRow } from '@/components/settings/switch';
+import { TimeOffTypes } from '@/components/settings/time-off-types';
 import { ZoneSelect } from '@/components/zone-select';
 import { isDay, periodAfter, periodContaining, todayIn } from '@/lib/periods';
 import { type Settings, useSaveSettings } from '@/lib/queries';
@@ -299,7 +300,8 @@ export function PayrollSettings() {
           </span>
         </div>
       </form>
-      <div className="mt-4">
+      <div className="mt-4 space-y-4">
+        <TimeOffTypes />
         <Holidays />
       </div>
       <ConfirmModal

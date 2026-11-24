@@ -85,8 +85,8 @@ test('time off is requested, approved, and counted on the timesheet', async ({ m
   const week = lastWeek();
 
   await me.page.goto('/time-off');
-  // Vacation or sick: both in view, vacation first.
-  const kind = me.page.getByRole('group', { name: 'Kind' });
+  // The workspace's types, Vacation and Sick to start: both in view, Vacation first.
+  const kind = me.page.getByRole('group', { name: 'Type' });
   await expect(kind.getByRole('button', { name: 'Vacation' })).toHaveAttribute('aria-pressed', 'true');
   await expect(kind.getByRole('button', { name: 'Sick' })).toHaveAttribute('aria-pressed', 'false');
   await me.page.getByLabel('First day').fill(week.day(3));
@@ -134,7 +134,7 @@ test('everyone gets personal Settings, and only approvers get Team', async ({ me
 test('sick time is requested by choosing Sick', async ({ me }) => {
   const week = lastWeek();
   await me.page.goto('/time-off');
-  const kind = me.page.getByRole('group', { name: 'Kind' });
+  const kind = me.page.getByRole('group', { name: 'Type' });
   await kind.getByRole('button', { name: 'Sick' }).click();
   await expect(kind.getByRole('button', { name: 'Sick' })).toHaveAttribute('aria-pressed', 'true');
   await me.page.getByLabel('First day').fill(week.day(2));
