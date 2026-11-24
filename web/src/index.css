@@ -806,6 +806,17 @@
   .wk-off-mark-holiday {
     --mark: var(--holiday-hue);
   }
+  /* A day's hours off, under its date: apart from the time worked, in their hue. */
+  .wk-off-total {
+    --mark: var(--time-off-hue);
+    color: oklch(0.47 0.13 var(--mark));
+  }
+  .dark .wk-off-total {
+    color: oklch(0.8 0.1 var(--mark));
+  }
+  .wk-off-total-holiday {
+    --mark: var(--holiday-hue);
+  }
 
   .dayoff {
     --hue: var(--time-off-hue);

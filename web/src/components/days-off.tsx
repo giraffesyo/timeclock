@@ -10,14 +10,21 @@ import { useHoursText } from './time-off/runs';
 const FULL_DAY = 8;
 
 /** What takes someone away on a day: a company holiday, or their own time off. */
-export type DayOff = { kind: 'holiday'; key: string; name: string } | { kind: 'timeOff'; key: string; item: TimeOff };
+export type DayOff =
+  | { kind: 'holiday'; key: string; name: string; hours: number }
+  | { kind: 'timeOff'; key: string; item: TimeOff };
 
 export interface DaysOff {
   /** What's on each day, holidays first, then time off in the workspace's order of types. */
   on: (day: Day) => DayOff[];
   /** Away for the whole day: a holiday, or a full day of time off that counts. */
   out: (day: Day) => 'holiday' | 'timeOff' | null;
+  /** Hours away that count: a holiday's, and time off that's approved or needed no approval. */
+  hours: (day: Day) => number;
 }
+
+/** Whether time off counts: approved, or recorded where no approval is needed. */
+const counts = (d: DayOff) => d.kind === 'holiday' || d.item.status === 'approved';
 
 /**
  * A person's days off across some days: the company's holidays, and their
@@ -40,7 +47,8 @@ export function useDaysOff(days: Day[], personId?: string): DaysOff {
     else byDay.set(day, [item]);
   };
   for (const h of holidays.data ?? []) {
-    for (const d of h.days ?? []) add(d.day, { kind: 'holiday', key: `holiday-${h.id}-${d.day}`, name: h.name });
+    for (const d of h.days ?? [])
+      add(d.day, { kind: 'holiday', key: `holiday-${h.id}-${d.day}`, name: h.name, hours: d.hours });
   }
   const shown = (timeOff.data ?? [])
     .filter((t) => t.status !== 'rejected')
@@ -58,6 +66,14 @@ export function useDaysOff(days: Day[], personId?: string): DaysOff {
       if (counted >= FULL_DAY) return 'timeOff';
       return list.some((d) => d.kind === 'holiday') ? 'holiday' : null;
     },
+    hours: (day) =>
+      Math.min(
+        24,
+        (byDay.get(day) ?? []).reduce(
+          (sum, d) => (counts(d) ? sum + (d.kind === 'holiday' ? d.hours : d.item.hours) : sum),
+          0,
+        ),
+      ),
   };
 }
 
