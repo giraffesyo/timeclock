@@ -1,6 +1,7 @@
 import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { DayTimeline, type MovePreview } from '@/components/day-timeline';
+import { DayOffChip, useDaysOff } from '@/components/days-off';
 import { cn } from '@/lib/cn';
 import { type Entry, useCalendarEvents } from '@/lib/queries';
 import { useSession } from '@/lib/session';
@@ -13,8 +14,10 @@ import { useZone } from '@/lib/zone';
 /**
  * A workweek as seven day rulers side by side over the same hours, each with
  * its total. On a narrow screen one day shows at a time, picked from the
- * week's days above it. Where the host reads the caller's Google Calendar,
- * their own week has its events beside the time, to add from.
+ * week's days above it. Holidays and time off sit in a row under the days,
+ * and a day away for good is hatched across its hours. Where the host reads
+ * the caller's Google Calendar, their own week has its events beside the
+ * time, to add from.
  */
 export function WeekCalendar({
   week,
@@ -45,6 +48,7 @@ export function WeekCalendar({
   const now = useNow(30_000, hasToday);
   const calendar = useCalendarEvents(week[0] ?? today, week[6] ?? today, !!info.calendar && !personId);
   const events = calendar.data?.connected ? (calendar.data.events ?? []) : undefined;
+  const off = useDaysOff(week, personId);
 
   const days = week.map((day) => {
     const bounds = dayBounds(day, zone);
@@ -98,6 +102,8 @@ export function WeekCalendar({
 
   const shown = wide ? days : days.filter((d) => d.day === (picked ?? (hasToday ? today : week[0])));
   const total = (ms: number) => tc('duration', hoursMinutes(ms));
+  const longDate = (day: Day) => format.dateTime(dayToDate(day), { weekday: 'long', month: 'long', day: 'numeric' });
+  const anyOff = shown.some((d) => off.on(d.day).length > 0);
 
   return (
     <div className="wk">
@@ -132,11 +138,19 @@ export function WeekCalendar({
               </span>
             </>
           );
-          const label = t(d.planned > 0 ? 'dayTotalPlanned' : 'dayTotal', {
-            date: format.dateTime(date, { weekday: 'long', month: 'long', day: 'numeric' }),
+          const totals = t(d.planned > 0 ? 'dayTotalPlanned' : 'dayTotal', {
+            date: longDate(d.day),
             length: total(d.worked),
             planned: total(d.planned),
           });
+          const dayOff = off.on(d.day);
+          const label =
+            dayOff.length > 0
+              ? t('off.dayWithOff', {
+                  day: totals,
+                  off: dayOff.map((o) => (o.kind === 'holiday' ? o.name : o.item.typeName)).join(', '),
+                })
+              : totals;
           return wide ? (
             // biome-ignore lint/a11y/useSemanticElements: the head of a column of the calendar, not a table's
             <div
@@ -154,16 +168,40 @@ export function WeekCalendar({
               aria-label={label}
               aria-pressed={shown[0]?.day === d.day}
               className={cn(
-                'flex cursor-pointer flex-col items-center gap-0.5 py-2 [&>span:last-child]:items-center',
+                'relative flex cursor-pointer flex-col items-center gap-0.5 py-2 [&>span:nth-child(2)]:items-center',
                 shown[0]?.day === d.day && 'bg-muted',
               )}
               onClick={() => setPicked(d.day)}
             >
               {head}
+              <span
+                aria-hidden
+                className={cn(
+                  'wk-off-mark',
+                  off.on(d.day).length > 0 && 'wk-off-mark-on',
+                  off.on(d.day).every((o) => o.kind === 'holiday') && 'wk-off-mark-holiday',
+                )}
+              />
             </button>
           );
         })}
       </div>
+
+      {/* Holidays and time off: a row under the days, there when the days shown have any. */}
+      {anyOff && (
+        <div className={cn('wk-allday grid shrink-0 border-b border-border', wide ? 'wk-grid' : 'wk-one')}>
+          <span className="wk-allday-label" aria-hidden>
+            {t('off.row')}
+          </span>
+          {shown.map((d) => (
+            <ul key={d.day} className="wk-allday-day" aria-label={t('off.dayLabel', { date: longDate(d.day) })}>
+              {off.on(d.day).map((o) => (
+                <DayOffChip key={o.key} off={o} />
+              ))}
+            </ul>
+          ))}
+        </div>
+      )}
 
       {/* biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard users need to focus and scroll the hours. */}
       <section ref={scroll} className="wk-scroll" aria-label={t('hours')} tabIndex={0}>
@@ -182,6 +220,8 @@ export function WeekCalendar({
                 'min-w-0 border-l border-border',
                 d.day === today && 'bg-primary/[0.035]',
                 d.day > today && !planning && 'wk-future',
+                off.out(d.day) && 'wk-out',
+                off.out(d.day) === 'holiday' && 'wk-out-holiday',
               )}
             >
               <DayTimeline

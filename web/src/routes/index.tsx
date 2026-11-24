@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFormatter, useTranslations } from 'use-intl';
 import { Button, buttonClass } from '@/components/button';
 import { CalendarBanner } from '@/components/calendar-connect';
+import { DayOffChip, useDaysOff } from '@/components/days-off';
 import { EntryDialog } from '@/components/entry-dialog';
 import { EntryList } from '@/components/entry-list';
 import { Hours } from '@/components/hours';
@@ -43,7 +44,10 @@ export const Route = createFileRoute('/')({
   }),
 });
 
-/** The week's entries a day at a time, newest day first. One that runs past midnight is on each day it touches. */
+/**
+ * The week's entries a day at a time, newest day first, with any holiday or
+ * time off on the day. One that runs past midnight is on each day it touches.
+ */
 function WeekList({
   week,
   entries,
@@ -60,28 +64,38 @@ function WeekList({
   const format = useFormatter();
   const { today } = useSession();
   const zone = useZone(personId);
+  const off = useDaysOff(week, personId);
   const now = Date.now();
   const days = [...week]
     .reverse()
     .map((day) => {
       const bounds = dayBounds(day, zone);
-      return { day, bounds, entries: entries.filter((e) => within(entrySpan(e, now), bounds)) };
+      return { day, bounds, entries: entries.filter((e) => within(entrySpan(e, now), bounds)), off: off.on(day) };
     })
-    .filter((d) => d.entries.length > 0);
+    .filter((d) => d.entries.length > 0 || d.off.length > 0);
   if (days.length === 0) return <Empty>{t('empty')}</Empty>;
   return (
     <div className="divide-y divide-border">
       {days.map((d) => (
         <section key={d.day}>
-          <div className="flex items-baseline justify-between gap-3 bg-muted/60 px-4 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-muted/60 px-4 py-2">
             <h3 className="text-sm font-semibold">
               {d.day === today
                 ? t('today')
                 : format.dateTime(dayToDate(d.day), { weekday: 'long', month: 'short', day: 'numeric' })}
             </h3>
-            <DayHours entries={d.entries} bounds={d.bounds} />
+            {d.off.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5" aria-label={t('daysOff')}>
+                {d.off.map((o) => (
+                  <DayOffChip key={o.key} off={o} className="dayoff-inline" />
+                ))}
+              </ul>
+            )}
+            <span className="ml-auto">
+              <DayHours entries={d.entries} bounds={d.bounds} />
+            </span>
           </div>
-          <EntryList entries={d.entries} day={d.day} readOnly={locked} />
+          {d.entries.length > 0 && <EntryList entries={d.entries} day={d.day} readOnly={locked} />}
         </section>
       ))}
     </div>

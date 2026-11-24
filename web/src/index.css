@@ -47,6 +47,9 @@
 }
 
 :root {
+  /* Days off: time off and company holidays, apart from the states' hues. */
+  --time-off-hue: 300;
+  --holiday-hue: 200;
   --success: oklch(0.52 0.14 152);
   --success-subtle: oklch(0.955 0.035 152);
   --warning: oklch(0.52 0.108 78);
@@ -747,6 +750,122 @@
       transparent 0 7px,
       color-mix(in oklab, var(--color-border) 55%, transparent) 7px 8px
     );
+  }
+
+  /* Days off (components/days-off.tsx): a row of them under the day heads,
+   * and a day away for good hatched in their hue across its hours. Time off
+   * and holidays each keep a hue of their own, clear of the states'. */
+  .wk-allday {
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+  }
+  .wk-allday-label {
+    padding: 0.5rem 0.625rem 0 0;
+    text-align: right;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    color: var(--color-muted-foreground);
+  }
+  .wk-allday-day {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.375rem;
+    border-left: 1px solid var(--color-border);
+  }
+  .wk-one .wk-allday-day {
+    flex-flow: row wrap;
+  }
+  .wk-out {
+    --away: var(--time-off-hue);
+    background-color: oklch(0.62 0.1 var(--away) / 0.05);
+    background-image: repeating-linear-gradient(135deg, transparent 0 7px, oklch(0.62 0.1 var(--away) / 0.2) 7px 8px);
+  }
+  .wk-out-holiday {
+    --away: var(--holiday-hue);
+  }
+  .dark .wk-out {
+    background-color: oklch(0.7 0.09 var(--away) / 0.06);
+    background-image: repeating-linear-gradient(135deg, transparent 0 7px, oklch(0.7 0.09 var(--away) / 0.16) 7px 8px);
+  }
+  /* On a phone, a dot under each day that has something off. */
+  .wk-off-mark {
+    width: 0.3125rem;
+    height: 0.3125rem;
+    border-radius: 9999px;
+  }
+  .wk-off-mark-on {
+    --mark: var(--time-off-hue);
+    background-color: oklch(0.58 0.13 var(--mark));
+  }
+  .dark .wk-off-mark-on {
+    background-color: oklch(0.75 0.11 var(--mark));
+  }
+  .wk-off-mark-holiday {
+    --mark: var(--holiday-hue);
+  }
+
+  .dayoff {
+    --hue: var(--time-off-hue);
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    border-radius: 0.3125rem;
+    padding: 0.25rem 0.4375rem;
+    background-color: oklch(0.94 0.035 var(--hue));
+    background-image: repeating-linear-gradient(135deg, transparent 0 5px, oklch(0.55 0.1 var(--hue) / 0.1) 5px 6px);
+    color: oklch(0.36 0.11 var(--hue));
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+  .dark .dayoff {
+    background-color: oklch(0.33 0.055 var(--hue));
+    background-image: repeating-linear-gradient(135deg, transparent 0 5px, oklch(0.85 0.06 var(--hue) / 0.08) 5px 6px);
+    color: oklch(0.93 0.04 var(--hue));
+  }
+  .dayoff-holiday {
+    --hue: var(--holiday-hue);
+  }
+  /* Waiting for a decision: outlined, not yet filled in, as planned time is. */
+  .dayoff-pending,
+  .dark .dayoff-pending {
+    background-color: transparent;
+    background-image: none;
+    outline: 1.5px dashed oklch(0.6 0.1 var(--hue));
+    outline-offset: -1.5px;
+  }
+  .dayoff-name,
+  .dayoff-detail {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dayoff-name {
+    font-weight: 600;
+  }
+  .dayoff-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+  .dayoff-check {
+    width: 0.75rem;
+    height: 0.75rem;
+    flex-shrink: 0;
+  }
+  .wk-one .dayoff {
+    min-width: 8rem;
+  }
+  /* In a line of text, as the list's day heads have them. */
+  .dayoff-inline {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.375rem;
+    padding: 0.125rem 0.5rem;
   }
 
   /* A project's color, wherever its name is. */

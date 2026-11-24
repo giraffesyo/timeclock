@@ -30,5 +30,19 @@
   "eventCopyTo": "Copy to {project}",
   "eventCopiesTo": "Copies to {project}.",
   "eventChange": "Change",
-  "eventCopied": "Copied to {project}"
+  "eventCopied": "Copied to {project}",
+  "off": {
+    "row": "Days off",
+    "dayLabel": "Days off on {date}",
+    "dayWithOff": "{day}. Off: {off}",
+    "hours": "{hours} h",
+    "holiday": "Company holiday",
+    "holidayHint": "{name}: a company holiday",
+    "pending": "Pending",
+    "pendingHint": "{type}, {hours}: waiting for a manager or an admin to approve it",
+    "recordedHint": "{type}, {hours}",
+    "approvedHint": "{type}, {hours}: approved by {name}",
+    "approvedBy": "Approved by {name}",
+    "someone": "someone no longer listed"
+  }
 }
