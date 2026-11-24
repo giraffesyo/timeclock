@@ -69,6 +69,11 @@ test('holidays and time off show on the week, with their hours under the date, a
   await expect(head(ada, 3)).toContainText('0h 0m');
   await expect(head(ada, 3)).not.toContainText('off');
   await expect(head(ada, 4).locator('.wk-off-total-holiday')).toHaveText('8h off');
+  // The week's total counts the hours off that count, and says how much of it they are:
+  // 3h worked, and the Health day, the half day sick and the holiday.
+  const weekTotal = ada.getByText('Week total').locator('..');
+  await expect(weekTotal).toContainText('23h 0m');
+  await expect(weekTotal).toContainText('incl. 20h off');
   // The day heads say so to a screen reader.
   await expect(head(ada, 1)).toHaveAccessibleName(/^Tuesday, .*: 0h 0m\. 8h off: Health day$/);
   await expect(head(ada, 3)).toHaveAccessibleName(/^Thursday, .*\. Off: Vacation$/);
@@ -77,15 +82,26 @@ test('holidays and time off show on the week, with their hours under the date, a
   await expect(ada.locator('.wk-out')).toHaveCount(2);
   await expect(ada.locator('.wk-out-holiday')).toHaveCount(1);
 
-  // A week with nothing off has no row.
+  // A week with nothing off has no row, and its total says nothing of time off.
   await ada.goto(`/timeclock/?day=${monday.minus({ weeks: 2 }).toISODate()}`);
   await expect(ada.getByText('Days off', { exact: true })).toHaveCount(0);
+  await expect(weekTotal).toContainText('0h 0m');
+  await expect(weekTotal).not.toContainText('off');
 
   // The list puts each beside its day, even with no time recorded on it.
   await ada.goto(`/timeclock/?day=${day(1)}&view=list`);
   const friday = ada.locator('section').filter({ hasText: 'Founders Day' });
   await expect(friday).toContainText(monday.plus({ days: 4 }).toFormat('cccc, LLL d'));
   await expect(ada.getByRole('list', { name: 'Days off' })).toHaveCount(4);
+  // Each day's hours read as the calendar's do: hours off apart from those worked.
+  const listDay = (n: number) =>
+    ada.locator('section').filter({ hasText: monday.plus({ days: n }).toFormat('cccc, LLL d') });
+  await expect(listDay(1)).toContainText('8h off');
+  await expect(listDay(2)).toContainText('3h 0m');
+  await expect(listDay(2)).toContainText('+4h off');
+  await expect(listDay(3)).toContainText('0h 0m');
+  await expect(friday.locator('.wk-off-total-holiday')).toHaveText('8h off');
+  await expect(weekTotal).toContainText('23h 0m');
 
   // On a phone, one day at a time, with a mark on each day that has something off.
   const phone = await as(browser, 'ada@host.test', org, true);

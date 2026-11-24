@@ -16,10 +16,11 @@ import { standing } from '@/components/timesheet/sheet';
 import { WeekCalendar } from '@/components/week-calendar';
 import { useWeek, WeekNav } from '@/components/week-nav';
 import { ZoneBanner } from '@/components/zone';
+import { cn } from '@/lib/cn';
 import { type Entry, useEntries, useTimesheet } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { type Day, dayToDate, hoursMinutes } from '@/lib/time';
-import { dayBounds, entrySpan, type Span, within, workedAndPlanned } from '@/lib/timeline';
+import { dayBounds, entrySpan, HOUR, type Span, within, workedAndPlanned } from '@/lib/timeline';
 import { useNow } from '@/lib/use-now';
 import { useZone } from '@/lib/zone';
 
@@ -92,7 +93,12 @@ function WeekList({
               </ul>
             )}
             <span className="ml-auto">
-              <DayHours entries={d.entries} bounds={d.bounds} />
+              <DayHours
+                entries={d.entries}
+                bounds={d.bounds}
+                off={off.hours(d.day) * HOUR}
+                holiday={d.off.every((o) => o.kind === 'holiday')}
+              />
             </span>
           </div>
           {d.entries.length > 0 && <EntryList entries={d.entries} day={d.day} readOnly={locked} />}
@@ -106,19 +112,44 @@ function WeekList({
 const spansOf = (entries: Entry[], now: number, bounds: Span) =>
   entries.flatMap((e) => within(entrySpan(e, now), bounds) ?? []);
 
-/** A day's worked hours, and any still planned. */
-function DayHours({ entries, bounds }: { entries: Entry[]; bounds: Span }) {
+/**
+ * A day's worked hours, and any still planned; its hours off apart from them,
+ * in place of the worked hours when none were worked, as the calendar has them.
+ */
+function DayHours({
+  entries,
+  bounds,
+  off,
+  holiday,
+}: {
+  entries: Entry[];
+  bounds: Span;
+  /** Hours off that count, in ms. */
+  off: number;
+  /** Whether what's off is only a holiday, for its hue. */
+  holiday: boolean;
+}) {
   const tc = useTranslations('common');
   const tl = useTranslations('timeline');
   const now = Date.now();
   const { worked, planned } = workedAndPlanned(spansOf(entries, now, bounds), now);
+  const offLength = hoursMinutes(off);
+  const hasOff = offLength.hours + offLength.minutes > 0;
+  const offHue = cn('wk-off-total', holiday && 'wk-off-total-holiday');
   return (
     <span className="tabular text-sm font-medium">
-      {tc('duration', hoursMinutes(worked))}
+      {worked === 0 && hasOff ? (
+        <span className={offHue}>{tl('off.total', offLength)}</span>
+      ) : (
+        tc('duration', hoursMinutes(worked))
+      )}
       {planned > 0 && (
         <span className="ml-2 text-xs font-normal text-muted-foreground">
           {tl('planned', { length: tc('duration', hoursMinutes(planned)) })}
         </span>
+      )}
+      {worked > 0 && hasOff && (
+        <span className={cn('ml-2 text-xs font-normal', offHue)}>{tl('off.extra', offLength)}</span>
       )}
     </span>
   );
@@ -159,6 +190,9 @@ function TimerPage() {
   const zone = useZone(personId);
   const weekSpan = { start: dayBounds(first, zone).start, end: dayBounds(last, zone).end };
   const { worked } = workedAndPlanned(spansOf(entries.data ?? [], now, weekSpan), now);
+  // The week's total counts its days off that count, as the timesheet's Total does.
+  const daysOff = useDaysOff(week, personId);
+  const weekOff = week.reduce((sum, day) => sum + daysOff.hours(day), 0) * HOUR;
   const name = personId ? sheet.data?.person.name : undefined;
 
   return (
@@ -192,7 +226,10 @@ function TimerPage() {
         />
         <div className="flex items-baseline gap-2">
           <span className="text-xs text-muted-foreground">{t('weekTotal')}</span>
-          <span className="tabular text-base font-semibold">{tc('duration', hoursMinutes(worked))}</span>
+          <span className="tabular text-base font-semibold">{tc('duration', hoursMinutes(worked + weekOff))}</span>
+          {weekOff > 0 && (
+            <span className="tabular text-xs text-muted-foreground">{t('weekOff', hoursMinutes(weekOff))}</span>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Segmented<View>
