@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.2](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.28.1...timeclock-v0.28.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* count days off in the week total ([#181](https://github.com/giraffesyo/timeclock/issues/181)) ([de44709](https://github.com/giraffesyo/timeclock/commit/de44709e5a85770c0039f2b09fe2bb84de7b6186))
+
 ## [0.28.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.28.0...timeclock-v0.28.1) (2026-11-24)
 
 
