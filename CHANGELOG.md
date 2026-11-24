@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.28.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.7...timeclock-v0.28.0) (2026-11-24)
+
+
+### Features
+
+* let each workspace define its own time off types ([#175](https://github.com/giraffesyo/timeclock/issues/175)) ([6d69bf7](https://github.com/giraffesyo/timeclock/commit/6d69bf7995c9dbd013ae309e4e6d5e3aeab3d0e7))
+* let managers approve time off that needs no approval ([#177](https://github.com/giraffesyo/timeclock/issues/177)) ([1b2e2d1](https://github.com/giraffesyo/timeclock/commit/1b2e2d1ab68cee2bf610fe7ad4b7c67b51fcbe04))
+* show holidays and time off on the week calendar ([#176](https://github.com/giraffesyo/timeclock/issues/176)) ([1ef1e51](https://github.com/giraffesyo/timeclock/commit/1ef1e51541738be582a3db219dd141ee2d35563f))
+
 ## [0.27.7](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.6...timeclock-v0.27.7) (2026-11-14)
 
 
