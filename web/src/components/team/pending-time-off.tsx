@@ -8,8 +8,8 @@ import { type Person, type TimeOff, useDecideTimeOff } from '@/lib/queries';
 import { decimalHours } from '@/lib/time';
 import { DecisionDialog } from './decision-dialog';
 
-/** One request: a person's consecutive days of one kind, asked for alike. */
-const alike = (t: TimeOff) => [t.personId, t.kind, t.hours, t.note].join('\u0000');
+/** One request: a person's consecutive days of one type, asked for alike. */
+const alike = (t: TimeOff) => [t.personId, t.typeId, t.hours, t.note].join('\u0000');
 
 /** The requests waiting for the caller, oldest first. */
 export function pendingRuns(items: TimeOff[]): Run[] {
@@ -72,7 +72,7 @@ export function PendingTimeOff({
 
   const actions = (run: Run, name: string) => {
     const count = run.days.length;
-    const context = { name, kind: tc(`kind.${run.first.kind}`), days: label.range(run.first.day, run.last.day) };
+    const context = { name, kind: run.first.typeName, days: label.range(run.first.day, run.last.day) };
     return (
       <>
         <Button size="sm" variant="primary" aria-label={t('approveLabel', context)} onClick={() => ask(run, true)}>
@@ -100,7 +100,7 @@ export function PendingTimeOff({
                 <span className="min-w-0 truncate text-sm font-medium sm:w-44">
                   {person ? <PersonIdentity person={person} people={people} /> : name}
                 </span>
-                <span className="text-sm">{tc(`kind.${first.kind}`)}</span>
+                <span className="text-sm">{first.typeName}</span>
                 <span className="tabular text-sm">{label.range(first.day, run.last.day)}</span>
                 <span className="tabular text-sm text-muted-foreground">
                   {multi && `${t('days', { count: run.days.length })} · `}
@@ -141,7 +141,7 @@ export function PendingTimeOff({
         description={
           target
             ? t('description', {
-                kind: tc(`kind.${target.days[0]?.kind ?? 'vacation'}`),
+                kind: target.days[0]?.typeName ?? '',
                 days: target.range,
                 count: target.total,
                 total: hoursText(target.hours),

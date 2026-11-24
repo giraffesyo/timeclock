@@ -306,9 +306,14 @@ func (a *togglAway) write(ctx context.Context, q querier, k awayKey, want float6
 			// Recorded in Timeclock too: someone decides which one counts.
 			return "time_off_exists", nil, nil
 		}
+		// Recorded as the first type offered that's paid this way.
+		typ, err := typeFor(ctx, q, uuid.Nil, k.kind)
+		if err != nil {
+			return "", timeOffID, err
+		}
 		id := newID()
-		_, err := q.Exec(ctx, `INSERT INTO time_off(id,workspace_id,person_id,kind,day,hours,note,status,decided_by,decided_at)
-    VALUES($1,$W,$2,$3,$4,$5,$6,$7,$8,CASE WHEN $8='' THEN NULL ELSE now() END)`, id, k.person, k.kind, k.day.Time(), want, note, status, decidedBy)
+		_, err = q.Exec(ctx, `INSERT INTO time_off(id,workspace_id,person_id,type_id,kind,day,hours,note,status,decided_by,decided_at)
+    VALUES($1,$W,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9='' THEN NULL ELSE now() END)`, id, k.person, typ.ID, k.kind, k.day.Time(), want, note, status, decidedBy)
 		if err != nil {
 			return "", timeOffID, err
 		}

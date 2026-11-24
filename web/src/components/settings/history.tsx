@@ -32,6 +32,8 @@ const ACTIONS = {
   'holiday.create': 'holiday_create',
   'holiday.update': 'holiday_update',
   'holiday.delete': 'holiday_delete',
+  'time_off_type.create': 'time_off_type_create',
+  'time_off_type.update': 'time_off_type_update',
 } as const;
 
 const isAction = (action: string): action is keyof typeof ACTIONS => action in ACTIONS;
@@ -96,9 +98,11 @@ export function History() {
     if (family === 'time_off') {
       const day = str(s['day']);
       const kind = str(s['kind']);
-      if (!isDay(day) || (kind !== 'vacation' && kind !== 'sick')) return '';
+      // Its type's name since types have names; how it's paid before then.
+      const type = str(s['typeName']) || (kind === 'vacation' || kind === 'sick' ? tc(`paysAs.${kind}`) : '');
+      if (!isDay(day) || !type) return '';
       return t('about.timeOff', {
-        kind: tc(`kind.${kind}`),
+        kind: type,
         day: format.dateTime(dayToDate(day), { month: 'short', day: 'numeric', year: 'numeric' }),
         hours: typeof s['hours'] === 'number' ? s['hours'] : 0,
       });
@@ -110,7 +114,8 @@ export function History() {
       const end = str(period['end']);
       return isDay(start) && isDay(end) ? periodLabel({ start, end }) : '';
     }
-    if (family === 'customer' || family === 'project' || family === 'holiday') return str(s['name']);
+    if (family === 'customer' || family === 'project' || family === 'holiday' || family === 'time_off_type')
+      return str(s['name']);
     return '';
   };
 

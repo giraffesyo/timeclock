@@ -26,9 +26,11 @@
     "description": "From Timeclock: what you chose to subscribe to.",
     "out": "{name} out",
     "partial": "{title} ({hours}h)",
-    "vacation": "Vacation",
-    "sick": "Sick",
     "tracked": "Tracked time",
     "running": "{title} (running)"
+  },
+  "timeOffType": {
+    "vacation": "Vacation",
+    "sick": "Sick"
   }
 }

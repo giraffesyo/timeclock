@@ -124,7 +124,7 @@ type Entry struct {
 	Locked    bool       `json:"locked" doc:"In a submitted or approved timesheet, so it can't change."`
 }
 
-// The kinds of time off.
+// How time off is paid: vacation is paid as PTO.
 const (
 	Vacation = "vacation"
 	Sick     = "sick"
@@ -138,11 +138,24 @@ const (
 	StatusRejected  = "rejected"
 )
 
-// TimeOff is vacation or sick hours on one day.
+// TimeOffType is a kind of time off a workspace offers, such as Vacation or
+// Health day, paid as vacation (PTO) or sick time.
+type TimeOffType struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	PaysAs   string    `json:"paysAs" enum:"vacation,sick" doc:"How payroll pays it: vacation is PTO."`
+	Archived bool      `json:"archived" doc:"No new time off is recorded as it; what was keeps its name."`
+	Used     bool      `json:"used" doc:"Time off of this type is recorded, so how it's paid can't change."`
+}
+
+// TimeOff is time off of one type on one day.
 type TimeOff struct {
-	ID            uuid.UUID  `json:"id"`
-	PersonID      string     `json:"personId"`
-	Kind          string     `json:"kind" enum:"vacation,sick"`
+	ID       uuid.UUID `json:"id"`
+	PersonID string    `json:"personId"`
+	TypeID   uuid.UUID `json:"typeId"`
+	TypeName string    `json:"typeName" doc:"Its type's name, as the workspace names it."`
+	// Kind is how it is paid, its type's.
+	Kind          string     `json:"kind" enum:"vacation,sick" doc:"How payroll pays it, as its type says: vacation is PTO."`
 	Day           Date       `json:"day" format:"date"`
 	Hours         float64    `json:"hours"`
 	Note          string     `json:"note"`
@@ -200,8 +213,8 @@ type PeriodSummary struct {
 	Days     []DaySummary `json:"days"`
 	Regular  float64      `json:"regular"`
 	Overtime float64      `json:"overtime"`
-	Vacation float64      `json:"vacation" doc:"Approved vacation hours."`
-	Sick     float64      `json:"sick" doc:"Approved sick hours."`
+	Vacation float64      `json:"vacation" doc:"Hours of time off paid as vacation (PTO), approved or needing no approval."`
+	Sick     float64      `json:"sick" doc:"Hours of time off paid as sick time, approved or needing no approval."`
 	Holiday  float64      `json:"holiday" doc:"Paid company holiday hours."`
 	// PendingTimeOff is hours of time off still waiting for a decision,
 	// which are not in Vacation or Sick.

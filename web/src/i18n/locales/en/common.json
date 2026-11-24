@@ -19,8 +19,8 @@
     "approved": "Approved",
     "rejected": "Rejected"
   },
-  "kind": {
-    "vacation": "Vacation",
+  "paysAs": {
+    "vacation": "PTO",
     "sick": "Sick"
   },
   "project": {
@@ -33,7 +33,7 @@
   "columns": {
     "regular": "Regular",
     "overtime": "Overtime",
-    "vacation": "Vacation",
+    "vacation": "PTO",
     "sick": "Sick",
     "holiday": "Holiday",
     "total": "Total"

@@ -5,12 +5,10 @@ import { Button } from '@/components/button';
 import { controlClass, Field } from '@/components/field';
 import { ErrorNote, Panel } from '@/components/page';
 import { Segmented } from '@/components/segmented';
-import { type TimeOff, useRequestTimeOff } from '@/lib/queries';
+import { useRequestTimeOff, useTimeOffTypes } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 import { addDays, type Day, daysBetween } from '@/lib/time';
 import { isWeekend, MAX_REQUEST_DAYS, useHoursText } from './runs';
-
-type Kind = TimeOff['kind'];
 
 const isDay = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -32,14 +30,22 @@ function plan(from: string, to: string, hoursText: string, weekends: boolean): P
   return { ok: true, days, skipped: all.length - days.length, hours };
 }
 
-/** Records vacation or sick hours on a run of days, showing the total before it's sent. */
+/** Segmented while the choices fit side by side; a list beyond that. */
+const SIDE_BY_SIDE = 2;
+
+/** Records time off of one of the workspace's types on a run of days, showing the total before it's sent. */
 export function RequestForm() {
   const t = useTranslations('timeOff.request');
   const tc = useTranslations('common');
   const hoursText = useHoursText();
   const { today, settings } = useSession();
   const request = useRequestTimeOff();
-  const [kind, setKind] = useState<Kind>('vacation');
+  const types = useTimeOffTypes();
+  const offered = (types.data ?? []).filter((type) => !type.archived);
+  const [chosen, setChosen] = useState('');
+  // The first type offered until one is chosen, or when the one chosen stops being offered.
+  const typeId = offered.some((type) => type.id === chosen) ? chosen : (offered[0]?.id ?? '');
+  const typeName = offered.find((type) => type.id === typeId)?.name ?? '';
   const [from, setFrom] = useState<Day>(today);
   const [to, setTo] = useState<Day>(today);
   const [hours, setHours] = useState('8');
@@ -55,10 +61,10 @@ export function RequestForm() {
         className="space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!planned.ok) return;
+          if (!planned.ok || !typeId) return;
           setDone(null);
           request.mutate(
-            { kind, from, to, hours: planned.hours, weekends, note: note.trim() || undefined },
+            { typeId, from, to, hours: planned.hours, weekends, note: note.trim() || undefined },
             {
               onSuccess: (result) => {
                 const recorded = result.timeOff ?? [];
@@ -74,19 +80,28 @@ export function RequestForm() {
         }}
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {/* Two choices: both in view. Not a Field: its label would forward a click to the first. */}
-          <div className="text-sm">
-            <span className="mb-1 block font-medium">{t('kind')}</span>
-            <Segmented<Kind>
-              label={t('kind')}
-              value={kind}
-              onChange={setKind}
-              options={[
-                { value: 'vacation', label: tc('kind.vacation') },
-                { value: 'sick', label: tc('kind.sick') },
-              ]}
-            />
-          </div>
+          {offered.length <= SIDE_BY_SIDE ? (
+            // A few choices: all in view. Not a Field: its label would forward a click to the first.
+            <div className="text-sm">
+              <span className="mb-1 block font-medium">{t('kind')}</span>
+              <Segmented<string>
+                label={t('kind')}
+                value={typeId}
+                onChange={setChosen}
+                options={offered.map((type) => ({ value: type.id, label: type.name }))}
+              />
+            </div>
+          ) : (
+            <Field label={t('kind')}>
+              <select className={controlClass} value={typeId} onChange={(e) => setChosen(e.target.value)}>
+                {offered.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label={t('from')}>
             <input
               type="date"
@@ -152,7 +167,7 @@ export function RequestForm() {
                     count: planned.days.length,
                     hours: hoursText(planned.hours),
                     total: hoursText(planned.days.length * planned.hours),
-                    kind: tc(`kind.${kind}`),
+                    kind: typeName,
                   })}
                 </span>
                 {planned.skipped > 0 && (
@@ -165,7 +180,7 @@ export function RequestForm() {
               </span>
             )}
           </p>
-          <Button type="submit" variant="primary" disabled={!planned.ok} loading={request.isPending}>
+          <Button type="submit" variant="primary" disabled={!planned.ok || !typeId} loading={request.isPending}>
             {settings.approveTimeOff ? t('submitForApproval') : t('submit')}
           </Button>
         </div>

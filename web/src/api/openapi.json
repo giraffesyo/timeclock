@@ -1203,7 +1203,7 @@
             "type": "boolean"
           },
           "sick": {
-            "description": "Approved sick hours.",
+            "description": "Hours of time off paid as sick time, approved or needing no approval.",
             "format": "double",
             "type": "number"
           },
@@ -1212,7 +1212,7 @@
             "description": "Absent until the person submits."
           },
           "vacation": {
-            "description": "Approved vacation hours.",
+            "description": "Hours of time off paid as vacation (PTO), approved or needing no approval.",
             "format": "double",
             "type": "number"
           }
@@ -1326,7 +1326,7 @@
             "type": "boolean"
           },
           "sick": {
-            "description": "Approved sick hours.",
+            "description": "Hours of time off paid as sick time, approved or needing no approval.",
             "format": "double",
             "type": "number"
           },
@@ -1335,7 +1335,7 @@
             "description": "Absent until the person submits."
           },
           "vacation": {
-            "description": "Approved vacation hours.",
+            "description": "Hours of time off paid as vacation (PTO), approved or needing no approval.",
             "format": "double",
             "type": "number"
           }
@@ -2156,6 +2156,7 @@
             "type": "string"
           },
           "kind": {
+            "description": "How payroll pays it, as its type says: vacation is PTO.",
             "enum": [
               "vacation",
               "sick"
@@ -2179,11 +2180,20 @@
               "rejected"
             ],
             "type": "string"
+          },
+          "typeId": {
+            "type": "string"
+          },
+          "typeName": {
+            "description": "Its type's name, as the workspace names it.",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "personId",
+          "typeId",
+          "typeName",
           "kind",
           "day",
           "hours",
@@ -2217,6 +2227,7 @@
             "type": "number"
           },
           "kind": {
+            "description": "Instead of typeId: how it's paid, which records it as the first type offered that's paid that way.",
             "enum": [
               "vacation",
               "sick"
@@ -2236,13 +2247,16 @@
             "format": "date",
             "type": "string"
           },
+          "typeId": {
+            "description": "Its type, one the workspace still offers. Required unless kind is given.",
+            "type": "string"
+          },
           "weekends": {
             "description": "Include Saturdays and Sundays in the run.",
             "type": "boolean"
           }
         },
         "required": [
-          "kind",
           "from",
           "to",
           "hours"
@@ -2273,6 +2287,113 @@
         },
         "required": [
           "timeOff"
+        ],
+        "type": "object"
+      },
+      "TimeOffType": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOffType.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "description": "No new time off is recorded as it; what was keeps its name.",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paysAs": {
+            "description": "How payroll pays it: vacation is PTO.",
+            "enum": [
+              "vacation",
+              "sick"
+            ],
+            "type": "string"
+          },
+          "used": {
+            "description": "Time off of this type is recorded, so how it's paid can't change.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "paysAs",
+          "archived",
+          "used"
+        ],
+        "type": "object"
+      },
+      "TimeOffTypeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOffTypeInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "description": "Stop offering it for new time off.",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "paysAs": {
+            "description": "How payroll pays it: vacation is PTO. Fixed once time off of the type is recorded.",
+            "enum": [
+              "vacation",
+              "sick"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "paysAs"
+        ],
+        "type": "object"
+      },
+      "TimeOffTypesBodyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/schemas/TimeOffTypesBodyBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/TimeOffType"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "types"
         ],
         "type": "object"
       },
@@ -5203,7 +5324,128 @@
             "description": "Error"
           }
         },
-        "summary": "Record vacation or sick time on a run of days",
+        "summary": "Record time off of one type on a run of days",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/time-off-types": {
+      "get": {
+        "operationId": "list-time-off-types",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffTypesBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "The kinds of time off the workspace offers, archived ones too",
+        "tags": [
+          "Time off"
+        ]
+      },
+      "post": {
+        "operationId": "create-time-off-type",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeOffTypeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffType"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Add a kind of time off",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
+    "/api/v1/time-off-types/{id}": {
+      "put": {
+        "operationId": "update-time-off-type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeOffTypeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffType"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rename, archive or restore a kind of time off",
         "tags": [
           "Time off"
         ]

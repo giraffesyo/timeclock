@@ -109,6 +109,12 @@ var (
 		Title:  "Still in use",
 		Doc:    "A customer with projects, or a project with time recorded on it, can't be deleted. Archive it instead.",
 	})
+	ErrTimeOffTypeUsed = Problems.Define(problem.Type{
+		Code:   "time_off_type_used",
+		Status: http.StatusConflict,
+		Title:  "Time off type in use",
+		Doc:    "Time off of this type is already recorded, so how it's paid can't change: that would move pay already recorded between PTO and sick. Add a new type instead.",
+	})
 	ErrNameTaken = Problems.Define(problem.Type{
 		Code:   "name_taken",
 		Status: http.StatusConflict,

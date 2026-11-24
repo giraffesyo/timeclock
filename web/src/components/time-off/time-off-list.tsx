@@ -10,11 +10,11 @@ import { type TimeOff, useCancelTimeOff } from '@/lib/queries';
 import { decimalHours } from '@/lib/time';
 import { groupRuns, type Run, useDayLabel, useHoursText } from './runs';
 
-/** Days belong to one run when they'd read the same: kind, status and both notes. */
-const alike = (t: TimeOff) => [t.kind, t.status, t.note, t.decisionNote ?? ''].join('\u0000');
+/** Days belong to one run when they'd read the same: type, status and both notes. */
+const alike = (t: TimeOff) => [t.typeId, t.status, t.note, t.decisionNote ?? ''].join('\u0000');
 
 /**
- * The caller's time off as runs of consecutive days. A run states its kind,
+ * The caller's time off as runs of consecutive days. A run states its type,
  * status and notes once; each day in it keeps its own hours and can be removed
  * on its own, since each is its own record.
  */
@@ -58,7 +58,7 @@ export function TimeOffList({ items, newestFirst }: { items: TimeOff[]; newestFi
       <li key={run.id} className="px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="tabular text-sm font-medium sm:min-w-52">{label.range(first.day, run.last.day)}</span>
-          <span className="text-sm">{tc(`kind.${first.kind}`)}</span>
+          <span className="text-sm">{first.typeName}</span>
           <TimeOffStatus status={first.status} />
           {multi && <span className="text-sm text-muted-foreground">{t('days', { count: run.days.length })}</span>}
           <span className="tabular ml-auto text-sm font-medium">{tc('hours', { hours: decimalHours(run.hours) })}</span>
@@ -101,7 +101,7 @@ export function TimeOffList({ items, newestFirst }: { items: TimeOff[]; newestFi
           removing
             ? t('removeDescription', {
                 hours: hoursText(removing.hours),
-                kind: tc(`kind.${removing.kind}`),
+                kind: removing.typeName,
                 day: label.day(removing.day),
               })
             : null

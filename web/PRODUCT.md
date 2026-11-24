@@ -30,7 +30,7 @@ Built around the pay period rather than around billing: overtime counted per wor
 ## Capabilities and Constraints
 
 - Roles: everyone tracks time; managers (anyone with reports) approve; admins run payroll and own workspace settings. Nobody approves their own time.
-- Admin areas today: payroll rules (pay cycle, time zone, workweek, overtime, approvals, holidays), customers and projects, people (manager, time zone, timesheets, holiday pay, payroll id, exempt, active), integrations (Toggl), appearance (workspace theme), sign-in (standalone only), and an audit history of every change to payroll data.
+- Admin areas today: payroll rules (pay cycle, time zone, workweek, overtime, approvals, time off types, holidays), customers and projects, people (manager, time zone, timesheets, holiday pay, payroll id, exempt, active), integrations (Toggl), appearance (workspace theme), sign-in (standalone only), and an audit history of every change to payroll data.
 - Every person may pick light, dark or system; the workspace theme is admin-set and may come from the host.
 - Strings are translated (English catalog today); copy lives in i18n catalogs.
 

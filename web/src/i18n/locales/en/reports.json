@@ -33,7 +33,7 @@
     "export": {
       "gusto": "Export for Gusto",
       "everyone": "Include everyone",
-      "explain": "A CSV with one row per ready person: regular, overtime, vacation (as PTO) and sick hours. Each person's payroll id goes in the gusto_employee_id column.",
+      "explain": "A CSV with one row per ready person: regular, overtime, holiday, PTO and sick hours, each time off type in the column it’s paid as. Each person's payroll id goes in the gusto_employee_id column.",
       "noneReady": "No one is ready, so there is nothing to export yet.",
       "confirmTitle": "Export time that isn't approved?",
       "confirmDescription": "{count, plural, one {# person isn't} other {# people aren't}} ready: {names}. Including them puts time no one has approved in the file, and Gusto would pay it.",

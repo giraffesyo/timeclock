@@ -725,8 +725,43 @@ export interface paths {
         /** A person's time off on a range of days */
         get: operations["list-time-off"];
         put?: never;
-        /** Record vacation or sick time on a run of days */
+        /** Record time off of one type on a run of days */
         post: operations["request-time-off"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/time-off-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The kinds of time off the workspace offers, archived ones too */
+        get: operations["list-time-off-types"];
+        put?: never;
+        /** Add a kind of time off */
+        post: operations["create-time-off-type"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/time-off-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rename, archive or restore a kind of time off */
+        put: operations["update-time-off-type"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1334,14 +1369,14 @@ export interface components {
             running: boolean;
             /**
              * Format: double
-             * @description Approved sick hours.
+             * @description Hours of time off paid as sick time, approved or needing no approval.
              */
             sick: number;
             /** @description Absent until the person submits. */
             timesheet?: components["schemas"]["Timesheet"];
             /**
              * Format: double
-             * @description Approved vacation hours.
+             * @description Hours of time off paid as vacation (PTO), approved or needing no approval.
              */
             vacation: number;
         };
@@ -1385,14 +1420,14 @@ export interface components {
             running: boolean;
             /**
              * Format: double
-             * @description Approved sick hours.
+             * @description Hours of time off paid as sick time, approved or needing no approval.
              */
             sick: number;
             /** @description Absent until the person submits. */
             timesheet?: components["schemas"]["Timesheet"];
             /**
              * Format: double
-             * @description Approved vacation hours.
+             * @description Hours of time off paid as vacation (PTO), approved or needing no approval.
              */
             vacation: number;
         };
@@ -1728,7 +1763,10 @@ export interface components {
             /** Format: double */
             hours: number;
             id: string;
-            /** @enum {string} */
+            /**
+             * @description How payroll pays it, as its type says: vacation is PTO.
+             * @enum {string}
+             */
             kind: "vacation" | "sick";
             /** @description Its day is in a submitted or approved timesheet, so it can't be removed. */
             locked: boolean;
@@ -1736,6 +1774,9 @@ export interface components {
             personId: string;
             /** @enum {string} */
             status: "pending" | "approved" | "rejected";
+            typeId: string;
+            /** @description Its type's name, as the workspace names it. */
+            typeName: string;
         };
         TimeOffInput: {
             /**
@@ -1751,8 +1792,11 @@ export interface components {
              * @description Hours off on each day.
              */
             hours: number;
-            /** @enum {string} */
-            kind: "vacation" | "sick";
+            /**
+             * @description Instead of typeId: how it's paid, which records it as the first type offered that's paid that way.
+             * @enum {string}
+             */
+            kind?: "vacation" | "sick";
             note?: string;
             /** @description Whose time off. Defaults to the caller; a manager or admin can record it for someone else. */
             personId?: string;
@@ -1761,6 +1805,8 @@ export interface components {
              * @description The last day off; the same as from for one day.
              */
             to: string;
+            /** @description Its type, one the workspace still offers. Required unless kind is given. */
+            typeId?: string;
             /** @description Include Saturdays and Sundays in the run. */
             weekends?: boolean;
         };
@@ -1772,6 +1818,50 @@ export interface components {
              */
             readonly $schema?: string;
             timeOff: components["schemas"]["TimeOff"][] | null;
+        };
+        TimeOffType: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TimeOffType.json
+             */
+            readonly $schema?: string;
+            /** @description No new time off is recorded as it; what was keeps its name. */
+            archived: boolean;
+            id: string;
+            name: string;
+            /**
+             * @description How payroll pays it: vacation is PTO.
+             * @enum {string}
+             */
+            paysAs: "vacation" | "sick";
+            /** @description Time off of this type is recorded, so how it's paid can't change. */
+            used: boolean;
+        };
+        TimeOffTypeInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TimeOffTypeInput.json
+             */
+            readonly $schema?: string;
+            /** @description Stop offering it for new time off. */
+            archived?: boolean;
+            name: string;
+            /**
+             * @description How payroll pays it: vacation is PTO. Fixed once time off of the type is recorded.
+             * @enum {string}
+             */
+            paysAs: "vacation" | "sick";
+        };
+        TimeOffTypesBodyBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/TimeOffTypesBodyBody.json
+             */
+            readonly $schema?: string;
+            types: components["schemas"]["TimeOffType"][] | null;
         };
         Timesheet: {
             /**
@@ -3764,6 +3854,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimeOffListBodyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-time-off-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeOffTypesBodyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-time-off-type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TimeOffTypeInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeOffType"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-time-off-type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TimeOffTypeInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeOffType"];
                 };
             };
             /** @description Error */

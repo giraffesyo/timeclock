@@ -330,7 +330,7 @@ for (const mobile of [false, true]) {
     await page.getByRole('button', { name: 'Manage connection' }).click();
     await page.getByRole('button', { name: 'Find workspaces and people' }).click();
     const holiday = page.getByRole('combobox', { name: 'Holiday project' });
-    const vacation = page.getByRole('combobox', { name: 'Vacation project' });
+    const vacation = page.getByRole('combobox', { name: 'PTO project' });
     const sick = page.getByRole('combobox', { name: 'Sick project' });
     // Found by typing, as a workspace can have many projects.
     const choose = async (box: typeof holiday, typed: string, name: string) => {
@@ -356,7 +356,7 @@ for (const mobile of [false, true]) {
     await expect.poll(() => setup).toMatchObject({ holidayProject: 21, vacationProject: 22, sickProject: 23 });
     await expect(page.getByText('Vacation, from Oct 6, 2026')).toBeVisible();
     await expect(page.getByText('This day is in a submitted or approved timesheet')).toBeVisible();
-    await expect(page.getByText('Vacation · 4.00 h · Oct 2, 2026')).toBeVisible();
+    await expect(page.getByText('PTO · 4.00 h · Oct 2, 2026')).toBeVisible();
     expect(await page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `/tmp/timeclock-toggl-roles-summary-${device}.png`, fullPage: true });
     await testInfo.attach(`Roles summary ${device}`, {

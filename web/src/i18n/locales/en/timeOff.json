@@ -1,9 +1,9 @@
 {
   "title": "Time off",
-  "description": "Vacation and sick hours recorded here go on your timesheet. Balances aren’t tracked here; they live in the payroll system.",
+  "description": "Time off recorded here goes on your timesheet. Balances aren’t tracked here; they live in the payroll system.",
   "request": {
     "title": "Record time off",
-    "kind": "Kind",
+    "kind": "Type",
     "from": "First day",
     "to": "Last day",
     "hours": "Hours per day",
@@ -30,7 +30,7 @@
     "nextYear": "Next year",
     "thisYear": "This year",
     "loadFailed": "Couldn’t load your time off.",
-    "emptyUpcoming": "No time off coming up. Record vacation or sick time above.",
+    "emptyUpcoming": "No time off coming up. Record some above.",
     "emptySoFar": "No time off taken yet this year.",
     "emptyYear": "No time off in {year}.",
     "days": "{count, plural, one {# day} other {# days}}",

@@ -581,7 +581,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			return out, nil
 		})
 
-	huma.Register(a, op(http.MethodPost, "/time-off", "request-time-off", "Record vacation or sick time on a run of days", "Time off"),
+	huma.Register(a, op(http.MethodPost, "/time-off", "request-time-off", "Record time off of one type on a run of days", "Time off"),
 		func(ctx context.Context, in *struct{ Body clock.TimeOffInput }) (*timeOffListBody, error) {
 			actor, err := d.actor(ctx)
 			if err != nil {
@@ -621,6 +621,53 @@ func registerTimeOff(a huma.API, d Deps) {
 				return nil, err
 			}
 			return &struct{ Body clock.TimeOff }{out}, nil
+		})
+}
+
+// --- Time off types ---
+
+type timeOffTypesBody struct {
+	Body struct {
+		Types []clock.TimeOffType `json:"types"`
+	}
+}
+
+func registerTimeOffTypes(a huma.API, d Deps) {
+	huma.Register(a, op(http.MethodGet, "/time-off-types", "list-time-off-types", "The kinds of time off the workspace offers, archived ones too", "Time off"),
+		func(ctx context.Context, _ *struct{}) (*timeOffTypesBody, error) {
+			if _, err := d.actor(ctx); err != nil {
+				return nil, err
+			}
+			list, err := d.clock(ctx).TimeOffTypes(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out := &timeOffTypesBody{}
+			out.Body.Types = orEmpty(list)
+			return out, nil
+		})
+
+	save := func(ctx context.Context, id uuid.UUID, in clock.TimeOffTypeInput) (*struct{ Body clock.TimeOffType }, error) {
+		actor, err := d.actor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := d.clock(ctx).SaveTimeOffType(ctx, actor, id, in)
+		if err != nil {
+			return nil, err
+		}
+		return &struct{ Body clock.TimeOffType }{out}, nil
+	}
+	huma.Register(a, op(http.MethodPost, "/time-off-types", "create-time-off-type", "Add a kind of time off", "Time off"),
+		func(ctx context.Context, in *struct{ Body clock.TimeOffTypeInput }) (*struct{ Body clock.TimeOffType }, error) {
+			return save(ctx, uuid.Nil, in.Body)
+		})
+	huma.Register(a, op(http.MethodPut, "/time-off-types/{id}", "update-time-off-type", "Rename, archive or restore a kind of time off", "Time off"),
+		func(ctx context.Context, in *struct {
+			ID   uuid.UUID `path:"id"`
+			Body clock.TimeOffTypeInput
+		}) (*struct{ Body clock.TimeOffType }, error) {
+			return save(ctx, in.ID, in.Body)
 		})
 }
 

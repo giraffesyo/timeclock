@@ -238,24 +238,27 @@ func holidayEvents(holidays []clock.Holiday, from, to clock.Date) []ical.Event {
 }
 
 // absenceEvents is who is out, a run of days to an event. The subscriber's
-// own say vacation or sick; anyone else's only that they are out, adding
-// up their time off on a day.
+// own say their type, as the workspace names it; anyone else's only that
+// they are out, adding up their time off on a day.
 func absenceEvents(absences []clock.Absence, self string) []ical.Event {
 	type key struct{ person, kind string }
 	type out struct {
-		name string
-		days map[clock.Date]float64
+		name, kind string
+		days       map[clock.Date]float64
 	}
 	byKey := map[key]*out{}
 	var keys []key
 	for _, a := range absences {
 		k := key{person: a.PersonID}
 		if a.PersonID == self {
-			k.kind = a.Kind
+			k.kind = a.TypeID.String()
 		}
 		o, ok := byKey[k]
 		if !ok {
 			o = &out{name: a.PersonName, days: map[clock.Date]float64{}}
+			if k.kind != "" {
+				o.kind = a.TypeName
+			}
 			byKey[k] = o
 			keys = append(keys, k)
 		}
@@ -269,13 +272,8 @@ func absenceEvents(absences []clock.Absence, self string) []ical.Event {
 			days = append(days, clock.HolidayDay{Day: day, Hours: hours})
 		}
 		sort.Slice(days, func(i, j int) bool { return days[i].Day.Before(days[j].Day) })
-		var title string
-		switch k.kind {
-		case "vacation":
-			title = messages.T("feed.vacation", nil)
-		case "sick":
-			title = messages.T("feed.sick", nil)
-		default:
+		title := o.kind
+		if title == "" {
 			title = messages.T("feed.out", messages.Args{"name": o.name})
 		}
 		for _, run := range runs(days, func(a, b clock.HolidayDay) bool { return a.Hours == b.Hours }) {
