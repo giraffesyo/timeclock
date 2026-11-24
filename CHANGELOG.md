@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.1](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.28.0...timeclock-v0.28.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* show a day off's hours under its date ([#179](https://github.com/giraffesyo/timeclock/issues/179)) ([47200e7](https://github.com/giraffesyo/timeclock/commit/47200e7f5342a9e616385fd54c361d05bb362e20))
+
 ## [0.28.0](https://github.com/giraffesyo/timeclock/compare/timeclock-v0.27.7...timeclock-v0.28.0) (2026-11-24)
 
 
