@@ -3,6 +3,7 @@
   "today": "Today",
   "daysOff": "Days off",
   "weekTotal": "Week total",
+  "weekOff": "incl. {minutes, plural, =0 {{hours}h} other {{hours}h {minutes}m}} off",
   "empty": "Nothing recorded this week. Start the clock, or add time by hand.",
   "loadFailed": "Couldn’t load this week’s time.",
   "view": {
