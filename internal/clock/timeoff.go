@@ -78,12 +78,15 @@ func timeOff(ctx context.Context, q querier, personID string, from, to Date) ([]
 	return out, describe(ctx, q, out)
 }
 
+// decidableBy limits time off (aliased o, its person p) to what actor may
+// decide: their reports', or everyone's for an admin.
+const decidableBy = `($1 OR ((CASE WHEN p.manager_id <> '' THEN p.manager_id ELSE p.host_manager_id END) = $2 AND p.id <> $2))`
+
 // PendingTimeOff lists the time off waiting for actor's decision: their
 // reports', or everyone's for an admin.
 func (s *Service) PendingTimeOff(ctx context.Context, actor Actor) ([]TimeOff, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o JOIN people p ON p.id = o.person_id AND p.workspace_id = o.workspace_id
-		WHERE o.workspace_id = $W AND o.status = 'pending'
-		AND ($1 OR ((CASE WHEN p.manager_id <> '' THEN p.manager_id ELSE p.host_manager_id END) = $2 AND p.id <> $2))
+		WHERE o.workspace_id = $W AND o.status = 'pending' AND `+decidableBy+`
 		ORDER BY o.day, o.person_id`, actor.Admin, actor.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list pending time off: %w", err)
@@ -91,6 +94,32 @@ func (s *Service) PendingTimeOff(ctx context.Context, actor Actor) ([]TimeOff, e
 	out, err := pgx.CollectRows(rows, scanTimeOffListed)
 	if err != nil {
 		return nil, fmt.Errorf("list pending time off: %w", err)
+	}
+	return out, nameTypes(ctx, s.pool, out)
+}
+
+// unapprovedSince is how far back UnapprovedTimeOff looks: approving is
+// optional, so what was never approved would otherwise pile up for good.
+const unapprovedSince = 31
+
+// UnapprovedTimeOff lists time off recorded where no approval is needed and
+// that no one has approved yet, which actor may approve anyway: their
+// active reports', or everyone's for an admin, from a month ago on.
+func (s *Service) UnapprovedTimeOff(ctx context.Context, actor Actor) ([]TimeOff, error) {
+	cfg, err := settings(ctx, s.pool)
+	if err != nil {
+		return nil, err
+	}
+	since := s.TodayFor(cfg, actor.Person).AddDays(-unapprovedSince)
+	rows, err := s.pool.Query(ctx, `SELECT `+prefixed("o", timeOffColumns)+`, `+timeOffLocked+` FROM time_off o JOIN people p ON p.id = o.person_id AND p.workspace_id = o.workspace_id
+		WHERE o.workspace_id = $W AND o.status = 'approved' AND o.decided_by = '' AND p.active AND o.day >= $3 AND `+decidableBy+`
+		ORDER BY o.day, o.person_id`, actor.Admin, actor.ID, since.Time())
+	if err != nil {
+		return nil, fmt.Errorf("list unapproved time off: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, scanTimeOffListed)
+	if err != nil {
+		return nil, fmt.Errorf("list unapproved time off: %w", err)
 	}
 	return out, nameTypes(ctx, s.pool, out)
 }
@@ -121,8 +150,8 @@ type TimeOffInput struct {
 const maxTimeOffDays = 92
 
 // RequestTimeOff records time off on each day of a run. It waits for a
-// decision when the organization approves time off, and is approved at once
-// when it doesn't.
+// decision when the organization approves time off; when it doesn't, it
+// counts at once, with no one named as approving it.
 func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInput) ([]TimeOff, error) {
 	p, err := s.writable(ctx, s.pool, actor, in.PersonID)
 	if err != nil {
@@ -147,6 +176,7 @@ func (s *Service) RequestTimeOff(ctx context.Context, actor Actor, in TimeOffInp
 		if typ.Archived {
 			return invalidField("typeId", typ.Name+" is no longer offered")
 		}
+		// Where no approval is needed it counts at once, approved by no one.
 		status := StatusApproved
 		if cfg.ApproveTimeOff {
 			status = StatusPending
@@ -225,7 +255,9 @@ func (s *Service) CancelTimeOff(ctx context.Context, actor Actor, id uuid.UUID) 
 	})
 }
 
-// DecideTimeOff approves or rejects pending time off.
+// DecideTimeOff approves or rejects pending time off. Time off recorded
+// where no approval is needed can be approved too, which names who approved
+// it, but not rejected: nothing was waiting on it.
 func (s *Service) DecideTimeOff(ctx context.Context, actor Actor, id uuid.UUID, approve bool, note string) (TimeOff, error) {
 	t, err := timeOffByID(ctx, s.pool, id)
 	if err != nil {
@@ -240,7 +272,8 @@ func (s *Service) DecideTimeOff(ctx context.Context, actor Actor, id uuid.UUID, 
 	}
 	err = s.tx(ctx, t.PersonID, func(tx querier) error {
 		t, err = scanTimeOff(tx.QueryRow(ctx, `UPDATE time_off SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4
-			WHERE id = $1 AND workspace_id = $W AND status = 'pending' RETURNING `+timeOffColumns, id, status, actor.ID, strings.TrimSpace(note)))
+			WHERE id = $1 AND workspace_id = $W AND (status = 'pending' OR ($5 AND status = 'approved' AND decided_by = ''))
+			RETURNING `+timeOffColumns, id, status, actor.ID, strings.TrimSpace(note), approve))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotSubmitted.New("")
 		}

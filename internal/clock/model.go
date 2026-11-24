@@ -155,11 +155,14 @@ type TimeOff struct {
 	TypeID   uuid.UUID `json:"typeId"`
 	TypeName string    `json:"typeName" doc:"Its type's name, as the workspace names it."`
 	// Kind is how it is paid, its type's.
-	Kind          string     `json:"kind" enum:"vacation,sick" doc:"How payroll pays it, as its type says: vacation is PTO."`
-	Day           Date       `json:"day" format:"date"`
-	Hours         float64    `json:"hours"`
-	Note          string     `json:"note"`
-	Status        string     `json:"status" enum:"pending,approved,rejected"`
+	Kind   string  `json:"kind" enum:"vacation,sick" doc:"How payroll pays it, as its type says: vacation is PTO."`
+	Day    Date    `json:"day" format:"date"`
+	Hours  float64 `json:"hours"`
+	Note   string  `json:"note"`
+	Status string  `json:"status" enum:"pending,approved,rejected" doc:"Approved with no decidedBy is recorded where no approval is needed: it counts, and no one has approved it."`
+	// DecidedBy is who approved or rejected it; empty while pending, and
+	// for time off recorded where no approval is needed until someone
+	// approves it anyway.
 	DecidedBy     string     `json:"decidedBy,omitempty"`
 	DecidedByName string     `json:"decidedByName,omitempty"`
 	DecidedAt     *time.Time `json:"decidedAt,omitempty"`

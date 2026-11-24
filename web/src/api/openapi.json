@@ -2174,6 +2174,7 @@
             "type": "string"
           },
           "status": {
+            "description": "Approved with no decidedBy is recorded where no approval is needed: it counts, and no one has approved it.",
             "enum": [
               "pending",
               "approved",
@@ -5482,6 +5483,37 @@
         ]
       }
     },
+    "/api/v1/time-off/unapproved": {
+      "get": {
+        "operationId": "list-unapproved-time-off",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimeOffListBodyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Time off that needed no approval and that the caller may approve anyway",
+        "tags": [
+          "Time off"
+        ]
+      }
+    },
     "/api/v1/time-off/{id}": {
       "delete": {
         "operationId": "cancel-time-off",
@@ -5561,7 +5593,7 @@
             "description": "Error"
           }
         },
-        "summary": "Approve or reject time off",
+        "summary": "Approve or reject time off; time off that needed no approval can be approved",
         "tags": [
           "Time off"
         ]

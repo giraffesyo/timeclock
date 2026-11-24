@@ -123,6 +123,15 @@ export function usePendingTimeOff(enabled = true) {
   });
 }
 
+/** Time off that needed no approval, which the caller may approve anyway. */
+export function useUnapprovedTimeOff(enabled = true) {
+  return useQuery({
+    queryKey: ['time-off', 'unapproved'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/time-off/unapproved')).timeOff ?? [],
+    enabled,
+  });
+}
+
 /** The kinds of time off the workspace offers, in its order, archived ones too. */
 export function useTimeOffTypes() {
   return useQuery({

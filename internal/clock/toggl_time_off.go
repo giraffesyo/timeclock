@@ -285,14 +285,15 @@ func (a *togglAway) write(ctx context.Context, q querier, k awayKey, want float6
 		}
 		return "", nil, audit(ctx, q, actor, "toggl.time_off", k.person, map[string]any{"day": k.day, "kind": k.kind, "hours": 0})
 	}
-	// Changed hours ask for a decision again, as a new request would.
-	status, decidedBy := StatusApproved, actor.ID
+	// Changed hours ask for a decision again, as a new request would; where
+	// none is needed they count at once, approved by no one.
+	status := StatusApproved
 	if a.cfg.ApproveTimeOff {
-		status, decidedBy = StatusPending, ""
+		status = StatusPending
 	}
 	if owned {
-		_, err := q.Exec(ctx, `UPDATE time_off SET hours=$2,note=$3,status=$4,decided_by=$5,decided_at=CASE WHEN $5='' THEN NULL ELSE now() END,decision_note=''
-    WHERE workspace_id=$W AND id=$1`, *timeOffID, want, note, status, decidedBy)
+		_, err := q.Exec(ctx, `UPDATE time_off SET hours=$2,note=$3,status=$4,decided_by='',decided_at=NULL,decision_note=''
+    WHERE workspace_id=$W AND id=$1`, *timeOffID, want, note, status)
 		if err != nil {
 			return "", timeOffID, err
 		}
@@ -312,8 +313,8 @@ func (a *togglAway) write(ctx context.Context, q querier, k awayKey, want float6
 			return "", timeOffID, err
 		}
 		id := newID()
-		_, err = q.Exec(ctx, `INSERT INTO time_off(id,workspace_id,person_id,type_id,kind,day,hours,note,status,decided_by,decided_at)
-    VALUES($1,$W,$2,$3,$4,$5,$6,$7,$8,$9,CASE WHEN $9='' THEN NULL ELSE now() END)`, id, k.person, typ.ID, k.kind, k.day.Time(), want, note, status, decidedBy)
+		_, err = q.Exec(ctx, `INSERT INTO time_off(id,workspace_id,person_id,type_id,kind,day,hours,note,status)
+    VALUES($1,$W,$2,$3,$4,$5,$6,$7,$8)`, id, k.person, typ.ID, k.kind, k.day.Time(), want, note, status)
 		if err != nil {
 			return "", timeOffID, err
 		}

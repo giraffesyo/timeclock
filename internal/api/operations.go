@@ -581,6 +581,21 @@ func registerTimeOff(a huma.API, d Deps) {
 			return out, nil
 		})
 
+	huma.Register(a, op(http.MethodGet, "/time-off/unapproved", "list-unapproved-time-off", "Time off that needed no approval and that the caller may approve anyway", "Time off"),
+		func(ctx context.Context, _ *struct{}) (*timeOffListBody, error) {
+			actor, err := d.actor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			list, err := d.clock(ctx).UnapprovedTimeOff(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			out := &timeOffListBody{}
+			out.Body.TimeOff = orEmpty(list)
+			return out, nil
+		})
+
 	huma.Register(a, op(http.MethodPost, "/time-off", "request-time-off", "Record time off of one type on a run of days", "Time off"),
 		func(ctx context.Context, in *struct{ Body clock.TimeOffInput }) (*timeOffListBody, error) {
 			actor, err := d.actor(ctx)
@@ -607,7 +622,7 @@ func registerTimeOff(a huma.API, d Deps) {
 			return nil, d.clock(ctx).CancelTimeOff(ctx, actor, in.ID)
 		})
 
-	huma.Register(a, op(http.MethodPost, "/time-off/{id}/decision", "decide-time-off", "Approve or reject time off", "Time off"),
+	huma.Register(a, op(http.MethodPost, "/time-off/{id}/decision", "decide-time-off", "Approve or reject time off; time off that needed no approval can be approved", "Time off"),
 		func(ctx context.Context, in *struct {
 			ID   uuid.UUID `path:"id"`
 			Body decision

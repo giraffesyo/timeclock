@@ -785,6 +785,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/time-off/unapproved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Time off that needed no approval and that the caller may approve anyway */
+        get: operations["list-unapproved-time-off"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/time-off/{id}": {
         parameters: {
             query?: never;
@@ -811,7 +828,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve or reject time off */
+        /** Approve or reject time off; time off that needed no approval can be approved */
         post: operations["decide-time-off"];
         delete?: never;
         options?: never;
@@ -1772,7 +1789,10 @@ export interface components {
             locked: boolean;
             note: string;
             personId: string;
-            /** @enum {string} */
+            /**
+             * @description Approved with no decidedBy is recorded where no approval is needed: it counts, and no one has approved it.
+             * @enum {string}
+             */
             status: "pending" | "approved" | "rejected";
             typeId: string;
             /** @description Its type's name, as the workspace names it. */
@@ -3965,6 +3985,35 @@ export interface operations {
         };
     };
     "list-pending-time-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeOffListBodyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-unapproved-time-off": {
         parameters: {
             query?: never;
             header?: never;
