@@ -15,7 +15,8 @@ import { useZone } from '@/lib/zone';
  * A workweek as seven day rulers side by side over the same hours, each with
  * its total. On a narrow screen one day shows at a time, picked from the
  * week's days above it. Holidays and time off sit in a row under the days,
- * and a day away for good is hatched across its hours. Where the host reads
+ * a day's head counts its hours off apart from the time worked, and a day
+ * away for good is hatched across its hours. Where the host reads
  * the caller's Google Calendar, their own week has its events beside the
  * time, to add from.
  */
@@ -113,6 +114,11 @@ export function WeekCalendar({
         {days.map((d) => {
           const date = dayToDate(d.day);
           const isToday = d.day === today;
+          const dayOff = off.on(d.day);
+          // Hours off are counted apart from time worked, in the hue of what they are.
+          const offLength = hoursMinutes(off.hours(d.day) * HOUR);
+          const hasOff = offLength.hours + offLength.minutes > 0;
+          const offHue = cn('wk-off-total', dayOff.every((o) => o.kind === 'holiday') && 'wk-off-total-holiday');
           const head = (
             <>
               <span
@@ -127,13 +133,22 @@ export function WeekCalendar({
                 <span className={cn('text-xs font-medium', isToday ? 'text-primary' : 'text-muted-foreground')}>
                   {format.dateTime(date, { weekday: 'short' })}
                 </span>
-                <span className={cn('tabular text-xs', d.worked === 0 ? 'text-muted-foreground/60' : 'font-medium')}>
-                  {total(d.worked)}
-                </span>
+                {d.worked === 0 && hasOff ? (
+                  <span className={cn('tabular text-xs font-medium', offHue, !wide && 'text-center')}>
+                    {t('off.total', offLength)}
+                  </span>
+                ) : (
+                  <span className={cn('tabular text-xs', d.worked === 0 ? 'text-muted-foreground/60' : 'font-medium')}>
+                    {total(d.worked)}
+                  </span>
+                )}
                 {d.planned > 0 && wide && (
                   <span className="tabular text-[11px] text-muted-foreground">
                     {t('planned', { length: total(d.planned) })}
                   </span>
+                )}
+                {d.worked > 0 && hasOff && wide && (
+                  <span className={cn('tabular text-[11px]', offHue)}>{t('off.extra', offLength)}</span>
                 )}
               </span>
             </>
@@ -143,14 +158,13 @@ export function WeekCalendar({
             length: total(d.worked),
             planned: total(d.planned),
           });
-          const dayOff = off.on(d.day);
+          const offNames = dayOff.map((o) => (o.kind === 'holiday' ? o.name : o.item.typeName)).join(', ');
           const label =
-            dayOff.length > 0
-              ? t('off.dayWithOff', {
-                  day: totals,
-                  off: dayOff.map((o) => (o.kind === 'holiday' ? o.name : o.item.typeName)).join(', '),
-                })
-              : totals;
+            dayOff.length === 0
+              ? totals
+              : hasOff
+                ? t('off.dayWithHours', { day: totals, length: t('off.total', offLength), off: offNames })
+                : t('off.dayWithOff', { day: totals, off: offNames });
           return wide ? (
             // biome-ignore lint/a11y/useSemanticElements: the head of a column of the calendar, not a table's
             <div
@@ -178,8 +192,8 @@ export function WeekCalendar({
                 aria-hidden
                 className={cn(
                   'wk-off-mark',
-                  off.on(d.day).length > 0 && 'wk-off-mark-on',
-                  off.on(d.day).every((o) => o.kind === 'holiday') && 'wk-off-mark-holiday',
+                  dayOff.length > 0 && 'wk-off-mark-on',
+                  dayOff.every((o) => o.kind === 'holiday') && 'wk-off-mark-holiday',
                 )}
               />
             </button>
